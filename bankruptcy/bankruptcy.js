@@ -196,7 +196,7 @@ function customiseTemplate(template, source) {
 }
 
 async function getTemplate() {
-    let source = "djr-tst7"
+    let source = "djr-uat1"
     let parser = new DOMParser();
     let res = await fetchResource(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx`)
     let resText = await res.text();

@@ -74,6 +74,10 @@ async function createPageElements(data, incrementor, vDocument) {
       content.append(field);
     }
 
+    if (element.attributes && element.attributes.id && element.attributes.id === "tablecontainer") {
+      content.append(field);
+    }
+
     if (element.dataSource) {
       properties.allObligations = await buildTable(element, field);
     }
@@ -176,7 +180,7 @@ var onCreate = async function (message) {
   // Ensure it is run only once, as we will try to message twice
   chrome.runtime.onMessage.removeListener(onCreate);
   t = new Date();
-  let source = `djr-tst7`;
+  let source = `djr-uat1`;
 
   bankruptcyDate = {
     name: "Bankruptcy Date",
@@ -229,8 +233,8 @@ var onCreate = async function (message) {
       }
     ],
     elements: [
-      { tag: "div", label: "Obligations:", attributes: { id: "tablecontainer", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
-      { tag: "table", selectCriteria: "onHold", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
+      { tag: "div", attributes: { id: "tablecontainer", style: "grid-column-start: 1; grid-column-end: 5; margin:auto; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
+      { tag: "table", selectCriteria: "BRTHOLD", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
     ],
     progressButtons: [{
       src: "SubmitAndNextStep.png",
@@ -464,8 +468,8 @@ var onCreate = async function (message) {
       }
     ],
     elements: [
-      { tag: "div", label: "Obligations:", attributes: { id: "tablecontainer", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
-      { tag: "table", selectCriteria: "onHold", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
+      { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
+      { tag: "table", selectCriteria: "Provable", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
       { tag: "input", label: "Hold Reason:", attributes: { value: "BANKRUPT:Notification of debtor bankruptcy received", id: "txtHoldReason", name: "txtHoldReason", type: "text", class: "textField", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
       { tag: "input", label: "End Date:", attributes: { id: "txtIneffectiveDate", name: "txtIneffectiveDate", type: "text", class: "textField", style: "grid-column-start: 2; grid-column-end: 5; align-self: start; font-size: 8pt; width: 80%" } },
     ],
@@ -621,8 +625,8 @@ var onCreate = async function (message) {
       {
         urlParams: function () {
           this.url = `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
-          }
-        }, {
+        }
+      }, {
         urlParams: function () {
           this.url = `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
           return params = {
@@ -715,7 +719,7 @@ async function getDebtorObligations(source) {
   //Get stateless page
   let vDocument = await fetchResource(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`);
   let parsedDocument = await parsePage(vDocument)
-  let formData = getFormData(parsedDocument)
+  let formData = await getFormData(parsedDocument)
 
   //Get page with all obligations if more than 50
   let rowCount = parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span").textContent.trim().split(" ");
@@ -778,7 +782,7 @@ async function buildTable(element, field) {
     "columnDefs": [
       {
         "visible": false,
-        "targets": [2, 5, 7, 8, 10, 11, 12, 13, 14]
+        "targets": [2, 5, 8, 10, 11, 12, 13, 14]
       },
       {
         "targets": [0],
@@ -807,13 +811,14 @@ async function buildTable(element, field) {
   properties.allObligations = dataTable;
   console.log(properties.allObligations);
   dataTable.rows().every(function (rowIdx, tableLoop, rowLoop) {
-    var data = this.data();
-
+    let data = this.data();
+    let types = ["1A", "1B", "1C", "2A"];
+    let statuses = ["WARRNT", "CHLGLOG", "NFDP"];
+    let d = properties.dateOfBankruptcy.split("-").reverse();
+    let bd = new Date(+d[2], d[1] - 1, +d[0]);
+    d = data.OffenceDate.split("/");
+    let td = new Date(+d[2], d[1] - 1, +d[0]);
     let balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
-    let types = ["1A", "1B", "1C", "2A"]
-    let status = ["WARRNT", "CHLGLOG", "NFDP"];
-
-
 
     if (element.selectCriteria === "WarrantProvable") {
       /*Selects any obligations that are provable and
@@ -831,27 +836,23 @@ async function buildTable(element, field) {
 
     if (element.selectCriteria === "Provable") {
       //Selects any obligations that are provable
-      let d = properties.dateOfBankruptcy.split("-").reverse();
-      let bd = new Date(+d[2], d[1] - 1, +d[0]);
-
-      d = data.OffenceDate.split("/");
-      let td = new Date(+d[2], d[1] - 1, +d[0]);
-      provableTypes = ["1A", "1B", "1C", "2A"]
-      for (type of provableTypes) {
-        if (data[3] === type) {
-          if (data[4] < properties.dateOfBankruptcy) {
-            this.select();
-          }
-        }
-      }
+      (balance > 0) && (td < bd) &&
+        (types.some(type => data.InputType === type)) &&
+        (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
+        (this.select());
     }
 
+    // Selects provable PA holds and notification of bankruptcy holds
+    if (element.selectCriteria === "BRTHOLD") {
+      (balance > 0) && (td < bd) &&
+        (types.some(type => data.InputType === type)) &&
+        (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
+        (data.HoldCodeEndDate.trim() === "PAYARNGMNT") &&
+        (this.select());
 
-    if (element.selectCriteria === "onHold") {
-      //Selects any obligations on Hold
-      if (data.HoldCodeEndDate.trim() !== "") {
-        this.select();
-      }
+      (data.HoldCodeEndDate.trim() === "BANKRUPT") &&
+        (this.select());
+
     }
 
     if (element.selectCriteria === "all") {
