@@ -1,6 +1,5 @@
 const properties = {}
 
-properties.dateOfBankruptcy = "2019-03-01";
 properties.allObligations;
 properties.debtorId = 51011216;
 properties.debtorName = "James Alexander";
@@ -410,7 +409,7 @@ var onCreate = async function (message) {
       }
     ],
     elements: [
-      { tag: "div", label: "Obligations:", attributes: { id: "tablecontainer", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
+      { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
       { tag: "table", "selectCriteria": "WarrantProvable", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
       { tag: "input", label: "Officer Id:", attributes: { id: "officerIdField", type: "text", name: "debtorProceduralActionCtrl$hdnOfficerId", class: "field", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
       { tag: "input", label: "Officer Name:", attributes: { id: "officerNameField", type: "text", name: "debtorProceduralActionCtrl$txtOfficerNameForProcedural", class: "field", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
@@ -470,7 +469,7 @@ var onCreate = async function (message) {
     elements: [
       { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
       { tag: "table", selectCriteria: "Provable", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
-      { tag: "input", label: "Hold Reason:", attributes: { value: "BANKRUPT:Notification of debtor bankruptcy received", id: "txtHoldReason", name: "txtHoldReason", type: "text", class: "textField", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
+      { tag: "input", label: "Hold Reason:", attributes: { value: "PROVABLE:Provable – Subject to bankruptcy", id: "txtHoldReason", name: "txtHoldReason", type: "text", class: "textField", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
       { tag: "input", label: "End Date:", attributes: { id: "txtIneffectiveDate", name: "txtIneffectiveDate", type: "text", class: "textField", style: "grid-column-start: 2; grid-column-end: 5; align-self: start; font-size: 8pt; width: 80%" } },
     ],
     progressButtons: [{
@@ -748,7 +747,7 @@ async function buildTable(element, field) {
     return newRow;
   });
 
-  $.fn.dataTable.moment( 'DD/MM/YYYY');
+  $.fn.dataTable.moment('DD/MM/YYYY');
 
   document.getElementById(element.parent).append(field);
 
@@ -802,40 +801,39 @@ async function buildTable(element, field) {
   });
   properties.allObligations = dataTable;
   console.log(properties.allObligations);
+
+  if (element.selectCriteria === "WarrantProvable") {
+    dataTable.columns(7).search("WARRNT").draw();
+  }
+
   dataTable.rows().every(function (rowIdx, tableLoop, rowLoop) {
     let data = this.data();
     let types = ["1A", "1B", "1C", "2A"];
     let statuses = ["WARRNT", "CHLGLOG", "NFDP"];
-    let d = properties.dateOfBankruptcy.split("-").reverse();
-    let bd = new Date(+d[2], d[1] - 1, +d[0]);
-    d = data.OffenceDate.split("/");
-    let td = new Date(+d[2], d[1] - 1, +d[0]);
+    let bd = moment(properties.dateOfBankruptcy, "YYYY-MM-DD")
+    let td = moment(data.OffenceDate, "DD/MM/YYYY")
     let balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
 
     if (element.selectCriteria === "WarrantProvable") {
       /*Selects any obligations that are provable and
        and are at warrant stage. */
-      let d = properties.dateOfBankruptcy.split("-").reverse();
-      let bd = new Date(+d[2], d[1] - 1, +d[0]);
 
-      d = data.OffenceDate.split("/");
-      let td = new Date(+d[2], d[1] - 1, +d[0]);
-      (balance > 0) &&
+      (balance > 0) && (bd.isAfter(td)) &&
         (types.some(type => data.InputType === type)) &&
         (data.NoticeStatusPreviousStatus === "WARRNT") &&
-        (this.select())
+        (this.select());
     }
 
     if (element.selectCriteria === "Provable") {
       //Selects any obligations that are provable
-      (balance > 0) && (td < bd) &&
+      (balance > 0) && (bd.isAfter(td)) &&
         (types.some(type => data.InputType === type)) &&
         (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
         (this.select());
     }
 
-    // Selects provable PA holds and notification of bankruptcy holds
     if (element.selectCriteria === "BRTHOLD") {
+      // Selects provable PA holds and notification of bankruptcy holds
       (balance > 0) && (td < bd) &&
         (types.some(type => data.InputType === type)) &&
         (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
