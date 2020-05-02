@@ -735,16 +735,6 @@ async function getDebtorObligations(source) {
   return (parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData")))
 }
 
-function convertArraytoFormData(rows) {
-  let params = {}
-  let arr = []
-  rows.every(function (rowIdx, tableLoop, rowLoop) {
-    var data = this.data()[1];
-    arr.push(data);
-  });
-  return params
-}
-
 async function buildTable(element, field) {
   let tableData = await element.dataSource()
 
@@ -757,6 +747,8 @@ async function buildTable(element, field) {
     });
     return newRow;
   });
+
+  $.fn.dataTable.moment( 'DD/MM/YYYY');
 
   document.getElementById(element.parent).append(field);
 
