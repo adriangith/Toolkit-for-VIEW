@@ -367,16 +367,16 @@ var onCreate = async function (message) {
               params.ctl00$mainContentPlaceHolder$createTaskCheck = "";
               params.ctl00$mainContentPlaceHolder$taskIdText = properties.taskId;
             }
-              ctl00$mainContentPlaceHolder$lstApplicationModule = "Debtors";
-              params.ctl00$mainContentPlaceHolder$taskTypeText = "FVBANKRUPT";
-              params.ctl00$mainContentPlaceHolder$taskTypeIdHidden = 465;
-              params.ctl00$mainContentPlaceHolder$linkReferenceText = message.data.debtorid;
-              params.ctl00$mainContentPlaceHolder$sourceText = "BSPFIN:Business Service Provider - Financial";
-              params.ctl00$mainContentPlaceHolder$startDateTextBox = t.toJSON().slice(0, 10).split('-').reverse().join('/');
-              params.ctl00$mainContentPlaceHolder$reasonText = 'ENFRVREQ:"Request for Enforcement Review to be decided"';
-              params.ctl00$mainContentPlaceHolder$startTimeTextBox = t.getHours() + ":" + t.getMinutes();
-              params.ctl00$mainContentPlaceHolder$originText = "DEBTOR:Debtor"
-            
+            ctl00$mainContentPlaceHolder$lstApplicationModule = "Debtors";
+            params.ctl00$mainContentPlaceHolder$taskTypeText = "FVBANKRUPT";
+            params.ctl00$mainContentPlaceHolder$taskTypeIdHidden = 465;
+            params.ctl00$mainContentPlaceHolder$linkReferenceText = message.data.debtorid;
+            params.ctl00$mainContentPlaceHolder$sourceText = "BSPFIN:Business Service Provider - Financial";
+            params.ctl00$mainContentPlaceHolder$startDateTextBox = t.toJSON().slice(0, 10).split('-').reverse().join('/');
+            params.ctl00$mainContentPlaceHolder$reasonText = 'ENFRVREQ:"Request for Enforcement Review to be decided"';
+            params.ctl00$mainContentPlaceHolder$startTimeTextBox = t.getHours() + ":" + t.getMinutes();
+            params.ctl00$mainContentPlaceHolder$originText = "DEBTOR:Debtor"
+
             return params
           }
         }, {
@@ -619,12 +619,16 @@ var onCreate = async function (message) {
     name: "Application",
     submit: [
       {
-        url: `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`,
-      }, {
-        url: `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`,
-        urlParams: {
-          "ctl00$mainContentPlaceHolder$editButton.x": 0,
-          "ctl00$mainContentPlaceHolder$editButton.y": 0
+        urlParams: function () {
+          this.url = `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
+          }
+        }, {
+        urlParams: function () {
+          this.url = `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
+          return params = {
+            "ctl00$mainContentPlaceHolder$editButton.x": 0,
+            "ctl00$mainContentPlaceHolder$editButton.y": 0
+          }
         }
       }],
     elements: [
