@@ -63,7 +63,7 @@ async function createPageElements(data, incrementor, vDocument) {
   content.innerHTML = "";
   stage.elements.map(async element => {
     let field = document.createElement(element.tag);
-    element.text && (field.textContent = element.text);
+    element.text && (field.innerHTML = element.text);
 
     if (element.label) {
       let label = document.createElement("span");
@@ -267,6 +267,10 @@ var onCreate = async function (message) {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
         repeat: () => {
           let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
+          if (!properties.holdsRemoved)
+            properties.holdsRemoved = previousObligations;
+          else
+            properties.holdsRemoved = properties.holdsRemoved + "," + previousObligations;
           return [{ "txtNoticeCheck": previousObligations }]
         },
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
@@ -429,7 +433,7 @@ var onCreate = async function (message) {
             data = this.data();
             warrantObligations.push(data.NoticeNumber);
           })
-
+          properties.proceduralHoldsPlaced = warrantObligations.join(",");
           let tableRows = vDocument.querySelector('#WarrantGrid > tbody').children;
 
           Array.from(tableRows).forEach((tr, i) => {
@@ -506,6 +510,10 @@ var onCreate = async function (message) {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3`,
         repeat: () => {
           let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
+          if (!properties.holdsPlaced)
+            properties.holdsPlaced = previousObligations;
+          else
+            properties.holdsPlaced = properties.holdsPlaced + "," + previousObligations;
           return [{ "txtNoticeCheck": previousObligations }]
         },
         next: true,
@@ -584,7 +592,26 @@ var onCreate = async function (message) {
     name: "Debtor Notes",
     submit: [],
     elements: [
-      { tag: "textarea", label: "Note:", attributes: { name: "PESNotesCtrlMain$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" } },
+      {
+        tag: "textarea",
+        label: "Note:", 
+        prefill: (parsedDocument, field) => {
+          field.value = `Bankruptcy investigated and processed.
+          Copy of bankruptcy letter and schedule uploaded to task ${properties.taskId}.
+          ${properties.holdsRemoved ? `
+          Holds removed on obligations:
+          ${properties.holdsRemoved.replace(/,/g, '\n')}
+          ` : ''}${properties.holdsPlaced ? `
+          Provable obligations subject to bankruptcy placed on hold:
+          ${properties.holdsPlaced.replace(/,/g, '\n')}
+          ` : ''}${properties.proceduralHoldsPlaced ? `
+          Procedural holds placed on provable warrant obligations:
+          ${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
+          
+          ` : ''}`
+        }, 
+        attributes: { name: "PESNotesCtrlMain$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" }
+      },
     ],
     progressButtons: [{
       src: "SubmitAndNextStep.png",
@@ -839,8 +866,8 @@ async function buildTable(element, field) {
 
     if (element.selectCriteria === "all") {
       //Selects all unpaid obligations
-      (balance > 0) && 
-      this.select();
+      (balance > 0) &&
+        this.select();
 
     }
 
