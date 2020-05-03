@@ -249,13 +249,11 @@ var onCreate = async function (message) {
             let all = properties.allObligations.rows({ selected: true }).data().toArray()
             let previousObligations = all.map(row => row.NoticeNumber).slice(0, rowLoop).join(",");
             params["txtNoticeNo"] = data.NoticeNumber;
-            console.log(data.NoticeNumber);
             if (rowLoop >= 1) {
               params["txtNoticeCheck"] = previousObligations
             }
             paramArray.push(params);
           });
-          console.log(paramArray);
           return paramArray;
         },
         urlParams: (vDocument, dynamicParams) => {
@@ -269,7 +267,6 @@ var onCreate = async function (message) {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
         repeat: () => {
           let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
-          console.log(previousObligations);
           return [{ "txtNoticeCheck": previousObligations }]
         },
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
@@ -297,6 +294,12 @@ var onCreate = async function (message) {
       { tag: "select", label: "Description:", attributes: { id: "descriptionChooser", style: "grid-column-start: 2; grid-column-end: 5; align-self: start; width: 80%" } },
       { tag: "option", parent: "descriptionChooser", attributes: { disabled: "true", selected: "true" }, text: "Type a description or select description from list" },
       { tag: "option", parent: "descriptionChooser", text: "Notification of Bankruptcy (Bankruptcy Act 1966)" },
+      { tag: "option", parent: "descriptionChooser", text: "Notification of Bankruptcy - Debtors Petition" },
+      { tag: "option", parent: "descriptionChooser", text: "Letter from Trustee" },
+      { tag: "option", parent: "descriptionChooser", text: "Certificate of Appointment of Trustee" },
+      { tag: "option", parent: "descriptionChooser", text: "Report to Creditors" },
+      { tag: "option", parent: "descriptionChooser", text: "Further Report to Creditors" },
+      { tag: "option", parent: "descriptionChooser", text: "Proposal, Terminate Part IX Debt Agreement Wthdrwl" },
       { tag: "textarea", label: "Edit Description: <br />(optional, max 50 characters)", attributes: { id: "editDescription", maxlength: 50, name: 'ctl00$mainContentPlaceHolder$documentDescriptionText', style: "grid-column-start: 2; grid-column-end: 5; width: 80%" } },
     ],
     progressButtons: [
@@ -400,10 +403,8 @@ var onCreate = async function (message) {
     name: "Procedural Holds",
     submit: [
       {
-        repeat: 0,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`
       }, {
-        repeat: 0,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
         urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
       }
@@ -492,7 +493,6 @@ var onCreate = async function (message) {
             }
             paramArray.push(params);
           });
-          console.log(paramArray);
           return paramArray;
         },
         urlParams: (vDocument, dynamicParams) => {
@@ -506,7 +506,6 @@ var onCreate = async function (message) {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3`,
         repeat: () => {
           let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
-          console.log(previousObligations);
           return [{ "txtNoticeCheck": previousObligations }]
         },
         next: true,
@@ -553,7 +552,6 @@ var onCreate = async function (message) {
             }
             paramArray.push(params);
           });
-          console.log(paramArray);
           return paramArray;
         },
         urlParams: (vDocument, dynamicParams) => {
@@ -567,7 +565,6 @@ var onCreate = async function (message) {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N&Menu=3`,
         repeat: () => {
           let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
-          console.log(previousObligations);
           return [{ "txtNoticeCheck": previousObligations }]
         },
         next: true,
@@ -585,20 +582,7 @@ var onCreate = async function (message) {
 
   debtorNote = {
     name: "Debtor Notes",
-    submit: [
-      {
-        repeat: 0,
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
-      },
-      {
-        repeat: 0,
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
-        urlParams: {
-          "PESNotesCtrlMain$btnAddNote.x": 0,
-          "PESNotesCtrlMain$btnAddNote.y": 0
-        }
-      }
-    ],
+    submit: [],
     elements: [
       { tag: "textarea", label: "Note:", attributes: { name: "PESNotesCtrlMain$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" } },
     ],
@@ -607,6 +591,15 @@ var onCreate = async function (message) {
       id: "SubmitAndNextStep",
       name: "Submit & Next Step",
       submit: [{
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
+      },
+      {
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
+        urlParams: {
+          "PESNotesCtrlMain$btnAddNote.x": 0,
+          "PESNotesCtrlMain$btnAddNote.y": 0
+        }
+      }, {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
         next: true,
         urlParams: {
@@ -677,7 +670,7 @@ var onCreate = async function (message) {
       }
     ],
     elements: [
-      { tag: "div", label: "Obligations:", attributes: { id: "tablecontainer", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
+      { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
       { tag: "table", parent: "tablecontainer", "selectCriteria": "all", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
       {
         tag: "select", label: "Address:", prefill: (parsedDocument, field) => {
@@ -817,10 +810,9 @@ async function buildTable(element, field) {
     if (element.selectCriteria === "WarrantProvable") {
       /*Selects any obligations that are provable and
        and are at warrant stage. */
-
       (balance > 0) && (bd.isAfter(td)) &&
         (types.some(type => data.InputType === type)) &&
-        (data.NoticeStatusPreviousStatus === "WARRNT") &&
+        (data.NoticeStatusPreviousStatus.includes("WARRNT")) &&
         (this.select());
     }
 
@@ -828,7 +820,7 @@ async function buildTable(element, field) {
       //Selects any obligations that are provable
       (balance > 0) && (bd.isAfter(td)) &&
         (types.some(type => data.InputType === type)) &&
-        (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
+        (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
         (this.select());
     }
 
@@ -836,17 +828,18 @@ async function buildTable(element, field) {
       // Selects provable PA holds and notification of bankruptcy holds
       (balance > 0) && (td < bd) &&
         (types.some(type => data.InputType === type)) &&
-        (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
-        (data.HoldCodeEndDate.trim() === "PAYARNGMNT") &&
+        (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
+        (data.HoldCodeEndDate.trim().includes("PAYARNGMNT")) &&
         (this.select());
 
-      (data.HoldCodeEndDate.trim() === "BANKRUPT") &&
+      (data.HoldCodeEndDate.trim().includes("BANKRUPT")) &&
         (this.select());
 
     }
 
     if (element.selectCriteria === "all") {
-      //Selects all obligations
+      //Selects all unpaid obligations
+      (balance > 0) && 
       this.select();
 
     }
