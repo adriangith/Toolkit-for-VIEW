@@ -1,5 +1,5 @@
 function postData(url, data) {
-	chrome.windows.create({"url": chrome.extension.getURL("wizard/wizard.html"), "type": "popup", "width":847, "height":600}, function(window) {
+	chrome.windows.create({"url": chrome.extension.getURL("wizard/wizard.html"), "type": "popup", "width":900, "height":650}, function(window) {
 		var handler = function(tabId, changeInfo) {
 			console.log(tabId);
 			if(window.tabs[0].id === tabId && changeInfo.status === "complete"){

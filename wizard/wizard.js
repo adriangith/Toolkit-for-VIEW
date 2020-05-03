@@ -1,4 +1,28 @@
+import {Spinner} from '../js/External/spin.js';
+
+var opts = {
+  lines: 13, // The number of lines to draw
+  length: 38, // The length of each line
+  width: 17, // The line thickness
+  radius: 45, // The radius of the inner circle
+  scale: 1, // Scales overall size of the spinner
+  corners: 1, // Corner roundness (0..1)
+  color: '#43088e', // CSS color or array of colors
+  fadeColor: 'transparent', // CSS color or array of colors
+  speed: 1, // Rounds per second
+  rotate: 0, // The rotation offset
+  animation: 'spinner-line-fade-default', // The CSS animation name for the lines
+  direction: 1, // 1: clockwise, -1: counterclockwise
+  zIndex: 2e9, // The z-index (defaults to 2000000000)
+  className: 'spinner', // The CSS class to assign to the spinner
+  top: '50%', // Top position relative to parent
+  left: '50%', // Left position relative to parent
+  shadow: '0 0 1px transparent', // Box-shadow for the lines
+  position: 'absolute' // Element positioning
+};
+
 const properties = {}
+const shade = document.getElementById('shade');
 
 properties.allObligations;
 properties.debtorId = 51011216;
@@ -61,7 +85,7 @@ async function createPageElements(data, incrementor, vDocument) {
   let stage = data[incrementor]
   const content = document.getElementById("content");
   content.innerHTML = "";
-  stage.elements.map(async element => {
+  let elementArray = stage.elements.map(async element => {
     let field = document.createElement(element.tag);
     element.text && (field.innerHTML = element.text);
 
@@ -90,12 +114,13 @@ async function createPageElements(data, incrementor, vDocument) {
       document.getElementById("descriptionChooser").addEventListener("click", event => updateDescription(event.target));
     }
   })
+  Promise.all(elementArray).then(function() {shade.style.display = "none";})
 }
 
 async function buildPage(data, incrementor) {
   let stage = data[incrementor] // Current page in the wizard
   document.getElementById(stage.name).click();
-  vDocument = await VIEWsubmit(data, incrementor, undefined, stage);
+  let vDocument = await VIEWsubmit(data, incrementor, undefined, stage);
   createPageElements(data, incrementor, vDocument);
   createProgressButtons(data, incrementor, vDocument);
 }
@@ -112,13 +137,12 @@ async function createProgressButtons(data, incrementor, parsedDocument) {
     buttonBar.append(button);
     button.addEventListener("mouseup", () => VIEWsubmit(data, incrementor, parsedDocument, buttonData))
   });
-
-
 }
 
 async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
+  shade.style.display = "block";
   let formData = {}
-  wizardFormData = await getFormData(document);
+  let wizardFormData = await getFormData(document);
   if (parsedDocument !== undefined) {
     formData = await getFormData(parsedDocument);
   }
@@ -149,6 +173,7 @@ async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
 }
 
 async function startWizard(data) {
+  let spinner = new Spinner(opts).spin(shade);
   const navDots = document.getElementById('navDots')
 
   data.map((stage, i) => {
@@ -178,10 +203,10 @@ async function startWizard(data) {
 var onCreate = async function (message) {
   // Ensure it is run only once, as we will try to message twice
   chrome.runtime.onMessage.removeListener(onCreate);
-  t = new Date();
+  let t = new Date();
   let source = `djr-uat1`;
 
-  bankruptcyDate = {
+  let bankruptcyDate = {
     name: "Bankruptcy Date",
     submit: [
       {
@@ -211,7 +236,7 @@ var onCreate = async function (message) {
           url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
           next: true,
           urlParams: (vDocument) => {
-            params = {};
+            const params = {};
             properties.dateOfBankruptcy = document.getElementById("dateChooser").value;
             params["DebtorIndividualCtrl$dateOfBankruptcyTextbox"] = properties.dateOfBankruptcy.split("-").reverse().join("/");
             params["DebtorDetailsCtrl$DebtorIdSearch"] = message.data.debtorid;
@@ -224,7 +249,7 @@ var onCreate = async function (message) {
     ]
   }
 
-  removeHolds = {
+ let removeHolds = {
     name: "Remove Holds",
     submit: [
       {
@@ -257,7 +282,7 @@ var onCreate = async function (message) {
           return paramArray;
         },
         urlParams: (vDocument, dynamicParams) => {
-          params = {}
+          const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnNoticeAdd.x"] = 0;
           params["btnNoticeAdd.y"] = 0;
@@ -276,7 +301,7 @@ var onCreate = async function (message) {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
         next: true,
         urlParams: (vDocument, dynamicParams) => {
-          params = {}
+          const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnBulkUpdate.x"] = 0;
           params["btnBulkUpdate.y"] = 0;
@@ -286,7 +311,7 @@ var onCreate = async function (message) {
     }]
   }
 
-  uploadDocuments = {
+ let uploadDocuments = {
     name: "Upload Documents",
     submit: [
       {
@@ -315,9 +340,8 @@ var onCreate = async function (message) {
           url: `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
           format: "FormData",
           urlParams: async () => {
-
             let file = await toBase64(document.getElementById("fileChooser").files.item(0))
-            params = {
+            const params = {
               ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
               ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT",
               ctl00$mainContentPlaceHolder$taskTypeIdHidden: 465,
@@ -335,7 +359,6 @@ var onCreate = async function (message) {
               }
             }
             if (properties.taskId) {
-              console.log(properties.taskId);
               params.ctl00$mainContentPlaceHolder$createTaskCheck = "";
               params.ctl00$mainContentPlaceHolder$taskIdText = properties.taskId;
             }
@@ -364,7 +387,7 @@ var onCreate = async function (message) {
           format: "FormData",
           urlParams: async function () {
             let file = await toBase64(document.getElementById("fileChooser").files.item(0))
-            params = {
+            const params = {
               "ctl00$mainContentPlaceHolder$updateButton.x": 0,
               "ctl00$mainContentPlaceHolder$updateButton.y": 0,
               "ctl01$mainContentPlaceHolder$documentImportFileUpload": {
@@ -403,7 +426,7 @@ var onCreate = async function (message) {
     ]
   }
 
-  proceduralHolds = {
+let proceduralHolds = {
     name: "Procedural Holds",
     submit: [
       {
@@ -427,7 +450,7 @@ var onCreate = async function (message) {
         repeat: 0,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
         urlParams: (vDocument, dynamicParams) => {
-          let params = {}
+          const params = {}
           let warrantObligations = []
           properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
             data = this.data();
@@ -464,7 +487,7 @@ var onCreate = async function (message) {
     }]
   }
 
-  placeHolds = {
+let placeHolds = {
     name: "Place Holds",
     submit: [
       {
@@ -491,7 +514,6 @@ var onCreate = async function (message) {
             let all = properties.allObligations.rows({ selected: true }).data().toArray()
             let previousObligations = all.map(row => row.NoticeNumber).slice(0, rowLoop).join(",");
             params["txtNoticeNo"] = data.NoticeNumber;
-            console.log(data.NoticeNumber);
             if (rowLoop >= 1) {
               params["txtNoticeCheck"] = previousObligations
             }
@@ -500,7 +522,7 @@ var onCreate = async function (message) {
           return paramArray;
         },
         urlParams: (vDocument, dynamicParams) => {
-          params = {}
+          const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnNoticeAdd.x"] = 0;
           params["btnNoticeAdd.y"] = 0;
@@ -518,7 +540,7 @@ var onCreate = async function (message) {
         },
         next: true,
         urlParams: (vDocument, dynamicParams) => {
-          params = {}
+          const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnBulkUpdate.x"] = 0;
           params["btnBulkUpdate.y"] = 0;
@@ -528,7 +550,7 @@ var onCreate = async function (message) {
     }]
   }
 
-  noticeNotes = {
+let noticeNotes = {
     name: "Notice Notes",
     submit: [
       {
@@ -563,7 +585,7 @@ var onCreate = async function (message) {
           return paramArray;
         },
         urlParams: (vDocument, dynamicParams) => {
-          params = {}
+          const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnNoticeAdd.x"] = 0;
           params["btnNoticeAdd.y"] = 0;
@@ -578,7 +600,7 @@ var onCreate = async function (message) {
         next: true,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N&Menu=3`,
         urlParams: (vDocument, dynamicParams) => {
-          params = {}
+          const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnBulkUpdate.x"] = 0;
           params["btnBulkUpdate.y"] = 0;
@@ -588,7 +610,7 @@ var onCreate = async function (message) {
     }]
   }
 
-  debtorNote = {
+let debtorNote = {
     name: "Debtor Notes",
     submit: [],
     elements: [
@@ -638,7 +660,7 @@ var onCreate = async function (message) {
   }
 
 
-  application = {
+let  application = {
     name: "Application",
     submit: [
       {
@@ -676,7 +698,7 @@ var onCreate = async function (message) {
           url: `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`,
           next: true,
           urlParams: (parsedDocument) => {
-            params = {
+            const params = {
               "ctl00$mainContentPlaceHolder$updateButton.x": 0,
               "ctl00$mainContentPlaceHolder$updateButton.y": 0,
               "ctl00$mainContentPlaceHolder$descriptionText": `Status: ${document.getElementById("statusChooser").value}, AFSA Reference: ${document.getElementById("afsaReference").value}`
@@ -688,7 +710,7 @@ var onCreate = async function (message) {
     ]
   }
 
-  letter = {
+let letter = {
     name: "Letter",
     submit: [
       {
@@ -759,7 +781,7 @@ async function buildTable(element, field) {
 
 
   tableData = tableData.map(function (row) {
-    newRow = {};
+    const newRow = {};
     newRow.checkbox = "";
     Object.keys(row).forEach(function (key) {
       newRow[key.replace(/\.|\-|\?|[(]|\//g, "").replace(/\)/g, "").replace(/ /g, "")] = row[key]
@@ -771,7 +793,7 @@ async function buildTable(element, field) {
 
   document.getElementById(element.parent).append(field);
 
-  dataTable = $(field).DataTable({
+  let dataTable = $(field).DataTable({
     "data": tableData,
     "columns": [
       { "data": "checkbox" },
@@ -820,7 +842,6 @@ async function buildTable(element, field) {
     },
   });
   properties.allObligations = dataTable;
-  console.log(properties.allObligations);
 
   if (element.selectCriteria === "WarrantProvable") {
     dataTable.columns(7).search("WARRNT").draw();

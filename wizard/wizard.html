@@ -8,8 +8,14 @@
 </head>
 
 <body>
-  
-  
+  <div id="shade" style="
+    position: fixed;
+    display:none;
+    height: 100%;
+    width: 100%;
+    background: whitesmoke;
+    z-index: 101;
+  "></div>
   <div id="container">
     <div id="titlebar"><span class="civdpurple">Bankruptcy Wizard</span></div>
     <div id="centre">
@@ -36,7 +42,8 @@
   <script src="../js/External/FileSaver.js"></script>
   <script src="../js/External/angular-parse-browser.js"></script>
   <script src="../js/External/docxtemplater.js"></script>
-  <script src="wizard.js"></script>
+  <script type="module" src="../js/External/spin.js"></script>
+  <script type="module" src="wizard.js"></script>
 </body>
 
 </html>

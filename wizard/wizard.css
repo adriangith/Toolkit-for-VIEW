@@ -1,3 +1,13 @@
+  @-webkit-keyframes spinner-line-fade-default {
+	0%, 100% {
+	  opacity: 0.22; /* minimum opacity */
+	}
+	1% {
+	  opacity: 1;
+	}
+  }
+  
+
 table.dataTable tbody td.select-checkbox,
 table.dataTable tbody th.select-checkbox {
   position: relative;
