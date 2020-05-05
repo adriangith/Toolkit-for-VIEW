@@ -1,4 +1,4 @@
-import {Spinner} from '../js/External/spin.js';
+import { Spinner } from '../js/External/spin.js';
 
 var opts = {
   lines: 13, // The number of lines to draw
@@ -114,7 +114,7 @@ async function createPageElements(data, incrementor, vDocument) {
       document.getElementById("descriptionChooser").addEventListener("click", event => updateDescription(event.target));
     }
   })
-  Promise.all(elementArray).then(function() {shade.style.display = "none";})
+  Promise.all(elementArray).then(function () { shade.style.display = "none"; })
 }
 
 async function buildPage(data, incrementor) {
@@ -133,13 +133,14 @@ async function createProgressButtons(data, incrementor, parsedDocument) {
     const button = document.createElement("img")
     button.src = chrome.runtime.getURL("Images/" + buttonData.src);
     button.id = buttonData.id;
-    button.style = "Cursor:Hand; float: right;";
+    button.style = "Cursor:Hand; float: right; padding-right: 6px";
     buttonBar.append(button);
     button.addEventListener("mouseup", () => VIEWsubmit(data, incrementor, parsedDocument, buttonData))
   });
 }
 
 async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
+  console.log("VIEWsubmit", parsedDocument);
   shade.style.display = "block";
   let formData = {}
   let wizardFormData = await getFormData(document);
@@ -152,9 +153,9 @@ async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
     let repeatCount = oRepeat
     if (Array.isArray(oRepeat) === true) { repeatCount = oRepeat.length - 1 }
     for (let i = 0; i <= repeatCount; i++) {
+      if (submit.optional && submit.optional() === false) continue;
       let urlParams = typeof submit.urlParams === "function" && submit.urlParams(parsedDocument, oRepeat[i]) || submit.urlParams;
       urlParams = await urlParams;
-      console.log(urlParams);
       if (urlParams) {
         formData = { ...formData, ...urlParams, ...wizardFormData }
       }
@@ -249,11 +250,19 @@ var onCreate = async function (message) {
     ]
   }
 
- let removeHolds = {
+  let removeHolds = {
     name: "Remove Holds",
     submit: [
       {
+        optional: () => { return !properties.dateOfBankruptcy },
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+        urlParams: {}
+      },
+      {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
+        urlParams: (parsedDocument) => {
+          (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+        }
       }
     ],
     elements: [
@@ -311,7 +320,7 @@ var onCreate = async function (message) {
     }]
   }
 
- let uploadDocuments = {
+  let uploadDocuments = {
     name: "Upload Documents",
     submit: [
       {
@@ -381,7 +390,7 @@ var onCreate = async function (message) {
         src: "SubmitAndNextDocument.png",
         id: "SubmitAndNextDocument",
         name: "Submit & Next Document",
-        afterAction: (parsedDocument) => { document.getElementById('content').reset() },
+        afterAction: (parsedDocument) => { document.getElementById('content').reset(); shade.style.display = "none" },
         submit: [{
           url: `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
           format: "FormData",
@@ -393,22 +402,22 @@ var onCreate = async function (message) {
               "ctl01$mainContentPlaceHolder$documentImportFileUpload": {
                 name: document.getElementById("fileChooser").files.item(0).name,
                 file: file
-              }
+              },
+              ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
+              ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT",
+              ctl00$mainContentPlaceHolder$taskTypeIdHidden: 465,
+              ctl00$mainContentPlaceHolder$linkReferenceText: message.data.debtorid,
+              ctl00$mainContentPlaceHolder$sourceText: "BSPFIN:Business Service Provider - Financial",
+              ctl00$mainContentPlaceHolder$startDateTextBox: t.toJSON().slice(0, 10).split('-').reverse().join('/'),
+              ctl00$mainContentPlaceHolder$reasonText: 'ENFRVREQ:"Request for Enforcement Review to be decided"',
+              ctl00$mainContentPlaceHolder$startTimeTextBox: t.getHours() + ":" + t.getMinutes(),
+              ctl00$mainContentPlaceHolder$originText: "DEBTOR:Debtor"
+
             }
             if (properties.taskId) {
-              console.log(properties.taskId);
-              params.ctl00$mainContentPlaceHolder$createTaskCheck = "";
-              params.ctl00$mainContentPlaceHolder$taskIdText = properties.taskId;
+              ctl00$mainContentPlaceHolder$createTaskCheck = "";
+              ctl00$mainContentPlaceHolder$taskIdText = properties.taskId;
             }
-            ctl00$mainContentPlaceHolder$lstApplicationModule = "Debtors";
-            params.ctl00$mainContentPlaceHolder$taskTypeText = "FVBANKRUPT";
-            params.ctl00$mainContentPlaceHolder$taskTypeIdHidden = 465;
-            params.ctl00$mainContentPlaceHolder$linkReferenceText = message.data.debtorid;
-            params.ctl00$mainContentPlaceHolder$sourceText = "BSPFIN:Business Service Provider - Financial";
-            params.ctl00$mainContentPlaceHolder$startDateTextBox = t.toJSON().slice(0, 10).split('-').reverse().join('/');
-            params.ctl00$mainContentPlaceHolder$reasonText = 'ENFRVREQ:"Request for Enforcement Review to be decided"';
-            params.ctl00$mainContentPlaceHolder$startTimeTextBox = t.getHours() + ":" + t.getMinutes();
-            params.ctl00$mainContentPlaceHolder$originText = "DEBTOR:Debtor"
 
             return params
           }
@@ -426,21 +435,27 @@ var onCreate = async function (message) {
     ]
   }
 
-let proceduralHolds = {
+  let proceduralHolds = {
     name: "Procedural Holds",
-    submit: [
-      {
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`
-      }, {
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
-        urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
+    submit: [{
+      optional: () => { return !properties.dateOfBankruptcy },
+      url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+    },
+    {
+      url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
+      urlParams: (parsedDocument) => {
+        (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
       }
+    }, {
+      url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
+      urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
+    }
     ],
     elements: [
       { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
       { tag: "table", "selectCriteria": "WarrantProvable", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
-      { tag: "input", label: "Officer Id:", attributes: { id: "officerIdField", type: "text", name: "debtorProceduralActionCtrl$hdnOfficerId", class: "field", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
-      { tag: "input", label: "Officer Name:", attributes: { id: "officerNameField", type: "text", name: "debtorProceduralActionCtrl$txtOfficerNameForProcedural", class: "field", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
+      { tag: "input", label: "Officer Id:", text: "111052", attributes: { id: "officerIdField", type: "text", name: "debtorProceduralActionCtrl$hdnOfficerId", class: "field", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
+      { tag: "input", label: "Officer Name:", text: "FVDXC:Declan", attributes: { id: "officerNameField", type: "text", name: "debtorProceduralActionCtrl$txtOfficerNameForProcedural", class: "field", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } },
     ],
     progressButtons: [{
       src: "SubmitAndNextStep.png",
@@ -453,7 +468,7 @@ let proceduralHolds = {
           const params = {}
           let warrantObligations = []
           properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
-            data = this.data();
+            const data = this.data();
             warrantObligations.push(data.NoticeNumber);
           })
           properties.proceduralHoldsPlaced = warrantObligations.join(",");
@@ -461,7 +476,7 @@ let proceduralHolds = {
 
           Array.from(tableRows).forEach((tr, i) => {
             let currentRow = pad(i + 1, 2);
-            if (warrantObligations.includes(tr.children[2].textContent)) {
+            if (tr.children[2] !== undefined && warrantObligations.includes(tr.children[2].textContent)) {
               (params[`DebtorExecuteActionCtrl$WarrantGrid$ctl${currentRow}$chkWarrantNumber`] = "on")
             }
             params["DebtorExecuteActionCtrl$btnCreateFDORecord.x"] = 0,
@@ -487,11 +502,19 @@ let proceduralHolds = {
     }]
   }
 
-let placeHolds = {
+  let placeHolds = {
     name: "Place Holds",
     submit: [
       {
+        optional: () => { return !properties.dateOfBankruptcy },
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+        urlParams: {}
+      },
+      {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3`,
+        urlParams: (parsedDocument) => {
+          (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+        }
       }
     ],
     elements: [
@@ -550,7 +573,7 @@ let placeHolds = {
     }]
   }
 
-let noticeNotes = {
+  let noticeNotes = {
     name: "Notice Notes",
     submit: [
       {
@@ -610,28 +633,38 @@ let noticeNotes = {
     }]
   }
 
-let debtorNote = {
+  let debtorNote = {
     name: "Debtor Notes",
-    submit: [],
+    submit: [{
+      url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
+    },
+    {
+      url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
+      urlParams: {
+        "PESNotesCtrlMain$btnAddNote.x": 0,
+        "PESNotesCtrlMain$btnAddNote.y": 0
+      }
+    }],
     elements: [
       {
         tag: "textarea",
-        label: "Note:", 
+        label: "Note:",
         prefill: (parsedDocument, field) => {
           field.value = `Bankruptcy investigated and processed.
-          Copy of bankruptcy letter and schedule uploaded to task ${properties.taskId}.
-          ${properties.holdsRemoved ? `
-          Holds removed on obligations:
-          ${properties.holdsRemoved.replace(/,/g, '\n')}
-          ` : ''}${properties.holdsPlaced ? `
-          Provable obligations subject to bankruptcy placed on hold:
-          ${properties.holdsPlaced.replace(/,/g, '\n')}
-          ` : ''}${properties.proceduralHoldsPlaced ? `
-          Procedural holds placed on provable warrant obligations:
-          ${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
-          
-          ` : ''}`
-        }, 
+
+Copy of bankruptcy letter and schedule uploaded to task ${properties.taskId}.\n
+${properties.holdsRemoved ? `
+Holds removed on obligations:
+${properties.holdsRemoved.replace(/,/g, '\n')}
+` : ''}\n${properties.holdsPlaced ? `
+Provable obligations subject to bankruptcy placed on hold:
+${properties.holdsPlaced.replace(/,/g, '\n')}
+` : ''}\n${properties.proceduralHoldsPlaced ? `
+Procedural holds placed on provable warrant obligations:
+${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
+
+` : ''}`
+        },
         attributes: { name: "PESNotesCtrlMain$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" }
       },
     ],
@@ -640,15 +673,6 @@ let debtorNote = {
       id: "SubmitAndNextStep",
       name: "Submit & Next Step",
       submit: [{
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
-      },
-      {
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
-        urlParams: {
-          "PESNotesCtrlMain$btnAddNote.x": 0,
-          "PESNotesCtrlMain$btnAddNote.y": 0
-        }
-      }, {
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
         next: true,
         urlParams: {
@@ -660,17 +684,17 @@ let debtorNote = {
   }
 
 
-let  application = {
+  let application = {
     name: "Application",
     submit: [
       {
-        urlParams: function () {
+        urlParams: function (parsedDocument) {
           this.url = `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
         }
       }, {
         urlParams: function () {
           this.url = `https://${source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
-          return params = {
+          return {
             "ctl00$mainContentPlaceHolder$editButton.x": 0,
             "ctl00$mainContentPlaceHolder$editButton.y": 0
           }
@@ -710,7 +734,7 @@ let  application = {
     ]
   }
 
-let letter = {
+  let letter = {
     name: "Letter",
     submit: [
       {
@@ -887,22 +911,21 @@ async function buildTable(element, field) {
 
     if (element.selectCriteria === "all") {
       //Selects all unpaid obligations
-      (balance > 0) &&
-        this.select();
+      statuses = ["WARRNT", "CHLGLOG", "NFDP", "SELENF"];
 
+      (balance > 0) &&
+        (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
+        this.select();
     }
 
   });
 
   return dataTable
-  //createProgressButtons(stage, table, incrementor, formData, data);
 }
 
 function downloadLetter(address, firstName, lastName, debtorId) {
 
   let addressArray = address.split(",");
-
-
 
   let l = {
     "provable": [],
@@ -925,8 +948,8 @@ function downloadLetter(address, firstName, lastName, debtorId) {
   properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
     let data = this.data();
 
-    types = ["1A", "1B", "1C", "2A"];
-    statuses = ["WARRNT", "CHLGLOG", "NFDP"];
+    const types = ["1A", "1B", "1C", "2A"];
+    const statuses = ["WARRNT", "CHLGLOG", "NFDP"];
 
     let d = properties.dateOfBankruptcy.split("-").reverse();
     let bd = new Date(+d[2], d[1] - 1, +d[0]);
@@ -940,14 +963,14 @@ function downloadLetter(address, firstName, lastName, debtorId) {
       (l.zeroBalance.push(data)) ||
       (td < bd) &&
       (types.some(type => data.InputType === type)) &&
-      (statuses.some(status => data.NoticeStatusPreviousStatus === status)) &&
+      (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
       (l.provable.push(data)) ||
       (data.Offence === "0000") &&
       (l.courtFines.push(data)) ||
+      (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
       (l.nonProvable.push(data));
 
   })
-
   backgroundLetterMaker(l)
 }
 

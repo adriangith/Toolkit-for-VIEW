@@ -50,6 +50,10 @@ body {
   	height: 100%; /* needed for container min-height */
 }
 
+.paginate_button {
+	padding: 2px;
+}
+
 .dataTables_paginate,
 .dataTables_info {
 	padding-top:3px;
