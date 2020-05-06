@@ -77,8 +77,8 @@ function fetchResource(input, init, opt) {
   });
 }
 
-function repeat(instruction) {
-  return (typeof instruction.repeat === "function") && (instruction.repeat()) || instruction.repeat || 0
+function disambig(parent, property) {
+  return (typeof parent[property] === "function") && (parent[property]()) || parent[property] || 0
 }
 
 async function createPageElements(data, incrementor, vDocument) {
@@ -140,32 +140,44 @@ async function createProgressButtons(data, incrementor, parsedDocument) {
 }
 
 async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
-  console.log("VIEWsubmit", parsedDocument);
+  //Show spinner.
   shade.style.display = "block";
+
   let formData = {}
+
+  //Get form data, if any from wizard page.
   let wizardFormData = await getFormData(document);
-  if (parsedDocument !== undefined) {
-    formData = await getFormData(parsedDocument);
-  }
+
+  //Get form data from the prevous fetch, if not first submit.
+  if (parsedDocument !== undefined) formData = await getFormData(parsedDocument);
+
+  //As an alternative to the submit flow, an action provides custom logic.
   dataParams.action && dataParams.action(parsedDocument);
-  for (let submit of dataParams.submit) {
-    let oRepeat = repeat(submit)
-    let repeatCount = oRepeat
-    if (Array.isArray(oRepeat) === true) { repeatCount = oRepeat.length - 1 }
-    for (let i = 0; i <= repeatCount; i++) {
-      if (submit.optional && submit.optional() === false) continue;
-      let urlParams = typeof submit.urlParams === "function" && submit.urlParams(parsedDocument, oRepeat[i]) || submit.urlParams;
-      urlParams = await urlParams;
-      if (urlParams) {
-        formData = { ...formData, ...urlParams, ...wizardFormData }
-      }
-      submit.format || (submit.format = "URLSearchParams");
-      let vDocument = await fetchResource(submit.url, { method: "POST", body: formData }, submit.format);
-      parsedDocument = await parsePage(vDocument)
-      formData = await getFormData(parsedDocument);
-      if (submit.next === true) {
-        incrementor++
-        buildPage(data, incrementor);
+
+  //Splits submit array by group
+  const groups = groupBy(dataParams.submit, "group");
+
+  let groupedRepeats = dataParams.groupRepeats || { Ungrouped: () => [{ empty: null }] };
+
+  for (let [groupName, group] of Object.entries(groups)) {
+    const dynamicParams = typeof groupedRepeats[groupName] === "function" && groupedRepeats[groupName]() || groupedRepeats[groupName] || [{}];
+    for (let set of dynamicParams) {
+      console.log("-------------------------")
+      for (let submitInstructions of group) {
+        console.log(submitInstructions);
+        if (submitInstructions.optional && submitInstructions.optional() === false) continue;
+        let urlParams = typeof submitInstructions.urlParams === "function" && submitInstructions.urlParams(parsedDocument, set) || submitInstructions.urlParams;
+        urlParams = await urlParams;
+        if (urlParams) { formData = { ...formData, ...urlParams, ...wizardFormData } }
+        if (submitInstructions.clearParams) { formData = {} }
+        submitInstructions.format || (submitInstructions.format = "URLSearchParams");
+        let vDocument = await fetchResource(submitInstructions.url, { method: "POST", body: formData }, submitInstructions.format);
+        parsedDocument = await parsePage(vDocument)
+        formData = await getFormData(parsedDocument);
+        if (submitInstructions.next === true) {
+          incrementor++
+          buildPage(data, incrementor);
+        }
       }
     }
   }
@@ -205,7 +217,7 @@ var onCreate = async function (message) {
   // Ensure it is run only once, as we will try to message twice
   chrome.runtime.onMessage.removeListener(onCreate);
   let t = new Date();
-  let source = `djr-uat1`;
+  let source = `djr-stg`;
 
   let bankruptcyDate = {
     name: "Bankruptcy Date",
@@ -273,9 +285,8 @@ var onCreate = async function (message) {
       src: "SubmitAndNextStep.png",
       id: "SubmitAndNextStep",
       name: "Submit & Next Step",
-      submit: [{
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
-        repeat: () => {
+      groupRepeats: {
+        "Group 1": () => {
           let paramArray = [];
           properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
             let params = {};
@@ -289,8 +300,19 @@ var onCreate = async function (message) {
             paramArray.push(params);
           });
           return paramArray;
-        },
-        urlParams: (vDocument, dynamicParams) => {
+        }, "Group 2": () => {
+          let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
+          if (!properties.holdsRemoved)
+            properties.holdsRemoved = previousObligations;
+          else
+            properties.holdsRemoved = properties.holdsRemoved + "," + previousObligations;
+          return [{ "txtNoticeCheck": previousObligations }]
+        }
+      },
+      submit: [{
+        group: "Group 1",
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
+        urlParams: (parsedDocument, dynamicParams = {}) => {
           const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnNoticeAdd.x"] = 0;
@@ -298,18 +320,10 @@ var onCreate = async function (message) {
           return params
         }
       }, {
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
-        repeat: () => {
-          let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
-          if (!properties.holdsRemoved)
-            properties.holdsRemoved = previousObligations;
-          else
-            properties.holdsRemoved = properties.holdsRemoved + "," + previousObligations;
-          return [{ "txtNoticeCheck": previousObligations }]
-        },
+        group: "Group 2",
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
         next: true,
-        urlParams: (vDocument, dynamicParams) => {
+        urlParams: (parsedDocument, dynamicParams = {}) => {
           const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnBulkUpdate.x"] = 0;
@@ -352,8 +366,8 @@ var onCreate = async function (message) {
             let file = await toBase64(document.getElementById("fileChooser").files.item(0))
             const params = {
               ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
-              ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT",
-              ctl00$mainContentPlaceHolder$taskTypeIdHidden: 465,
+              ctl00$mainContentPlaceHolder$taskTypeText: "ESSSTATUS",
+              ctl00$mainContentPlaceHolder$taskTypeIdHidden: 439,
               ctl00$mainContentPlaceHolder$linkReferenceText: message.data.debtorid,
               ctl00$mainContentPlaceHolder$sourceText: "BSPFIN:Business Service Provider - Financial",
               ctl00$mainContentPlaceHolder$startDateTextBox: t.toJSON().slice(0, 10).split('-').reverse().join('/'),
@@ -462,7 +476,6 @@ var onCreate = async function (message) {
       id: "SubmitAndNextStep",
       name: "Submit & Next Step",
       submit: [{
-        repeat: 0,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
         urlParams: (vDocument, dynamicParams) => {
           const params = {}
@@ -485,7 +498,6 @@ var onCreate = async function (message) {
           return params
         }
       }, {
-        repeat: 0,
         next: true,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
         urlParams: {
@@ -527,9 +539,8 @@ var onCreate = async function (message) {
       src: "SubmitAndNextStep.png",
       id: "SubmitAndNextStep",
       name: "Submit & Next Step",
-      submit: [{
-        url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3`,
-        repeat: () => {
+      groupRepeats: {
+        "Group 1": () => {
           let paramArray = [];
           properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
             let params = {};
@@ -543,8 +554,19 @@ var onCreate = async function (message) {
             paramArray.push(params);
           });
           return paramArray;
-        },
-        urlParams: (vDocument, dynamicParams) => {
+        }, "Group 2": () => {
+          let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
+          if (!properties.holdsPlaced)
+            properties.holdsPlaced = previousObligations;
+          else
+            properties.holdsPlaced = properties.holdsPlaced + "," + previousObligations;
+          return [{ "txtNoticeCheck": previousObligations }]
+        }
+      },
+      submit: [{
+        group: "Group 1",
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3`,
+        urlParams: (parsedDocument, dynamicParams = {}) => {
           const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnNoticeAdd.x"] = 0;
@@ -552,17 +574,10 @@ var onCreate = async function (message) {
           return params
         }
       }, {
+        group: "Group 2",
         url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3`,
-        repeat: () => {
-          let previousObligations = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber).join(",");;
-          if (!properties.holdsPlaced)
-            properties.holdsPlaced = previousObligations;
-          else
-            properties.holdsPlaced = properties.holdsPlaced + "," + previousObligations;
-          return [{ "txtNoticeCheck": previousObligations }]
-        },
         next: true,
-        urlParams: (vDocument, dynamicParams) => {
+        urlParams: (parsedDocument, dynamicParams = {}) => {
           const params = {}
           for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
           params["btnBulkUpdate.x"] = 0;
@@ -599,7 +614,6 @@ var onCreate = async function (message) {
             let all = properties.allObligations.rows({ selected: true }).data().toArray()
             let previousObligations = all.map(row => row.NoticeNumber).slice(0, rowLoop).join(",");
             params["txtNoticeNo"] = data.NoticeNumber;
-            console.log(data.NoticeNumber);
             if (rowLoop >= 1) {
               params["txtNoticeCheck"] = previousObligations
             }
@@ -634,7 +648,7 @@ var onCreate = async function (message) {
   }
 
   let debtorNote = {
-    name: "Debtor Notes",
+    name: "Debtor Note",
     submit: [{
       url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
     },
@@ -656,10 +670,10 @@ Copy of bankruptcy letter and schedule uploaded to task ${properties.taskId}.\n
 ${properties.holdsRemoved ? `
 Holds removed on obligations:
 ${properties.holdsRemoved.replace(/,/g, '\n')}
-` : ''}\n${properties.holdsPlaced ? `
+` : ''}${properties.holdsPlaced ? `
 Provable obligations subject to bankruptcy placed on hold:
 ${properties.holdsPlaced.replace(/,/g, '\n')}
-` : ''}\n${properties.proceduralHoldsPlaced ? `
+` : ''}${properties.proceduralHoldsPlaced ? `
 Procedural holds placed on provable warrant obligations:
 ${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
 
@@ -740,6 +754,12 @@ ${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
       {
         repeat: 0,
         url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`
+      }, {
+        url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesSearch.aspx`,
+        urlParams: (parsedDocument, dynamicParams = {}) => {
+          properties.addressTable = parsedDocument.querySelector("#DebtorAddressesCtrl_gridDebtorAddresses_tblData > tbody");
+          return {}
+        }
       }
     ],
     elements: [
@@ -747,8 +767,7 @@ ${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
       { tag: "table", parent: "tablecontainer", "selectCriteria": "all", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
       {
         tag: "select", label: "Address:", prefill: (parsedDocument, field) => {
-          const addressTable = parsedDocument.querySelector("#DebtorAddressesCtrl_gridDebtorAddresses_tblData > tbody");
-          const addressTableRows = Array.from(addressTable.children);
+          const addressTableRows = Array.from(properties.addressTable.children);
           addressTableRows.forEach((tr, i) => {
             field.insertAdjacentHTML('beforeend', `<option>${tr.children[2].textContent}, ${tr.children[3].textContent}, (${tr.children[1].textContent})</option>`)
           })
@@ -762,13 +781,69 @@ ${properties.proceduralHoldsPlaced.replace(/,/g, '\n')}
         class: "purpleButton",
         id: "SubmitAndNextStep",
         name: "Submit & Next Step",
-        submit: [],
-        action: (parsedDocument) => {
+        groupRepeats: {
+          "Group 2": () => {
+            const paramArray = [];
+            properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+              const data = this.data();
+              const params = {};
+              params["txtNoticeNo"] = data.NoticeNumber;
+              paramArray.push(params);
+            });
+            return paramArray;
+          }
+        },
+        submit: [
+          {
+            group: "Group 1",
+            url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesSearch.aspx`,
+            urlParams: () => {
+              properties.agencies = []
+              return {}
+            },
+            clearParams: true
+          }, {
+            group: "Group 2",
+            url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesSearch.aspx`,
+            clearParams: false,
+            urlParams: (parsedDocument, dynamicParams = {}) => {
+              properties.agencies.push({ key: parsedDocument.getElementById("NoticeInfo_txtNoticeNo").value, value: parsedDocument.getElementById("NoticeInfo_lblAgencyCode").textContent });
+              const params = {
+                "btnSearch.x": 0,
+                "btnSearch.y": 0
+              }
+              for (let [key, value] of Object.entries(dynamicParams)) { params[key] = value }
+              return params
+            }
+          }, {
+            group: "Group 2",
+            url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesSearch.aspx`,
+            clearParams: true,
+            urlParams: (parsedDocument, repeatDynamicParams, groupDynamicParams = {}) => {
+              return {}
+            }
+          }, {
+            group: "Group 3",
+            url: `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
+            clearParams: true,
+            urlParams: (parsedDocument, repeatDynamicParams, groupDynamicParams = {}) => {
+              return {}
+            }
+          }
+        ],
+        afterAction: (parsedDocument) => {
           let address = document.getElementById('addressChooser').value
           let debtorId = parsedDocument.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value
           let firstName = parsedDocument.getElementById('DebtorDetailsCtrl_firstnameTxt').textContent
           let lastName = parsedDocument.getElementById('DebtorDetailsCtrl_surnameTxt').textContent
           downloadLetter(address, firstName, lastName, debtorId);
+          const container = document.getElementById('container');
+          container.innerHTML = "";
+          const message = document.createElement('div');
+          message.id = "messagebox"
+          message.textContent = "It is now safe to close this window"
+          container.append(message);
+          shade.style.display = "none"
         }
       }
     ]
@@ -802,7 +877,6 @@ async function getDebtorObligations(source) {
 
 async function buildTable(element, field) {
   let tableData = await element.dataSource()
-
 
   tableData = tableData.map(function (row) {
     const newRow = {};
@@ -904,7 +978,8 @@ async function buildTable(element, field) {
         (data.HoldCodeEndDate.trim().includes("PAYARNGMNT")) &&
         (this.select());
 
-      (data.HoldCodeEndDate.trim().includes("BANKRUPT")) &&
+      (bd.isBefore(td)) &&
+        (data.HoldCodeEndDate.trim().includes("BANKRUPT")) &&
         (this.select());
 
     }
@@ -924,7 +999,6 @@ async function buildTable(element, field) {
 }
 
 function downloadLetter(address, firstName, lastName, debtorId) {
-
   let addressArray = address.split(",");
 
   let l = {
@@ -942,8 +1016,10 @@ function downloadLetter(address, firstName, lastName, debtorId) {
     "Post_Code": addressArray[3].trim(),
     "Debtor_ID": debtorId
   }
+  console.log(properties.agencies);
+  let reduced = properties.agencies.reduce((obj, item) => (obj[item.key] = item.value, obj), {});
 
-
+  console.log(reduced);
 
   properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
     let data = this.data();
@@ -951,17 +1027,15 @@ function downloadLetter(address, firstName, lastName, debtorId) {
     const types = ["1A", "1B", "1C", "2A"];
     const statuses = ["WARRNT", "CHLGLOG", "NFDP"];
 
-    let d = properties.dateOfBankruptcy.split("-").reverse();
-    let bd = new Date(+d[2], d[1] - 1, +d[0]);
-
-    d = data.OffenceDate.split("/");
-    let td = new Date(+d[2], d[1] - 1, +d[0]);
+    data.agency = reduced[data.NoticeNumber];
+    let bd = moment(properties.dateOfBankruptcy, "YYYY-MM-DD")
+    let td = moment(data.OffenceDate, "DD/MM/YYYY")
 
     let balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
 
     (balance <= 0) &&
       (l.zeroBalance.push(data)) ||
-      (td < bd) &&
+      (bd.isAfter(td)) &&
       (types.some(type => data.InputType === type)) &&
       (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
       (l.provable.push(data)) ||
@@ -971,7 +1045,7 @@ function downloadLetter(address, firstName, lastName, debtorId) {
       (l.nonProvable.push(data));
 
   })
-  backgroundLetterMaker(l)
+  backgroundLetterMaker(l, firstName, lastName)
 }
 
 function loadFile(url, callback) {
@@ -992,7 +1066,7 @@ function angularParser(tag) {
   }
 }
 
-async function backgroundLetterMaker(letterData) {
+async function backgroundLetterMaker(letterData, firstName, lastName) {
   const letterTemplate = await loadLetter("https://trimwebdrawer.justice.vic.gov.au/record/13930494/File/document")
   /* Create a letter for each of the objects in letterData */
   const letter = makeLetter(letterData, letterTemplate)
@@ -1025,7 +1099,7 @@ function makeLetter(content, letterTemplate) {
     type: "blob",
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   }) //Output the document using Data-URI    
-  saveAs(out, "output.docx")
+  saveAs(out, `${firstName} ${lastName} - Bankruptcy Confirmation.docx`)
   //window.close()
 }
 
@@ -1055,7 +1129,16 @@ function titleCase(string) {
   return sentence.join(" ");
 }
 
-const toDate = (dateStr) => {
+const toDate = (dateStr = "2000-01-01") => {
   const [day, month, year] = dateStr.split("-").reverse()
   return new Date(year, month - 1, day)
+}
+
+function groupBy(arr, property) {
+  return arr.reduce(function (memo, x) {
+    if (x[property] === undefined) { x[property] = "Ungrouped" }
+    if (!memo[x[property]]) { memo[x[property]] = []; }
+    memo[x[property]].push(x);
+    return memo;
+  }, {});
 }

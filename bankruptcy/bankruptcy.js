@@ -65,7 +65,7 @@ async function buildRegisterTable(container, source) {
     let taskPage = parser.parseFromString(resText, "text/html")
     let urlParams = new URLSearchParams(new FormData(taskPage.querySelector("#aspnetForm")));
     urlParams.set("ctl00$mainContentPlaceHolder$taskSearchControl$statusText", "OPEN");
-    urlParams.set("ctl00$mainContentPlaceHolder$taskSearchControl$taskTypeText", "FVBANKRUPT");
+    urlParams.set("ctl00$mainContentPlaceHolder$taskSearchControl$taskTypeText", "ESSSTATUS");
     urlParams.set("ctl00$mainContentPlaceHolder$taskSearchControl$taskSearchButton.x", 0);
     urlParams.set("ctl00$mainContentPlaceHolder$taskSearchControl$taskSearchButton.y", 0);
     let outData = urlParams.toString()
@@ -196,7 +196,7 @@ function customiseTemplate(template, source) {
 }
 
 async function getTemplate() {
-    let source = "djr-uat1"
+    let source = "djr-stg"
     let parser = new DOMParser();
     let res = await fetchResource(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx`)
     let resText = await res.text();

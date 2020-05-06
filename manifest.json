@@ -1,6 +1,6 @@
-  {
+{
 	"name": "Toolkit for View",
-	"version": "0.0.0.52",
+	"version": "0.0.0.53",
 	"description": "Adds extra features to View to assist in Review Officer tasks",
 	"short_name": "View Toolkit",
 	"permissions": [
@@ -15,72 +15,166 @@
 		"storage",
 		"cookies"
 	],
-	"icons": { 
-		"128": "Images/icon128.png" 
+	"icons": {
+		"128": "Images/icon128.png"
 	},
 	"background": {
-		"scripts": ["js/External/StreamSaver.js", "js/External/xlsx.js", "js/External/DataStream.js", "js/External/marked.min.js", "js/WDPAutomatorBS.js", "js/External/docxtemplater.js", "js/bulkObligationAdder.js", "js/VicRoadsStatGen.js", "js/External/jszip.js", "js/External/FileSaver.js" , "js/External/jszip-utils.js", "js/External/angular-parse-browser.js", "js/External/squirrelly.min.js", "js/tablemaker.js", "js/emailmaker.js", "js/lettermaker.js", "js/scraper.js", "js/objects.js", "js/External/jquery-3.4.1.js", "js/External/docx-merger.js", "js/backgroundLetterMaker.js"],
+		"scripts": [
+			"js/External/StreamSaver.js",
+			"js/External/xlsx.js",
+			"js/External/DataStream.js",
+			"js/External/marked.min.js",
+			"js/WDPAutomatorBS.js",
+			"js/External/docxtemplater.js",
+			"js/bulkObligationAdder.js",
+			"js/VicRoadsStatGen.js",
+			"js/External/jszip.js",
+			"js/External/FileSaver.js",
+			"js/External/jszip-utils.js",
+			"js/External/angular-parse-browser.js",
+			"js/External/squirrelly.min.js",
+			"js/tablemaker.js",
+			"js/emailmaker.js",
+			"js/lettermaker.js",
+			"js/scraper.js",
+			"js/objects.js",
+			"js/External/jquery-3.4.1.js",
+			"js/External/docx-merger.js",
+			"js/backgroundLetterMaker.js"
+		],
 		"persistent": false
-    },
+	},
 	"browser_action": {
 		"default_popup": "popup/index.html",
-		"default_icon": "Images/V.png",           
-        "default_title": "Toolkit for View"
+		"default_icon": "Images/V.png",
+		"default_title": "Toolkit for View"
 	},
-    "manifest_version": 2,
+	"manifest_version": 2,
 	"content_scripts": [
 		{
-		"matches":[
-			"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/*", 
-			"https://*.view.civicacloud.com.au/Traffic/Notices/forms/*"],
-		"js": ["js/External/editor.js", "js/External/paragraph.js", "js/External/table.js", "js/add-to-all.js", "js/External/react.development.js", "js/External/react-dom.development.js", "js/External/babel.min.js", "js/like_button.js"],
-		"exclude_matches": [
-            "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/*",
-			"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/AccessError.aspx",
-			"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/CatalogManagement"
-        ]
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/*",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/forms/*"
+			],
+			"js": [
+				"js/External/editor.js",
+				"js/External/paragraph.js",
+				"js/External/table.js",
+				"js/add-to-all.js",
+				"js/External/react.development.js",
+				"js/External/react-dom.development.js",
+				"js/External/babel.min.js",
+				"js/like_button.js"
+			],
+			"exclude_matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/*",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/AccessError.aspx",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/CatalogManagement"
+			]
 		},
 		{
-		"matches":["https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx",
-				   "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx"],
-		"js": ["js/obligations.js"]
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx",
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx"
+			],
+			"js": [
+				"js/obligations.js"
+			]
 		},
 		{
-			"matches":["https://*.view.civicacloud.com.au/*"],
-			"css": ["css/External/loading-bar.css"],
-			"js": ["js/External/jquery-3.4.1.js", "js/External/notify.js", "js/External/loading-bar.js"]
+			"matches": [
+				"https://*.view.civicacloud.com.au/*"
+			],
+			"exclude_matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
+			],
+			"css": [
+				"css/External/loading-bar.css"
+			],
+			"js": [
+				"js/External/jquery-3.4.1.js",
+				"js/External/notify.js",
+				"js/External/loading-bar.js"
+			]
 		},
 		{
-		"matches":["https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx*",
-				   "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesBulkGenericUpdate.aspx*"],
-		"js": ["js/pasteBulk.js"]
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx*",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesBulkGenericUpdate.aspx*"
+			],
+			"js": [
+				"js/pasteBulk.js"
+			]
 		},
 		{
-		"matches":["https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx", 
-				   "https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx?Status=1"],
-		"js": ["js/userNameCapture.js"]
+			"matches": [
+				"https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx",
+				"https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx?Status=1"
+			],
+			"js": [
+				"js/userNameCapture.js"
+			]
 		},
 		{
-		"matches":["https://uat.wdp.vic.gov.au/*", "https://wdp.vic.gov.au/*"],
-		"js": ["js/External/jquery-3.4.1.js", "js/External/jquery.livequery.js", "js/External/datatables.js", "js/External/bootstrap.bundle.min.js", "js/External/waitingfor.js", "js/WDPAutomator.js", "js/External/waitingfor.js"],
-		"css": ["css/External/select.dataTables.min.css"]
+			"matches": [
+				"https://uat.wdp.vic.gov.au/*",
+				"https://wdp.vic.gov.au/*"
+			],
+			"js": [
+				"js/External/jquery-3.4.1.js",
+				"js/External/jquery.livequery.js",
+				"js/External/datatables.js",
+				"js/External/bootstrap.bundle.min.js",
+				"js/External/waitingfor.js",
+				"js/WDPAutomator.js",
+				"js/External/waitingfor.js"
+			],
+			"css": [
+				"css/External/select.dataTables.min.css"
+			]
 		},
 		{
-		"matches":["https://*.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx*"],
-		"js": ["js/documentUpload.js"]
+			"matches": [
+				"https://*.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx*"
+			],
+			"js": [
+				"js/documentUpload.js"
+			]
 		},
 		{
-		"matches":["https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/*"],
-		"js": ["js/debtorAdder.js"],
-		"exclude_matches": [
-            "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorMain.aspx/*"
-        ]
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
+			],
+			"js": [
+				"js/External/jquery-3.4.1.js",
+				"js/External/datatables.js",
+				"js/proceduralHoldEnhance.js"
+			]
+		},
+		{
+			"matches": [
+				"https://*.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx*"
+			],
+			"js": [
+				"js/documentUpload.js"
+			]
+		},
+		{
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/*"
+			],
+			"js": [
+				"js/debtorAdder.js"
+			],
+			"exclude_matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorMain.aspx/*",
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
+			]
 		}
-		
 	],
 	"web_accessible_resources": [
-		"js/External/*", 
-		"css/External/*", 
+		"js/External/*",
+		"css/External/*",
 		"js/helper.js",
 		"js/tablemaker.js",
 		"js/objects.js",
@@ -89,7 +183,5 @@
 		"bankruptcy/*",
 		"Images/*"
 	],
-	
 	"content_security_policy": "script-src 'self' 'unsafe-eval' 'self' object-src 'self'"
-  }
-  
+}
