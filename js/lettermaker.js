@@ -1,5 +1,5 @@
 var agencies = {}
-fetch('https://trimwebdrawer.justice.vic.gov.au/record/12965363/File/document')
+fetch('https://trimapi.justice.vic.gov.au/record/12965363/File/document2')
   .then(response => {
     return response.json()
   })
@@ -70,9 +70,9 @@ function loadFile(url,callback){
 function generateLetter(letterData, type) {
 	let name;
 	let filename = ""
-	let location = "https://trimwebdrawer.justice.vic.gov.au/record/";
-	let downCode = "/File/document";
-	
+	let location = "https://trimapi.justice.vic.gov.au/record/";
+	let downCode = "/File/document2";
+
 	if(letterData.First_Name !== "") {
 		name = letterData.First_Name + " " + letterData.Last_Name;	
 	} else if (letterData.First_Name === "") {

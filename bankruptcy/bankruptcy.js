@@ -173,9 +173,8 @@ function customiseTemplate(template, source) {
                         </tr>
                         <tr>
                             <td id="DebtorDocumentsCtrl_addButtonTd" class="tdButtons" align="right">
-                                <image onClick="return false;" style="Cursor:Hand;" id="DebtorBankruptcyButton" tabindex="36" src=${chrome.runtime.getURL("Images/newApplication.png")}>
+                                <image onClick="return false;" style="Cursor:Hand;" id="DebtorBankruptcyButton" src=${chrome.runtime.getURL("Images/newApplication.png")}>
                             </td>
-    
                         </tr>
                     </tbody>
                 </table>
@@ -196,7 +195,7 @@ function customiseTemplate(template, source) {
 }
 
 async function getTemplate() {
-    let source = "djr-stg"
+    let source = "djr-uat1"
     let parser = new DOMParser();
     let res = await fetchResource(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx`)
     let resText = await res.text();

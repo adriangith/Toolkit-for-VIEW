@@ -4,7 +4,7 @@ var time = 0;
 var bankruptcyLink = document.createElement('tr');
 bankruptcyLink.innerHTML  =	`<td class="leftmenufirstcol">&nbsp; </td> 
                 				 <td class="leftmenumiddlecol"> 
-                   				 	<img src="https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Common/Images/BulletPnt.gif">&nbsp;<a href="${chrome.runtime.getURL("bankruptcy/bankruptcy.html")}"	 accesskey="i" style="VERTICAL-ALIGN: top" target="">Bankruptcy</a></td>
+                   				 	<img src="https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Common/Images/BulletPnt.gif">&nbsp;<a href="https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx?mode=bankruptcy"	 accesskey="i" style="VERTICAL-ALIGN: top" target="">Bankruptcy</a></td>
 								   <td class="leftmenulastcol">&nbsp; </td>`
 					
 bankruptcyLink.querySelector("td > a").addEventListener("mouseup", sendURL)

@@ -1,10 +1,11 @@
 {
 	"name": "Toolkit for View",
-	"version": "0.0.0.53",
+	"version": "0.0.0.54",
 	"description": "Adds extra features to View to assist in Review Officer tasks",
 	"short_name": "View Toolkit",
 	"permissions": [
 		"https://trimwebdrawer.justice.vic.gov.au/*",
+		"https://trimapi.justice.vic.gov.au/record/*",
 		"https://vicgov-my.sharepoint.com/*",
 		"https://*.view.civicacloud.com.au/*",
 		"https://wdp.vic.gov.au/wdp-applications/*",
@@ -117,6 +118,22 @@
 		},
 		{
 			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx?mode=bankruptcy"
+			],
+			"js": [
+				"js/External/spin.umd.js",
+				"js/External/parseTable.js",
+				"js/External/jquery-3.4.1.js",
+				"js/External/datatables.js",
+				"js/wizardData.js",
+				"js/bankruptcy.js"
+			],
+			"css":[
+				"css/External/spin.css"
+			]
+		},
+		{
+			"matches": [
 				"https://uat.wdp.vic.gov.au/*",
 				"https://wdp.vic.gov.au/*"
 			],
@@ -168,7 +185,8 @@
 			],
 			"exclude_matches": [
 				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorMain.aspx/*",
-				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx",
+				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx?mode=bankruptcy"
 			]
 		}
 	],
