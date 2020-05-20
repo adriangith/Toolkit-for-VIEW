@@ -1,11 +1,29 @@
-//chrome.storage.local.clear()
-
-
-
 var storedData = [];
 
+let pnl3BulkNoteUpdate = document.getElementById('pnl3BulkNoteUpdate');
+let pnl3BulkDebtorNoteUpdate = pnl3BulkNoteUpdate.cloneNode(true);
+pnl3BulkNoteUpdate.after(pnl3BulkDebtorNoteUpdate);
+pnl3BulkDebtorNoteUpdate.id = 'pnl3BulkDebtorNoteUpdate';
+let bda = pnl3BulkDebtorNoteUpdate.querySelector('a')
+bda.href = "#"
+bda.textContent = "Bulk Debtor Notes Update"
+bda.addEventListener('mouseup', function () {
+	postData(window.location.host.split(".")[0], {"pages": ["debtorBulkNotes"]}, "BulkDebtorNotes")
+
+
+})
+
+function postData(url, data, validate) {
+	chrome.runtime.sendMessage({
+		validate: validate,
+		data: data,
+		url: url
+	})
+}
+
+
 var obligationsButton = document.createElement('tr');
-obligationsButton.innerHTML  =	`<td class="leftmenufirstcol">&nbsp; </td> 
+obligationsButton.innerHTML = `<td class="leftmenufirstcol">&nbsp; </td> 
                 				 <td class="leftmenumiddlecol"> 
                    				 	<img src="https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Common/Images/BulletPnt.gif">&nbsp;<a href="javascript:ConfirmChangesLose(\'https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx\')" accesskey="i" style="VERTICAL-ALIGN: top" target="">Obligations Summary</a></td>
 	  							 <td class="leftmenulastcol">&nbsp; </td>`
@@ -15,17 +33,17 @@ document.querySelector("#dvInformation > table > tbody").insertBefore(obligation
 
 var decisionMakerCol1 = document.createElement('tr');
 
-							
-var decisionMakerCol3 = document.createElement('tr');							
-decisionMakerCol3.innerHTML  =	`<td class="tdButtons" colspan="9">
-									<input type="image" type="button" name="appButton" id="appButton" tabindex="19" src=${chrome.runtime.getURL("Images/applicationOptions.png" )} onClick="return false;">																				
+
+var decisionMakerCol3 = document.createElement('tr');
+decisionMakerCol3.innerHTML = `<td class="tdButtons" colspan="9">
+									<input type="image" type="button" name="appButton" id="appButton" tabindex="19" src=${chrome.runtime.getURL("Images/applicationOptions.png")} onClick="return false;">																				
 									<input type="image" type="button" name="VRISButton" id="VRISButton" tabindex="19" src=${chrome.runtime.getURL("Images/VRISOptions.png")} onClick="return false;">	
 									<input type="image" type="button" name="StatsButton" id="StatsButton" tabindex="19" src=${chrome.runtime.getURL("Images/VicRoadsStats.png")} onClick="return false;">
 									<input type="image" type="button" name="UpdateID" id="UpdateID" tabindex="19" src=${chrome.runtime.getURL("Images/UpdateID.png")} onClick="return false;">
 								</td>`
-									
+
 var decisionMakerCol2 = document.createElement('tr');
-decisionMakerCol2.innerHTML  =	'<td class="firstcoltop">&nbsp;</td>\
+decisionMakerCol2.innerHTML = '<td class="firstcoltop">&nbsp;</td>\
                             <td class="seccoltop"><img src="' + chrome.runtime.getURL("Images/decisionOptions.png") + '" style="float:right">\
                             </td>\
                             <td class="thirdcoltop"></td>\
@@ -34,15 +52,15 @@ decisionMakerCol2.innerHTML  =	'<td class="firstcoltop">&nbsp;</td>\
                             <td class="thirdcoltop"></td>\
                             <td class="fifthcoltop"></td>\
                             <td class="thirdcoltop"></td>'
-							
-							
-							
-							
-var sibling2 = document.querySelector("#tblStandardDisplay > tbody").children.item(10)							
+
+
+
+
+var sibling2 = document.querySelector("#tblStandardDisplay > tbody").children.item(10)
 document.querySelector("#tblStandardDisplay > tbody").insertBefore(decisionMakerCol3, sibling2.nextSibling);
 
 document.querySelector("#tblStandardDisplay > tbody").children.item(12).remove();
-document.querySelector("#tblStandardDisplay > tbody").children.item(12).remove();	
+document.querySelector("#tblStandardDisplay > tbody").children.item(12).remove();
 //document.querySelector("#tblStandardDisplay > tbody").children.item(11).remove();	
 
 
@@ -51,7 +69,7 @@ var formPopup = document.createElement('div');
 formPopup.setAttribute("id", "myForm");
 formPopup.setAttribute("class", "form-popup");
 
-formPopup.innerHTML  = `
+formPopup.innerHTML = `
 <table border="0" cellpadding="0" cellspacing="0" class="childTable" width="100%" class="form-container">
 	<tbody>
 		<tr>
@@ -165,113 +183,114 @@ formPopup.innerHTML  = `
 `
 
 
-  var referenceNode = document.querySelector('form > table > tbody > tr > td > table > tbody > tr > td > table');
-  referenceNode.after(formPopup);
-  
-  chrome.storage.local.get(['formPopupStatus'], function(items) {
-	  formPopup.style.display = items.formPopupStatus
-	  console.log(formPopup.style.display);
-	})
+var referenceNode = document.querySelector('form > table > tbody > tr > td > table > tbody > tr > td > table');
+referenceNode.after(formPopup);
 
-  document.getElementById('appButton').addEventListener("click", function(){
+chrome.storage.local.get(['formPopupStatus'], function (items) {
+	formPopup.style.display = items.formPopupStatus
+	console.log(formPopup.style.display);
+})
+
+document.getElementById('appButton').addEventListener("click", function () {
 	toggleForm()
-	chrome.storage.local.set({'formPopupStatus': formPopup.style.display});
+	chrome.storage.local.set({ 'formPopupStatus': formPopup.style.display });
 });
 
-document.getElementById('sub').addEventListener("click", function(){
+document.getElementById('sub').addEventListener("click", function () {
 	closeForm()
-	chrome.storage.local.set({'formPopupStatus': formPopup.style.display});
+	chrome.storage.local.set({ 'formPopupStatus': formPopup.style.display });
 });
 
 function toggleForm() {
-	 if (formPopup.style.display === "" || formPopup.style.display === "none") {
-		 formPopup.style.display = "block"; 
-	 } else if (formPopup.style.display === "block") {
-		formPopup.style.display = "none"; 
-	 }	 
-  
+	if (formPopup.style.display === "" || formPopup.style.display === "none") {
+		formPopup.style.display = "block";
+	} else if (formPopup.style.display === "block") {
+		formPopup.style.display = "none";
+	}
+
 }
 
 function closeForm() {
- formPopup.style.display = "none";
+	formPopup.style.display = "none";
 }
 
 
-  
-  chrome.storage.local.get(['value'], function(items) {
-      console.log('Settings retrieved', items);
-	  if (Object.entries(items).length !== 0) {
-		  storedData = items.value
-		  console.log(storedData);
-		  for(item in items.value) {
+
+chrome.storage.local.get(['value'], function (items) {
+	console.log('Settings retrieved', items);
+	if (Object.entries(items).length !== 0) {
+		storedData = items.value
+		console.log(storedData);
+		for (item in items.value) {
 			var debtorId = document.querySelector('#NoticeInfo_lblOtherInfo').textContent;
 			debtorId = debtorId.match(/Debtor: (.*?)[\s]/)[1];
-		  if (debtorId === items.value[item][0]) {	
-			fill(items.value[item])
-			break;
-		  } else {
-			  if (items.value.length - 1 === parseInt(item)) {defaults()}	  
-		  }
-		
-		  }} else {
-			  defaults()
-		  }
-		  
-		  });
-	  
-function fill(value) {
-	  document.getElementById('3PA').checked = value[1];
-	  var inputs = document.getElementsByClassName('textbox x')
-	  for (input in inputs) {
-		if (value[1] ===  true) {
-			inputs[input].disabled = false;
-	  } else {
-		  inputs[input].disabled = true;
-	  }
-		
+			if (debtorId === items.value[item][0]) {
+				fill(items.value[item])
+				break;
+			} else {
+				if (items.value.length - 1 === parseInt(item)) { defaults() }
+			}
 
-	  }	  
-	  document.getElementById('Name').value = value[2];
-	  document.getElementById('Organisation').value = value[3];
-	  document.getElementById('Street').value = value[4];
-	  document.getElementById('Town').value = value[5];
-	  document.getElementById('State').value = value[6];
-	  document.getElementById('PostCode').value = value[7];
-	  document.getElementById('to3rdParty').checked = value[8];
-	  document.getElementById('toTheDebtor').checked = value[9];
-	  document.getElementById('Alt3rdParty').checked = value[10];
-	  document.getElementById('AltName').value = value[11];
-	  document.getElementById('AltOrganisation').value = value[12];
-	  document.getElementById('AltStreet').value = value[13];
-	  document.getElementById('AltTown').value = value[14];
-	  document.getElementById('AltState').value = value[15];
-	  document.getElementById('AltPostCode').value = value[16];
-	  document.getElementById('3LC').checked = value[17];
-	  document.getElementById('Alt3LC').checked = value[18];
-	  
-	  if (document.getElementById('Alt3rdParty').checked === true) {
-		  let Alt3rdParty = document.getElementById('Alt3rdParty')
-			let Hidable = document.getElementsByClassName('Hidable')
-			if (Alt3rdParty.checked === true) {
-		for(let row of Hidable) {
-			row.style.display = ""
-		}		
+		}
 	} else {
-		for(let row of Hidable) {
-			row.style.display = "none"
+		defaults()
+	}
+
+});
+
+function fill(value) {
+	document.getElementById('3PA').checked = value[1];
+	var inputs = document.getElementsByClassName('textbox x')
+	for (input in inputs) {
+		if (value[1] === true) {
+			inputs[input].disabled = false;
+		} else {
+			inputs[input].disabled = true;
+		}
+
+
+	}
+	document.getElementById('Name').value = value[2];
+	document.getElementById('Organisation').value = value[3];
+	document.getElementById('Street').value = value[4];
+	document.getElementById('Town').value = value[5];
+	document.getElementById('State').value = value[6];
+	document.getElementById('PostCode').value = value[7];
+	document.getElementById('to3rdParty').checked = value[8];
+	document.getElementById('toTheDebtor').checked = value[9];
+	document.getElementById('Alt3rdParty').checked = value[10];
+	document.getElementById('AltName').value = value[11];
+	document.getElementById('AltOrganisation').value = value[12];
+	document.getElementById('AltStreet').value = value[13];
+	document.getElementById('AltTown').value = value[14];
+	document.getElementById('AltState').value = value[15];
+	document.getElementById('AltPostCode').value = value[16];
+	document.getElementById('3LC').checked = value[17];
+	document.getElementById('Alt3LC').checked = value[18];
+
+	if (document.getElementById('Alt3rdParty').checked === true) {
+		let Alt3rdParty = document.getElementById('Alt3rdParty')
+		let Hidable = document.getElementsByClassName('Hidable')
+		if (Alt3rdParty.checked === true) {
+			for (let row of Hidable) {
+				row.style.display = ""
+			}
+		} else {
+			for (let row of Hidable) {
+				row.style.display = "none"
+			}
 		}
 	}
-	  }
-	  
-	  }
-	  
+
+}
+
 function defaults() {
 	document.getElementById('3PA').checked = false;
 	document.getElementById('to3rdParty').checked = true;
-	 var inputs = document.getElementsByClassName('textbox x')
-	 for (input in inputs) {
-		  inputs[input].disabled = true;
-	  
+	var inputs = document.getElementsByClassName('textbox x')
+	for (input in inputs) {
+		inputs[input].disabled = true;
+
 	}
 }
 
@@ -282,10 +301,10 @@ s.src = chrome.runtime.getURL('js/helper.js');
 
 
 window.addEventListener('beforeunload', (event) => {
-		saveIT()	
-	});
-	
-function saveIT () {
+	saveIT()
+});
+
+function saveIT() {
 	var value = []
 	var debtorId = document.querySelector('#NoticeInfo_lblOtherInfo').textContent;
 	debtorId = debtorId.match(/Debtor: (.*?)[\s]/)[1];
@@ -300,105 +319,105 @@ function saveIT () {
 			value.push(classname[i].checked)
 		}
 	}
-	
+
 	var LC = document.getElementById('3LC')
 	value.push(LC.checked)
 	var Alt3LC = document.getElementById('Alt3LC')
 	value.push(Alt3LC.checked)
-		
+
 	if (storedData.length === 0) {
 		storedData.push(value);
 	}
 	for (array in storedData) {
-		if(value[0] === storedData[array][0]) {
+		if (value[0] === storedData[array][0]) {
 			storedData[array] = value;
 			break;
 		} else {
 			console.log(storedData.length);
 			console.log(array);
-			if (storedData.length - 1 === parseInt(array)) {console.log(value); storedData.push(value)}
+			if (storedData.length - 1 === parseInt(array)) { console.log(value); storedData.push(value) }
 		}
-	} 
-	
+	}
 
-	chrome.storage.local.set({'value': storedData});
+
+	chrome.storage.local.set({ 'value': storedData });
 }
 
 function pushToArray(arr, obj) {
-    const index = arr.findIndex((e) => e.id === obj.id);
+	const index = arr.findIndex((e) => e.id === obj.id);
 
-    if (index === -1) {
-        arr.push(obj);
-    } else {
-        arr[index] = obj;
-    }
+	if (index === -1) {
+		arr.push(obj);
+	} else {
+		arr[index] = obj;
+	}
 }
 
- chrome.storage.onChanged.addListener(function(changes, namespace) {
-        for (var key in changes) {
-          var storageChange = changes[key];
-          console.log('Storage key "%s" in namespace "%s" changed. ' +
-                      'Old value was "%s", new value is "%s".',
-                      key,
-                      namespace,
-                      storageChange.oldValue,
-                      storageChange.newValue);
-        }
-      });
-	 
-document.getElementById('VRISButton').addEventListener('click', function() {
+chrome.storage.onChanged.addListener(function (changes, namespace) {
+	for (var key in changes) {
+		var storageChange = changes[key];
+		console.log('Storage key "%s" in namespace "%s" changed. ' +
+			'Old value was "%s", new value is "%s".',
+			key,
+			namespace,
+			storageChange.oldValue,
+			storageChange.newValue);
+	}
+});
+
+document.getElementById('VRISButton').addEventListener('click', function () {
 	let Requestor
 	let ID
 	let Reason
-	chrome.storage.local.get(['Requestor', 'ID'], function(result) {
+	chrome.storage.local.get(['Requestor', 'ID'], function (result) {
 		console.log(result);
 		if (result.Requestor === undefined) {
 			Requestor = prompt('What is your name?')
-			chrome.storage.local.set({'Requestor': Requestor})
-			ID = prompt('What is you user id?', 'Both VRIS/DLS seperated by a "/"') 
-			chrome.storage.local.set({'ID': ID})				
+			chrome.storage.local.set({ 'Requestor': Requestor })
+			ID = prompt('What is you user id?', 'Both VRIS/DLS seperated by a "/"')
+			chrome.storage.local.set({ 'ID': ID })
 		} else {
 			Requestor = result.Requestor
 			ID = result.ID
 
 		}
 		Reason = prompt('What is the reason for accessing VicRoads records?', 'A, N, O, S or X')
-		chrome.runtime.sendMessage([Requestor, ID, Reason, "lookup"], function() {});
+		chrome.runtime.sendMessage([Requestor, ID, Reason, "lookup"], function () { });
 		alert('You have added a new record to the VicRoads / DLS Record Sheet. Click VicRoads stats to download the records sheet.');
-    });
+	});
 })
 
-document.getElementById('StatsButton').addEventListener('click', function() {
-	chrome.runtime.sendMessage([,,, "stats"], function() {});
+document.getElementById('StatsButton').addEventListener('click', function () {
+	chrome.runtime.sendMessage([, , , "stats"], function () { });
 })
 
-document.getElementById('UpdateID').addEventListener('click', function() {
+document.getElementById('UpdateID').addEventListener('click', function () {
 	let Requestor
 	let ID
 	let Reason
-	chrome.storage.local.get(['Requestor', 'ID'], function(result) {
-			Requestor = prompt('What is your name?', result.Requestor !== undefined ? result.Requestor : "")
-			chrome.storage.local.set({'Requestor': Requestor})
-			ID = prompt('What is you user id?', result.ID !== undefined ? result.ID : "") 
-			chrome.storage.local.set({'ID': ID})				
-			alert('The Requestor Name and ID have been updated');
-    });
+	chrome.storage.local.get(['Requestor', 'ID'], function (result) {
+		Requestor = prompt('What is your name?', result.Requestor !== undefined ? result.Requestor : "")
+		chrome.storage.local.set({ 'Requestor': Requestor })
+		ID = prompt('What is you user id?', result.ID !== undefined ? result.ID : "")
+		chrome.storage.local.set({ 'ID': ID })
+		alert('The Requestor Name and ID have been updated');
+	});
 })
-	  
-document.getElementById('radioGroup').addEventListener('click', function() {
+
+document.getElementById('radioGroup').addEventListener('click', function () {
 	let Alt3rdParty = document.getElementById('Alt3rdParty')
 	let Hidable = document.getElementsByClassName('Hidable')
 	if (Alt3rdParty.checked === true) {
-		for(let row of Hidable) {
+		for (let row of Hidable) {
 			row.style.display = ""
-		}		
+		}
 	} else {
-		for(let row of Hidable) {
+		for (let row of Hidable) {
 			row.style.display = "none"
 		}
 	}
 })
-	  
+
 /* chrome.storage.local.get(['records'], function(result) {
 	let array = []
 	for (sheet in result.records.sheet){
@@ -410,20 +429,20 @@ document.getElementById('radioGroup').addEventListener('click', function() {
 					secondArray.push(result.records.sheet[sheet][record][item][key])
 				}
 				array.push(secondArray)
-				
+
 			}
-			
+
 		}
 	}
 	array.unshift(["NO.", "Date", "Registration/ Licence Number", "Obligation Number/Debtor Id", "Requestor Name", "User Id", "Reason"])
 	const editor = new EditorJS({
-	
+
 	 holder: 'myForm',
 	 tools: {
 		table: {
 			class: Table,
 			inlineToolbar: false
-		}		
+		}
 	 },
 	 data: {
 		"blocks": [{
@@ -434,13 +453,12 @@ document.getElementById('radioGroup').addEventListener('click', function() {
 		}]
 	 }
 });
-	
-	
-	
-	
-})
-	 */ 
 
-	
-	
-	
+
+
+
+})
+	 */
+
+
+

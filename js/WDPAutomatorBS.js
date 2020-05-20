@@ -114,11 +114,12 @@ function urltoFile(url, filename, mimeType) {
 }
 
 chrome.runtime.onMessage.addListener(function (request) {
-	if (request.validate && request.validate === "bankruptcy") {
+	let valArray = ["bankruptcy", "BulkDebtorNotes"]
+	if (request.validate && valArray.includes(request.validate)) {
+		chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {request.data.catalystURL = tabs[0].url; request.data.catalystTabID = tabs[0].id});
 		chrome.windows.create({"url": chrome.extension.getURL("wizard/wizard.html"), "type": "popup", "width":900, "height":650, "left": 200, "top": 200}, function(window) {
 			var handler = function(tabId, changeInfo) {
 				if(window.tabs[0].id === tabId && changeInfo.status === "complete"){
-					console.log(tabId);
 					chrome.windows.onCreated.removeListener(handler);
 					chrome.tabs.sendMessage(tabId, {url: request.url, data: request.data});
 				}

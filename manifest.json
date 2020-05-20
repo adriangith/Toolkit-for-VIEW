@@ -125,7 +125,6 @@
 				"js/External/parseTable.js",
 				"js/External/jquery-3.4.1.js",
 				"js/External/datatables.js",
-				"js/wizardData.js",
 				"js/bankruptcy.js"
 			],
 			"css":[

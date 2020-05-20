@@ -201,6 +201,10 @@
 
   /* Common styles and resets */
 
+  .info {
+	margin-right: 3px;
+  }
+  
   .dotstyle ul {
   	position: relative;
   	display: inline-block;

@@ -255,5 +255,8 @@ function addButtons(parentElement, imageName) {
         align: "right"
     });
     document.querySelector(`${parentElement} .bordertable > tbody`).insertAdjacentElement('beforeend', tr);
-    button.addEventListener("mouseup", function () { postData(document.location.host.split('.')[0], { debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value }) });
+    button.addEventListener("mouseup", function () { postData(document.location.host.split('.')[0], { 
+        debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value,
+        pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "debtorNote", "taskNote", "application", "letter"] 
+    }) });
 }

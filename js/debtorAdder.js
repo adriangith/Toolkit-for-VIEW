@@ -9,6 +9,18 @@ bankruptcyLink.innerHTML  =	`<td class="leftmenufirstcol">&nbsp; </td>
 					
 bankruptcyLink.querySelector("td > a").addEventListener("mouseup", sendURL)
 
+let tmnotices =  document.getElementById('Cell_Notices');
+tmbulkupdate = tmnotices.cloneNode(true);
+tmnotices.after(tmbulkupdate);
+tmbulkupdate.id = 'Cell_Bulk_Update';
+let tmbul = tmbulkupdate.querySelector('span > a');
+tmbul.textContent = "Bulk Update";
+let tmbulArray = tmbul.href.split('/')
+tmbulArray[tmbulArray.length - 1] = 'BulkUpdateMain.aspx';
+console.log(tmbulArray);
+tmbul.href = tmbulArray.join('/');
+
+
 function sendURL() {
 	chrome.runtime.sendMessage({URLHost: window.location.host.split(".")[0]}, function(response) {
 		console.log(response);
