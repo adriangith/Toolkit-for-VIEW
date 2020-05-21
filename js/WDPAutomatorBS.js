@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 		(async () => {
 			//Handle files
-			if (request.init && request.init.body.ctl01$mainContentPlaceHolder$documentImportFileUpload) {
+			if (request.init && request.init.body !== null && request.init.body.ctl01$mainContentPlaceHolder$documentImportFileUpload) {
 				let fileContainer = request.init.body.ctl01$mainContentPlaceHolder$documentImportFileUpload;
 				console.log(fileContainer);
 				request.init.body.ctl00$mainContentPlaceHolder$documentImportFileUpload = await urltoFile(fileContainer.file, fileContainer.name, fileContainer.file.split(';')[0].split(':')[1])

@@ -1,6 +1,6 @@
 {
 	"name": "Toolkit for View",
-	"version": "0.0.0.54",
+	"version": "0.0.0.56",
 	"description": "Adds extra features to View to assist in Review Officer tasks",
 	"short_name": "View Toolkit",
 	"permissions": [
@@ -12,7 +12,6 @@
 		"https://uat.wdp.vic.gov.au/wdp-applications/*",
 		"https://api.wdp.vic.gov.au/api/VIMSImport/ImportVIMSData",
 		"https://uatapi.wdp.vic.gov.au/api/VIMSImport/ImportVIMSData",
-		"activeTab",
 		"storage",
 		"cookies"
 	],
@@ -124,7 +123,12 @@
 				"js/External/spin.umd.js",
 				"js/External/parseTable.js",
 				"js/External/jquery-3.4.1.js",
+				"js/External/jszip.js",
 				"js/External/datatables.js",
+				"js/External/dataTables.buttons.js",
+				"js/External/buttons.html5.js",
+				"js/External/moment.js",
+				"js/External/datetime-moment.js",
 				"js/bankruptcy.js"
 			],
 			"css":[

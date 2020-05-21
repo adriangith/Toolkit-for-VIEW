@@ -27,7 +27,6 @@ const shade = document.getElementById('shade');
 
 properties.allObligations;
 
-let expressions = require('angular-expressions');
 
 const toBase64 = file => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -169,7 +168,7 @@ async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
       }
     }
   }
-  dataParams.afterAction && dataParams.afterAction(parsedDocument);
+  dataParams.afterAction && dataParams.afterAction(parsedDocument, properties);
   return parsedDocument
 }
 
@@ -207,6 +206,7 @@ var onCreate = async function (message) {
   chrome.runtime.onMessage.removeListener(onCreate);
   properties.source = message.url;
   properties.debtorid = message.data.debtorid;
+  properties.taskId = message.data.taskid;
   properties.catalystTabID = message.data.catalystTabID;
   let stages = message.data.pages.map(page => wizardLogic[page](properties, getDebtorObligations))
   startWizard(stages);
@@ -240,6 +240,7 @@ async function getDebtorObligations(source, parsedDocument) {
   if (Number(rowCount[rowCount.length - 1]) > 50) {
     formData["DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage"] = 0;
     formData["DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage"] = 0;
+    formData["DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage"] = 0;
     var form_data = new FormData();
     for (var key in formData) { form_data.append(key, formData[key]); }
     vDocument = await fetch(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`, {
@@ -252,13 +253,28 @@ async function getDebtorObligations(source, parsedDocument) {
   properties.courtFineData = parseTable(parsedDocument.getElementById("DebtorCourtOrdersCtrl_DebtorCourtFinesTable_tblData"))
 
   let debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData"))
-  if (warrantData) debtorData = mergeById(warrantData, debtorData).filter(item => Object.keys(item).length > 9);
+  if (warrantData) {
+    debtorData = mergeById({
+      data: warrantData,
+      matchColumn: "Obligation No."
+    }, {
+      data: debtorData,
+      matchColumn: "Notice Number"
+    }).filter(item => Object.keys(item).length > 9)
+    debtorData = mergeById({
+      data: debtorData,
+      matchColumn: "Notice Number"
+    }, {
+      data: parseTable(parsedDocument.getElementById('DebtorWarrantsCtrl_DebtorWarrantsTable_tblData')),
+      matchColumn: "Obligation No."
+    })
+  }
+  console.log(debtorData);
   return debtorData;
 }
 
 async function buildTable(element, field, parsedDocument) {
   let tableData = await element.dataSource(parsedDocument)
-  console.log(tableData);
   tableData = tableData.map(function (row) {
     const newRow = {};
     newRow.checkbox = "";
@@ -321,6 +337,13 @@ async function buildTable(element, field, parsedDocument) {
 
   if (element.selectCriteria === "WarrantProvableLift") {
     dataTableConfig.columns.push({ "data": "OnHold", "title": "Warrant Hold" });
+    dataTableConfig.columns.push({ "data": "Status", "title": "Warrant Status" });
+    dataTableConfig.columnDefs[0].targets = [2, 5, 7, 8, 10, 11, 12]
+    dataTableConfig.columnDefs.push({ targets: 14, className: "truncate" })
+    dataTableConfig.createdRow = function(row) {
+      var td = $(row).find(".truncate");
+      td.attr("title", td.html());
+    }
   }
 
   let dataTable = $(field).DataTable(dataTableConfig);
@@ -394,138 +417,6 @@ async function buildTable(element, field, parsedDocument) {
   return dataTable
 }
 
-function downloadLetter(address) {
-  let addressArray = address.split(",");
-
-  if (addressArray.length > 5) {
-    addressArray[1] = `${addressArray[0]}${addressArray[1]}`;
-    addressArray.shift();
-  }
-
-  let l = {
-    "provable": [],
-    "courtFines": [],
-    "nonProvable": [],
-    "zeroBalance": [],
-    "dateOfBankruptcy": toDate(properties.dateOfBankruptcy).toLocaleString('en-au', { day: 'numeric', month: 'long', year: 'numeric' }),
-    "bankruptcynotificationdate": toDate(document.getElementById('noteDate').value).toLocaleString('en-au', { day: 'numeric', month: 'long', year: 'numeric' }),
-    "First_Name": properties.firstName,
-    "Last_Name": properties.lastName,
-    "Address_1": addressArray[0].trim(),
-    "Town": addressArray[1].trim(),
-    "State": addressArray[2].trim(),
-    "Post_Code": addressArray[3].trim(),
-    "Debtor_ID": properties.debtorId
-  }
-  let reduced = properties.agencies.reduce((obj, item) => (obj[item.key] = item.value, obj), {});
-
-  properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
-    let data = this.data();
-
-    const types = ["1A", "1B", "1C", "2A"];
-    const statuses = ["WARRNT", "CHLGLOG", "NFDP"];
-    if (String(data.Offence) === "0000") {
-      properties.courtDetails;
-      data.hearingDate = properties.courtDetails[data.NoticeNumber].hearingDate
-      data.courtLocation = properties.courtDetails[data.NoticeNumber].courtLocation
-      data.CaseRef = properties.courtDetails[data.NoticeNumber].CaseRef
-    }
-    data.agency = reduced[data.NoticeNumber];
-    let bd = moment(properties.dateOfBankruptcy, "YYYY-MM-DD")
-    let td = moment(data.OffenceDate, "DD/MM/YYYY")
-
-    let balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
-
-    (balance <= 0) &&
-      (l.zeroBalance.push(data)) ||
-      (bd.isAfter(td)) &&
-      (types.some(type => data.InputType === type)) &&
-      (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
-      (l.provable.push(data)) ||
-      (data.Offence === "0000") &&
-      (l.courtFines.push(data)) ||
-      (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&
-      (l.nonProvable.push(data));
-
-  })
-  backgroundLetterMaker(l)
-}
-
-function loadFile(url, callback) {
-  JSZipUtils.getBinaryContent(url, callback);
-}
-
-function angularParser(tag) {
-  if (tag === '.') {
-    return {
-      get: function (s) { return s; }
-    }
-  }
-  const expr = expressions.compile(tag.replace(/(’|“|”)/g, "'"));
-  return {
-    get: function (s) {
-      return expr(s);
-    }
-  }
-}
-
-async function backgroundLetterMaker(letterData, firstName, lastName) {
-  const letterTemplate = await loadLetter("https://trimwebdrawer.justice.vic.gov.au/record/13930494/File/document")
-  /* Create a letter for each of the objects in letterData */
-  const letter = makeLetter(letterData, letterTemplate, firstName, lastName)
-}
-
-function makeLetter(content, letterTemplate, firstName, lastName) {
-  var zip = new JSZip(letterTemplate);
-  var doc = new window.Docxtemplater().loadZip(zip)
-  doc.setOptions({
-    parser: angularParser
-  })
-
-  doc.setData(content);
-  try {
-    // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
-    doc.render()
-  }
-  catch (error) {
-    var e = {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      properties: error.properties,
-    }
-    console.log(JSON.stringify({ error: e }));
-    // The error thrown here contains additional information when logged with JSON.stringify (it contains a property object).
-    throw error;
-  }
-  var out = doc.getZip().generate({
-    type: "blob",
-    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  }) //Output the document using Data-URI    
-  saveAs(out, `${titleCase(properties.firstName)} ${titleCase(properties.lastName)} - Bankruptcy Confirmation.docx`)
-  //window.close()
-}
-
-function loadLetter(url) {
-  return new Promise((resolve, reject) => {
-    JSZipUtils.getBinaryContent(url, function (err, data) {
-      if (err) {
-        throw err; // or handle err
-      }
-      data = resolve(data);
-      return data;
-    });
-  });
-}
-
-function titleCase(string) {
-  var sentence = string.toLowerCase().split(" ");
-  for (var i = 0; i < sentence.length; i++) {
-    sentence[i] = sentence[i][0].toUpperCase() + sentence[i].slice(1);
-  }
-  return sentence.join(" ");
-}
-
 const toDate = (dateStr = "2000-01-01") => {
   const [day, month, year] = dateStr.split("-").reverse()
   return new Date(year, month - 1, day)
@@ -541,8 +432,8 @@ function groupBy(arr, property) {
 }
 
 const mergeById = (a1, a2) =>
-  a1.map(itm => ({
-    ...a2.find((item) => (item["Notice Number"] === itm["Obligation No."]) && item),
+  a1.data.map(itm => ({
+    ...a2.data.find((item) => (item[a2.matchColumn] === itm[a1.matchColumn]) && item),
     ...itm
   }));
 

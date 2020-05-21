@@ -108,7 +108,7 @@ async function bankruptcy() {
     //Convert table to array of objects
     let tableData = parseTable(table);
 
-    //Remove white space from property keys
+    //Remove white space and special characters from property keys
     tableData = tableData.map(function (row) {
         const newRow = {};
         Object.keys(row).forEach(function (key) {
@@ -117,16 +117,53 @@ async function bankruptcy() {
         return newRow;
     });
 
+    //Expand task description
+    tableData = tableData.map(row => {
+        const descriptionArray = row.Description.split(/:|,/);
+        const descriptionObject = { "Status": "", "AFSA Reference": "", "Date of Bankruptcy": "" };
+        let newRow = {};
+        descriptionArray.forEach(function (item, index) {
+            if (index % 2 === 0 && descriptionArray.length > 1) {
+                console.log(item.trim());
+                descriptionObject[item.trim()] = descriptionArray[index + 1].trim();
+            }
+        });
+        newRow.TaskId = `<a href = 'https://${window.location.host.split('.')[0]}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${row.TaskId}&ProcessMode=User'>${row.TaskId}</a>`;
+        newRow.TaskIdRaw = row.TaskId;
+        newRow.DebtorId = row.ModRef;
+        newRow.ModRef = `<a href='javascript:document.getElementById("DebtorDetailsCtrl_DebtorIdSearch").value = ${row.ModRef}; document.getElementById("DebtorDetailsCtrl_debtorIdTextBoxButton").click()'>${row.ModRef}</a>`;
+        newRow.TaskType = row.TaskType;
+        return newRow = { ...newRow, ...descriptionObject }
+    })
+
+    $.fn.dataTable.moment('DD/MM/YYYY');
+
     //Create register datatable
     const registerDataTable = makeDataTable(tableData, "#reg > table", [
         { "data": "TaskId", "title": "Task Id" },
-        { "data": "Description", "title": "Description", "width": "100%" },
-        { "data": "ModRef", "title": "Debtor ID" }
+        { "data": "Status", "title": "Status", "width": "100%" },
+        { "data": "AFSA Reference", "title": "AFSA Reference" },
+        { "data": "Date of Bankruptcy", "title": "Date of Bankruptcy" },
+        { "data": "ModRef", "title": "Debtor ID" },
+        { "data": "DebtorId", "title": "DebtorId", "visible": false },
+        { "data": "TaskIdRaw", "title": "TaskIdRaw", "visible": false },
+    ], [
+        {
+            extend: 'excelHtml5',
+            autoFilter: true,
+            title: null,
+            filename: function () {
+                return "Bankruptcy and Debt Agreements Register - As of " + moment(new Date()).format("DD-MM-YYYY")
+            },
+            exportOptions: {
+                columns: ':visible'
+            }
+        }
     ]);
 
     //Get rows, if any, that match current debtor id
     var indexes = registerDataTable.rows().eq(0).filter(function (rowIdx) {
-        return registerDataTable.cell(rowIdx, 2).data() === document.getElementById("DebtorDetailsCtrl_DebtorIdSearch").value.trim() ? true : false;
+        return registerDataTable.cell(rowIdx, 5).data() === document.getElementById("DebtorDetailsCtrl_DebtorIdSearch").value.trim() ? true : false;
     });
 
     //Extract the rows from the register data table that match current debtor id
@@ -135,9 +172,11 @@ async function bankruptcy() {
     //Create datatable for current debtor
     const debtorDataTable = makeDataTable(debtorTable, "#apps > table", [
         { "data": "TaskId", "title": "Task Id" },
-        { "data": "Description", "title": "Description", "width": "100%" },
+        { "data": "Status", "title": "Status", "width": "100%" },
+        { "data": "AFSA Reference", "title": "AFSA Reference" },
+        { "data": "Date of Bankruptcy", "title": "Date of Bankruptcy" },
         { "data": null, "title": "Actions", "defaultContent": `<image class="updateButton" onClick='return false;' style='Cursor:Hand;' src=${chrome.runtime.getURL('Images/button_update.gif')}>` }
-    ]);
+    ], []);
 
     //Remove spinners
     document.querySelectorAll(".placeholder").forEach(element => element.remove())
@@ -151,7 +190,8 @@ async function bankruptcy() {
                 document.location.host.split('.')[0],
                 {
                     debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value,
-                    taskid: element.parentElement.parentElement.firstElementChild.textContent
+                    taskid: element.parentElement.parentElement.firstElementChild.textContent,
+                    pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "debtorNote", "taskNote", "application", "letter"]
                 }
             )
         });
@@ -193,10 +233,10 @@ function setAttributes(el, attrs) {
     }
 }
 
-function makeDataTable(tableData, target, columns) {
+function makeDataTable(tableData, target, columns, buttons) {
     const opts = {
         "data": tableData,
-        "dom": 'rt<"clear"><"bottom"lpi>f',
+        "dom": 'rt<"clear"><"bottom"lpi>fB',
         "pageLength": 10,
         "lengthMenu": [
             [-1, 5, 10, 20, 30, 40, 50],
@@ -224,8 +264,9 @@ function makeDataTable(tableData, target, columns) {
         }
     }
 
-    opts.columns = columns;
+    buttons && (opts.buttons = buttons)
 
+    opts.columns = columns;
 
     const dataTable = $(document.querySelector(target)).DataTable(opts)
     return dataTable;
@@ -255,8 +296,10 @@ function addButtons(parentElement, imageName) {
         align: "right"
     });
     document.querySelector(`${parentElement} .bordertable > tbody`).insertAdjacentElement('beforeend', tr);
-    button.addEventListener("mouseup", function () { postData(document.location.host.split('.')[0], { 
-        debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value,
-        pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "debtorNote", "taskNote", "application", "letter"] 
-    }) });
+    button.addEventListener("mouseup", function () {
+        postData(document.location.host.split('.')[0], {
+            debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value,
+            pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "debtorNote", "taskNote", "application", "letter"]
+        })
+    });
 }

@@ -12,6 +12,13 @@
   	float: right;
   }
 
+  .truncate {
+	max-width:165px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+  }
+
   #messagebox {
   	cursor: hand;
   	width: fit-content;
