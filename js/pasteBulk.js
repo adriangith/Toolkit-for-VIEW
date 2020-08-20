@@ -8,15 +8,14 @@ pasteButton.setAttribute('onclick', 'return false');
 pasteButton.id = 'btnNoticePaste'
 pasteButton.src = chrome.runtime.getURL("Images/paste.png")
 pasteButton.addEventListener('mouseup', function() {
-    let obArray = prompt("Paste obligations from excel here. Hint: You can copy and paste the entire column");
+    let obArray = prompt("Paste obligations from excel here.\r\nHint: You can copy and paste an entire column.");
     
     if (obArray === null) {
         console.log("You didn't paste any obligations");
         return;
     }
     obArray = obArray.split("\n");
-    let type = window.location.search.match(/ode=(.*)/)[1][0] === 'N' ? "Bulk Notes Update" : "Bulk Hold Update";
-    data = [obArray, type];
+    data = [obArray, document.querySelector("#lblPageHeader").textContent, null, null, null, window.location.host.split(".")[0]];
     chrome.runtime.sendMessage(data);
 })
 

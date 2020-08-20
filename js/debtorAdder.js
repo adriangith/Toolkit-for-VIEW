@@ -9,16 +9,6 @@ bankruptcyLink.innerHTML  =	`<td class="leftmenufirstcol">&nbsp; </td>
 					
 bankruptcyLink.querySelector("td > a").addEventListener("mouseup", sendURL)
 
-let tmnotices =  document.getElementById('Cell_Notices');
-tmbulkupdate = tmnotices.cloneNode(true);
-tmnotices.after(tmbulkupdate);
-tmbulkupdate.id = 'Cell_Bulk_Update';
-let tmbul = tmbulkupdate.querySelector('span > a');
-tmbul.textContent = "Bulk Update";
-let tmbulArray = tmbul.href.split('/')
-tmbulArray[tmbulArray.length - 1] = 'BulkUpdateMain.aspx';
-console.log(tmbulArray);
-tmbul.href = tmbulArray.join('/');
 
 
 function sendURL() {
@@ -326,9 +316,10 @@ function pushToArray(arr, obj) {
 }
 
 var bar = new ldBar(document.getElementById("myItem1"));
-//bar.set(100);
+
 
 chrome.storage.onChanged.addListener(function(changes, namespace) {
+	console.log(changes);
         for (var key in changes) {
 			chrome.storage.local.get(['obligationsCountFixed'], function(items) {
 				if (changes.obligationsCount !== undefined) {

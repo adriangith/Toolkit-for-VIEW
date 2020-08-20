@@ -70,8 +70,8 @@ async function bankruptcy() {
     dataArea.insertAdjacentHTML('beforeend', registerCtrl);
 
     //Add buttons
-    addButtons("#DebtorBankruptcyCtrl", "newApplication.png")
-    addButtons("#BankruptcyRegisterCtrl", "checkHolds.png")
+    addButtons("#DebtorBankruptcyCtrl", "New Application")
+    addButtons("#BankruptcyRegisterCtrl", "Check Holds")
 
     //Add spinner
     var regSpinner = new Spin.Spinner(opts).spin(document.getElementById("reg1"));
@@ -83,7 +83,7 @@ async function bankruptcy() {
     //Get form data from task page
     let formData = getFormData(taskPage, {
         [`${ph}statusText`]: "OPEN",
-        [`${ph}taskTypeText`]: "ESSSTATUS",
+        [`${ph}taskTypeText`]: "FVBANKRUPT",
         [`${ph}taskSearchButton.x`]: 0,
         [`${ph}taskSearchButton.y`]: 0
     })
@@ -122,12 +122,13 @@ async function bankruptcy() {
         const descriptionArray = row.Description.split(/:|,/);
         const descriptionObject = { "Status": "", "AFSA Reference": "", "Date of Bankruptcy": "" };
         let newRow = {};
-        descriptionArray.forEach(function (item, index) {
+        descriptionArray.some(function (item, index) {
             if (index % 2 === 0 && descriptionArray.length > 1) {
-                console.log(item.trim());
                 descriptionObject[item.trim()] = descriptionArray[index + 1].trim();
             }
+            return (index > 4);
         });
+        descriptionObject["Date of Bankruptcy"] = descriptionObject["Date of Bankruptcy"].substring(0,10);
         newRow.TaskId = `<a href = 'https://${window.location.host.split('.')[0]}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${row.TaskId}&ProcessMode=User'>${row.TaskId}</a>`;
         newRow.TaskIdRaw = row.TaskId;
         newRow.DebtorId = row.ModRef;
@@ -175,7 +176,7 @@ async function bankruptcy() {
         { "data": "Status", "title": "Status", "width": "100%" },
         { "data": "AFSA Reference", "title": "AFSA Reference" },
         { "data": "Date of Bankruptcy", "title": "Date of Bankruptcy" },
-        { "data": null, "title": "Actions", "defaultContent": `<image class="updateButton" onClick='return false;' style='Cursor:Hand;' src=${chrome.runtime.getURL('Images/button_update.gif')}>` }
+        { "data": null, "title": "Actions", "defaultContent": `<span class="updateButton mybutton" onClick='return false;'>Update</span>` }
     ], []);
 
     //Remove spinners
@@ -187,11 +188,12 @@ async function bankruptcy() {
     document.querySelectorAll(".updateButton").forEach(element => {
         element.addEventListener("mouseup", function () {
             postData(
-                document.location.host.split('.')[0],
                 {
+                    taskNote: "updateBankruptcy",
+                    source: document.location.host.split('.')[0],
                     debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value,
-                    taskid: element.parentElement.parentElement.firstElementChild.textContent,
-                    pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "debtorNote", "taskNote", "application", "letter"]
+                    taskId: element.parentElement.parentElement.firstElementChild.textContent,
+                    pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "taskNote", "application", "letter", "finish"]
                 }
             )
         });
@@ -272,24 +274,24 @@ function makeDataTable(tableData, target, columns, buttons) {
     return dataTable;
 }
 
-function postData(url, data) {
+function postData(data) {
     chrome.runtime.sendMessage({
         validate: new URL(document.location).searchParams.get("mode"),
-        data: data,
-        url: url
+        data: data
     })
 }
 
-function addButtons(parentElement, imageName) {
+function addButtons(parentElement, buttonText) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    const button = document.createElement('img');
+    const button = document.createElement('span');
     tr.append(td);
     td.append(button);
+    button.innerText = buttonText;
     setAttributes(button, {
         onclick: "return false",
         style: "cursor: hand",
-        src: chrome.runtime.getURL(`Images/${imageName}`)
+        class: "mybutton"
     });
     setAttributes(td, {
         class: "tdButtons",
@@ -297,9 +299,12 @@ function addButtons(parentElement, imageName) {
     });
     document.querySelector(`${parentElement} .bordertable > tbody`).insertAdjacentElement('beforeend', tr);
     button.addEventListener("mouseup", function () {
-        postData(document.location.host.split('.')[0], {
+        if (!confirm("Are you sure you wish to create a new bankruptcy task?")) return;
+        postData({
+            taskNote: "createBankruptcy",
+            source: document.location.host.split('.')[0],
             debtorid: document.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value,
-            pages: ["uploadDocuments", "bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "debtorNote", "taskNote", "application", "letter"]
+            pages: ["bankruptcyDate", "removeHolds", "placeHolds", "liftProceduralHolds", "proceduralHolds", "letter", "uploadDocuments", "application", "debtorNote", "taskNote", "finish"]
         })
     });
 }

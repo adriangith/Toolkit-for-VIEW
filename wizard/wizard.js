@@ -1,5 +1,7 @@
 import { Spinner } from '../js/External/spin.js';
 import * as wizardLogic from '../js/wizardLogic.js';
+import fetchRetryTimeout from '../js/fetchRetryTimeout.js';
+import VIEWsubmit from '../js/VIEWsubmit.js';
 
 var opts = {
   lines: 13, // The number of lines to draw
@@ -22,11 +24,8 @@ var opts = {
   position: 'absolute' // Element positioning
 };
 
-const properties = {}
+let properties;
 const shade = document.getElementById('shade');
-
-properties.allObligations;
-
 
 const toBase64 = file => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -47,13 +46,23 @@ async function getFormData(parsedDocument) {
   return formDataObject;
 }
 
-async function parsePage(vDocument) {
-  let htmlText = await vDocument.text();
+async function parsePage(vDocument, url, fetchOptions) {
+  let getbody = function (vDocument) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        reject('timeout')
+      }, 10000)
+      resolve(vDocument.text());
+    })
+  }
+  const htmlText = await getbody(vDocument).catch(async (e) => {
+    vDocument = await fetchRetryTimeout(url, fetchOptions)
+    return getbody(vDocument)
+  })
   const parser = new DOMParser();
   const parsedDocument = parser.parseFromString(htmlText, "text/html");
   return parsedDocument;
 }
-
 
 function disambig(parent, property) {
   return (typeof parent[property] === "function") && (parent[property]()) || parent[property] || 0
@@ -82,15 +91,17 @@ async function createPageElements(data, incrementor, vDocument) {
       content.append(field);
     }
 
+    if (element.noLabel === true) {
+      content.append(field);
+    }
+
     if (element.dataSource) {
       properties.allObligations = await buildTable(element, field, vDocument);
     }
 
     element.parent && (element.tag !== "table") && document.getElementById(element.parent).append(field);
-    element.prefill && (element.prefill(vDocument, field));
-    element.attributes && Object.assign(field, element.attributes);
-    element.attributes && element.attributes.maxlength && (field.maxLength = element.attributes.maxlength);
-    element.attributes && element.attributes.selected && field.setAttribute('selected', '');
+    element.prefill && (element.prefill(vDocument, field, properties));
+    element.attributes && setAttributes(field, element.attributes);
     if (document.getElementById("descriptionChooser")) {
       document.getElementById("descriptionChooser").addEventListener("click", event => updateDescription(event.target));
     }
@@ -101,6 +112,8 @@ async function createPageElements(data, incrementor, vDocument) {
 async function buildPage(data, incrementor) {
   let stage = data[incrementor] // Current page in the wizard
   document.getElementById(stage.name).click();
+  //Show spinner.
+  shade.style.display = "block";
   let vDocument = await VIEWsubmit(data, incrementor, undefined, stage);
   createPageElements(data, incrementor, vDocument);
   createProgressButtons(data, incrementor, vDocument);
@@ -110,66 +123,22 @@ async function createProgressButtons(data, incrementor, parsedDocument) {
   let stage = data[incrementor];
   const buttonBar = document.getElementById('buttonBar');
   buttonBar.innerHTML = ""; //Clear footer (submit buttons)
-  stage.progressButtons.map((buttonData, formData) => {
-    const button = document.createElement("img")
-    button.src = chrome.runtime.getURL("Images/" + buttonData.src);
+  stage.progressButtons && stage.progressButtons.map((buttonData, formData) => {
+    const button = document.createElement("span")
+    button.textContent = buttonData.text;
     button.id = buttonData.id;
-    button.style = "Cursor:Hand; float: right; padding-right: 6px";
+    button.className = "mybutton";
+    button.style.float = buttonData.float;
     buttonBar.append(button);
-    button.addEventListener("mouseup", () => VIEWsubmit(data, incrementor, parsedDocument, buttonData))
-  });
-}
-
-async function VIEWsubmit(data, incrementor, parsedDocument, dataParams) {
-  //Show spinner.
-  shade.style.display = "block";
-
-  let formData = {};
-  let previousFormData = [];
-
-  //Get form data from the prevous fetch, if not first submit of wizard.
-  if (parsedDocument !== undefined) { formData = await getFormData(parsedDocument) };
-
-  //As an alternative to the submit flow, an action provides custom logic.
-  dataParams.action && dataParams.action(parsedDocument);
-
-  //Splits submit array by group
-  const groups = groupBy(dataParams.submit, "group");
-
-  let groupedRepeats = dataParams.groupRepeats || { Ungrouped: () => [{ empty: null }] };
-
-  for (let [groupName, group] of Object.entries(groups)) {
-    const dynamicParams = typeof groupedRepeats[groupName] === "function" && groupedRepeats[groupName]() || groupedRepeats[groupName] || [{}];
-    for (let set of dynamicParams) {
-      console.log("-------------------------")
-      for (let submitInstructions of group) {
-        console.log(submitInstructions);
-        if (submitInstructions.optional && submitInstructions.optional() === false) continue;
-        let urlParams = typeof submitInstructions.urlParams === "function" && submitInstructions.urlParams(parsedDocument, set) || submitInstructions.urlParams;
-        urlParams = await urlParams;
-        //Get form data, if any, from wizard page.
-        let wizardFormData = await getFormData(document);
-        previousFormData.push(formData);
-        const index = submitInstructions.formDataTarget || previousFormData.length - 1;
-        formData = previousFormData[index];
-        if (submitInstructions.clearWizardFormData) { wizardFormData = {} };
-        if (submitInstructions.clearVIEWFormData) { formData = {} };
-        if (urlParams) { formData = { ...formData, ...urlParams, ...wizardFormData } }
-        var form_data = new FormData();
-        for (var key in formData) { form_data.append(key, formData[key]); }
-        let vDocument = await fetch(submitInstructions.url, { method: "POST", body: form_data });
-        parsedDocument = await parsePage(vDocument);
-        submitInstructions.after && submitInstructions.after(parsedDocument);
-        formData = await getFormData(parsedDocument);
-        if (submitInstructions.next === true) {
-          incrementor++
-          buildPage(data, incrementor);
-        }
+    button.addEventListener("mouseup", async () => {
+      shade.style.display = "block";
+      const next = await VIEWsubmit(data, incrementor, parsedDocument, buttonData, properties);
+      if (next) {
+        incrementor++;
+        buildPage(data, incrementor)
       }
-    }
-  }
-  dataParams.afterAction && dataParams.afterAction(parsedDocument, properties);
-  return parsedDocument
+    })
+  });
 }
 
 async function startWizard(data) {
@@ -193,6 +162,7 @@ async function startWizard(data) {
         callback: function (idx) {
         }
       });
+      document.getElementById('navigation').style.justifyContent = "center"
     });
   });
 
@@ -204,11 +174,9 @@ async function startWizard(data) {
 var onCreate = async function (message) {
   // Ensure it is run only once, as we will try to message twice
   chrome.runtime.onMessage.removeListener(onCreate);
-  properties.source = message.url;
-  properties.debtorid = message.data.debtorid;
-  properties.taskId = message.data.taskid;
-  properties.catalystTabID = message.data.catalystTabID;
-  let stages = message.data.pages.map(page => wizardLogic[page](properties, getDebtorObligations))
+  properties = message.data;
+  properties.titleTxt && (document.getElementById('titletxt').innerText = properties.titleTxt)
+  let stages = properties.pages.map(page => wizardLogic[page](properties, getDebtorObligations))
   startWizard(stages);
 }
 
@@ -231,13 +199,28 @@ async function getDebtorObligations(source, parsedDocument) {
   let formData = await getFormData(parsedDocument)
 
   //Get page with all obligations if more than 50
-  let rowCount;
+  let obligationRowCount;
+  let warrantRowCount;
   try {
-    rowCount = parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span").textContent.trim().split(" ");
+
+    if (!parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_NoRecordsCell")) {
+      obligationRowCount = parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span").textContent.trim().split(" ");
+    } else {
+      obligationRowCount = 0;
+    }
+
+    if (!parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_NoRecordsCell")) {
+      warrantRowCount = parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_PageChooserCell > span").textContent.trim().split(" ");
+    } else {
+      warrantRowCount = 0;
+    }
+
   } catch (err) {
     alert("Unable to access obligations in VIEW");
   }
-  if (Number(rowCount[rowCount.length - 1]) > 50) {
+  if (Number(obligationRowCount[obligationRowCount.length - 1]) > 50 ||
+    Number(warrantRowCount[warrantRowCount.length - 1]) > 10
+  ) {
     formData["DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage"] = 0;
     formData["DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage"] = 0;
     formData["DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage"] = 0;
@@ -252,7 +235,13 @@ async function getDebtorObligations(source, parsedDocument) {
 
   properties.courtFineData = parseTable(parsedDocument.getElementById("DebtorCourtOrdersCtrl_DebtorCourtFinesTable_tblData"))
 
-  let debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData"))
+  let debtorData;
+  if (!parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_NoRecordsCell")) {
+    debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData"))
+  } else {
+    debtorData = [];
+  }
+
   if (warrantData) {
     debtorData = mergeById({
       data: warrantData,
@@ -287,7 +276,7 @@ async function buildTable(element, field, parsedDocument) {
   $.fn.dataTable.moment('DD/MM/YYYY');
 
   document.getElementById(element.parent).append(field);
-
+  console.log(tableData);
   const dataTableConfig = {
     "data": tableData,
     "columns": [
@@ -340,7 +329,7 @@ async function buildTable(element, field, parsedDocument) {
     dataTableConfig.columns.push({ "data": "Status", "title": "Warrant Status" });
     dataTableConfig.columnDefs[0].targets = [2, 5, 7, 8, 10, 11, 12]
     dataTableConfig.columnDefs.push({ targets: 14, className: "truncate" })
-    dataTableConfig.createdRow = function(row) {
+    dataTableConfig.createdRow = function (row) {
       var td = $(row).find(".truncate");
       td.attr("title", td.html());
     }
@@ -422,14 +411,7 @@ const toDate = (dateStr = "2000-01-01") => {
   return new Date(year, month - 1, day)
 }
 
-function groupBy(arr, property) {
-  return arr.reduce(function (memo, x) {
-    if (x[property] === undefined) { x[property] = "Ungrouped" }
-    if (!memo[x[property]]) { memo[x[property]] = []; }
-    memo[x[property]].push(x);
-    return memo;
-  }, {});
-}
+
 
 const mergeById = (a1, a2) =>
   a1.data.map(itm => ({
@@ -437,3 +419,45 @@ const mergeById = (a1, a2) =>
     ...itm
   }));
 
+function setAttributes(el, attrs) {
+  for (var key in attrs) {
+    el.setAttribute(key, attrs[key]);
+  }
+}
+
+async function runFetchInContentScript(url, fetchOptions) {
+  const iframe = document.getElementById("CS");
+  if (iframe) {
+    await loadAgain(iframe, url, fetchOptions);
+  } else if (!iframe) {
+    await loadFirst(url, fetchOptions);
+  }
+}
+
+function loadFirst(url, fetchOptions) {
+  const iframe = document.createElement('iframe');
+  iframe.id = "CS"
+  document.body.append(iframe);
+  iframe.style.display = "none"
+  iframe.src = `https://${properties.source}.view.civicacloud.com.au/Core/Forms/HomePage.aspx`;
+  return new Promise(function (resolve, reject) {
+    iframe.onload = function () {
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {
+          resolve(response);
+        });
+      });
+    }
+  });
+}
+
+function loadAgain(iframe, url, fetchOptions) {
+  console.log(url);
+  return new Promise(function (resolve, reject) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {
+        resolve(response);
+      });
+    });
+  });
+}

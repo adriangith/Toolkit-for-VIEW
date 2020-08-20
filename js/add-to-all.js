@@ -1,35 +1,8 @@
 var storedData = [];
 
-let pnl3BulkNoteUpdate = document.getElementById('pnl3BulkNoteUpdate');
-let pnl3BulkDebtorNoteUpdate = pnl3BulkNoteUpdate.cloneNode(true);
-pnl3BulkNoteUpdate.after(pnl3BulkDebtorNoteUpdate);
-pnl3BulkDebtorNoteUpdate.id = 'pnl3BulkDebtorNoteUpdate';
-let bda = pnl3BulkDebtorNoteUpdate.querySelector('a')
-bda.href = "#"
-bda.textContent = "Bulk Debtor Notes Update"
-bda.addEventListener('mouseup', function () {
-	postData(window.location.host.split(".")[0], {"pages": ["debtorBulkNotes"]}, "BulkDebtorNotes")
 
 
-})
 
-function postData(url, data, validate) {
-	chrome.runtime.sendMessage({
-		validate: validate,
-		data: data,
-		url: url
-	})
-}
-
-
-var obligationsButton = document.createElement('tr');
-obligationsButton.innerHTML = `<td class="leftmenufirstcol">&nbsp; </td> 
-                				 <td class="leftmenumiddlecol"> 
-                   				 	<img src="https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Common/Images/BulletPnt.gif">&nbsp;<a href="javascript:ConfirmChangesLose(\'https://${window.location.host.split(".")[0]}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx\')" accesskey="i" style="VERTICAL-ALIGN: top" target="">Obligations Summary</a></td>
-	  							 <td class="leftmenulastcol">&nbsp; </td>`
-
-var sibling = document.querySelector("#dvInformation > table > tbody").children.item(9);
-document.querySelector("#dvInformation > table > tbody").insertBefore(obligationsButton, sibling.nextSibling);
 
 var decisionMakerCol1 = document.createElement('tr');
 

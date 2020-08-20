@@ -2,24 +2,22 @@ async function emailMaker(data, parameters) {
 let res;
 
 	if (parameters[1] === 'Report Needed') {
-		res = await fetch('https://trimwebdrawer.justice.vic.gov.au/record/13724486/File/document');
+		res = await fetch('https://trimapi.justice.vic.gov.au/record/13724486/File/document2');
 	}
 
 	if (parameters[1] === 'MOU') {
-		res = await fetch('https://trimwebdrawer.justice.vic.gov.au/record/13733834/File/document');
+		res = await fetch('https://trimapi.justice.vic.gov.au/record/13733834/File/document2');
 	}
 
 	if (parameters[1] === 'Unable to Contact Applicant') {
-		res = await fetch('https://trimwebdrawer.justice.vic.gov.au/record/13735474/File/document');
+		res = await fetch('https://trimapi.justice.vic.gov.au/record/13735474/File/document2');
 	}
 
 		let template = await res.text();
 		data.today = getDates().today
 		data.todayplus14 = getDates().todayplus14
-		console.log('email', data.a[0].EmailAddress);
 		data.emailTo = data.a[0].EmailAddress !== undefined ? data.a[0].EmailAddress : "None";
 		var result =  await Sqrl.render(template, data, { async: true, asyncHelpers: ['addAttachment'] })
-		console.log(result);
 		result = result.split('----boundary_text_string');
 		marked.setOptions({'breaks': true, "gfm": true});
 		result[1] = marked(result[1]);
@@ -44,7 +42,7 @@ function readFileAsync(blob) {
  
 Sqrl.helpers.define('addAttachment', async function(str) {
 	let out;
-	let res = await fetch('https://trimwebdrawer.justice.vic.gov.au/record/' + str.params[0] + '/File/document');
+	let res = await fetch('https://trimapi.justice.vic.gov.au/record/' + str.params[0] + '/File/document2');
 	let blob = await res.blob();
 
 	out = await readFileAsync(blob);

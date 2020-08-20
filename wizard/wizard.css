@@ -8,19 +8,44 @@
   	}
   }
 
+  .mybutton {
+  	padding-bottom: 2px;
+  	padding-top: 2px;
+  	cursor: pointer;
+  	box-shadow: inset 1px 1px 2px #9150e6, inset -1px -1px 2px #311b4d;
+  	background-color: #59308e;
+  	border-radius: 4px;
+  	border: 1px solid #333333;
+  	margin-left: 4px;
+  	font-family: Verdana;
+  	font-size: 11px;
+  	font-weight: 100;
+  	padding-left: 11px;
+  	padding-right: 11px;
+  	line-height: 1;
+  	color: rgba(255, 255, 255, 0.8);
+  	filter: blur(.25px);
+  	text-decoration: none;
+  	user-select: none;
+  }
+
+  .mybutton:hover {
+  	opacity: 0.5;
+  }
+
   #bannertext {
   	float: right;
   }
 
   .truncate {
-	max-width:165px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+  	max-width: 165px;
+  	white-space: nowrap;
+  	overflow: hidden;
+  	text-overflow: ellipsis;
   }
 
   #messagebox {
-  	cursor: hand;
+  	cursor: pointer;
   	width: fit-content;
   	height: fit-content;
   	position: absolute;
@@ -36,13 +61,13 @@
   	overflow: auto;
   }
 
-  table.dataTable tbody td.select-checkbox, table.dataTable tbody th.select-checkbox {
+  table.table tbody td.select-checkbox, table.table tbody th.select-checkbox {
   	position: relative;
   	width: 20px;
   	min-width: 16px;
   }
 
-  table.dataTable tbody td.select-checkbox:before, table.dataTable tbody td.select-checkbox:after, table.dataTable tbody th.select-checkbox:before, table.dataTable tbody th.select-checkbox:after {
+  table.table tbody td.select-checkbox:before, table.table tbody td.select-checkbox:after, table.table tbody th.select-checkbox:before, table.dataTable tbody th.select-checkbox:after {
   	display: block;
   	position: absolute;
   	top: 1.2em;
@@ -52,7 +77,7 @@
   	box-sizing: border-box;
   }
 
-  table.dataTable tbody td.select-checkbox:before, table.dataTable tbody th.select-checkbox:before {
+  table.table tbody td.select-checkbox:before, table.table tbody th.select-checkbox:before {
   	content: ' ';
   	margin-top: -11.5px;
   	margin-left: -6px;
@@ -60,7 +85,7 @@
   	border-radius: 3px;
   }
 
-  table.dataTable tr.selected td.select-checkbox:after, table.dataTable tr.selected th.select-checkbox:after {
+  table.table tr.selected td.select-checkbox:after, table.table tr.selected th.select-checkbox:after {
   	content: '\2714';
   	margin-top: -13px;
   	margin-left: -6px;
@@ -115,9 +140,12 @@
   #navigation {
   	height: 180px;
   	display: flex;
-  	justify-content: center;
   	align-items: center;
   	position: relative;
+  }
+
+  #navDots > li > a {
+	position:absolute;
   }
 
   #navDotsContainer {
@@ -139,7 +167,7 @@
   }
 
   .dataTables_paginate * {
-  	cursor: hand;
+  	cursor: pointer;
   }
 
   table {
@@ -189,8 +217,9 @@
   }
 
   #buttonBar {
+  	padding-left: 1.5px;
   	position: absolute;
-  	width: 100%;
+  	width: calc(100% - 8px);
   	bottom: 0;
   	/* stick to bottom */
   	padding-bottom: 6px;
@@ -209,9 +238,9 @@
   /* Common styles and resets */
 
   .info {
-	margin-right: 3px;
+  	margin-right: 3px;
   }
-  
+
   .dotstyle ul {
   	position: relative;
   	display: inline-block;

@@ -8,6 +8,8 @@ export function debtorBulkNotes(properties) {
         ],
         progressButtons: [{
             src: "SubmitAndNextStep.png",
+            float: "right",
+            text: "Submit Note",
             id: "SubmitAndNextStep",
             class: "purpleButton",
             name: "Submit & Next Step",

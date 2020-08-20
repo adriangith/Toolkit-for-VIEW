@@ -114,7 +114,7 @@ function urltoFile(url, filename, mimeType) {
 }
 
 chrome.runtime.onMessage.addListener(function (request) {
-	let valArray = ["bankruptcy", "BulkDebtorNotes"]
+	let valArray = ["bankruptcy", "BulkDebtorNotes", "bulkWriteOff"]
 	if (request.validate && valArray.includes(request.validate)) {
 		chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {request.data.catalystURL = tabs[0].url; request.data.catalystTabID = tabs[0].id});
 		chrome.windows.create({"url": chrome.extension.getURL("wizard/wizard.html"), "type": "popup", "width":900, "height":650, "left": 200, "top": 200}, function(window) {

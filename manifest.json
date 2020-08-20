@@ -1,7 +1,7 @@
 {
 	"name": "Toolkit for View",
-	"version": "0.0.0.56",
-	"description": "Adds extra features to View to assist in Review Officer tasks",
+	"version": "0.0.0.62",
+	"description": "Provides a range of enhancements for the VIEW system",
 	"short_name": "View Toolkit",
 	"permissions": [
 		"https://trimwebdrawer.justice.vic.gov.au/*",
@@ -22,29 +22,7 @@
 		"128": "Images/icon128.png"
 	},
 	"background": {
-		"scripts": [
-			"js/External/StreamSaver.js",
-			"js/External/xlsx.js",
-			"js/External/DataStream.js",
-			"js/External/marked.min.js",
-			"js/WDPAutomatorBS.js",
-			"js/External/docxtemplater.js",
-			"js/bulkObligationAdder.js",
-			"js/VicRoadsStatGen.js",
-			"js/External/jszip.js",
-			"js/External/FileSaver.js",
-			"js/External/jszip-utils.js",
-			"js/External/angular-parse-browser.js",
-			"js/External/squirrelly.min.js",
-			"js/tablemaker.js",
-			"js/emailmaker.js",
-			"js/lettermaker.js",
-			"js/scraper.js",
-			"js/objects.js",
-			"js/External/jquery-3.4.1.js",
-			"js/External/docx-merger.js",
-			"js/backgroundLetterMaker.js"
-		],
+		"page": "background.html",
 		"persistent": false
 	},
 	"browser_action": {
@@ -56,6 +34,49 @@
 	"content_scripts": [
 		{
 			"matches": [
+				"https://*.view.civicacloud.com.au/Core/Forms/HomePage.aspx"
+			],
+			"all_frames": true,
+			"js": [
+				"js/contentScriptFetch.js"
+			]
+		},{
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/BulkUpdateMain.aspx",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/BulkUpdateMain.aspx"
+			],
+			"js": [
+				"js/BulkMenu.js"
+			]
+		},
+		{
+			"matches": [
+				"https://*.view.civicacloud.com.au/*"
+			],
+			"js": [
+				"js/TopMenu.js"
+			],
+			"exclude_matches": [
+				"https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx",
+				"https://citrix.view.civicacloud.com.au/*"
+			]
+		},
+		{
+			"matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/*",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/*"
+			],
+			"js": [
+				"js/NoticeLHM.js"
+			],
+			"exclude_matches": [
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesBulkGenericUpdate.aspx*",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/AccessError.aspx",
+				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/BulkUpdateMain.aspx"
+			]
+		},
+		{
+			"matches": [
 				"https://*.view.civicacloud.com.au/Traffic/Notices/Forms/*",
 				"https://*.view.civicacloud.com.au/Traffic/Notices/forms/*"
 			],
@@ -63,7 +84,6 @@
 				"js/External/editor.js",
 				"js/External/paragraph.js",
 				"js/External/table.js",
-				"js/add-to-all.js",
 				"js/External/react.development.js",
 				"js/External/react-dom.development.js",
 				"js/External/babel.min.js",
@@ -79,6 +99,9 @@
 			"matches": [
 				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx",
 				"https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx"
+			],
+			"css": [
+				"css/External/spin.css"
 			],
 			"js": [
 				"js/obligations.js"
@@ -134,7 +157,7 @@
 				"js/External/datetime-moment.js",
 				"js/bankruptcy.js"
 			],
-			"css":[
+			"css": [
 				"css/External/spin.css"
 			]
 		},
@@ -202,7 +225,6 @@
 		"js/helper.js",
 		"js/tablemaker.js",
 		"js/objects.js",
-		"js/add-to-all.js",
 		"js/like_button.js",
 		"bankruptcy/*",
 		"Images/*"

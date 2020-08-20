@@ -21,7 +21,7 @@ export function downloadLetter(address, properties) {
         "Town": addressArray[1].trim(),
         "State": addressArray[2].trim(),
         "Post_Code": addressArray[3].trim(),
-        "Debtor_ID": properties.debtorId
+        "Debtor_ID": properties.debtorid
     }
     let reduced = properties.agencies.reduce((obj, item) => (obj[item.key] = item.value, obj), {});
 
