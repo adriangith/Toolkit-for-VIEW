@@ -1,5 +1,5 @@
 var agencies = {}
-fetch('https://trimapi.justice.vic.gov.au/record/12965363/File/document2')
+fetch('https://vicgov.sharepoint.com/:u:/s/msteams_3af44a/ETiKQS5uTzxHnTmAV6Zpl9oBvhNZexZFmJrJxLNZLD6L4A?download=1')
 	.then(response => {
 		return response.json()
 	})
@@ -143,6 +143,14 @@ async function generateLetter(letterData, type, letterTemplate) {
 		}
 	}
 
+	function parseDate(str) {
+		var y = str.substr(0,4),
+			m = str.substr(4,2) - 1,
+			d = str.substr(6,2);
+		var D = new Date(y,m,d);
+		return (D.getFullYear() == y && D.getMonth() == m && D.getDate() == d) ? D : 'invalid date';
+	}
+
 	switch (type) {
 		case 'Cancelled':
 			filename = name + " - " + letterData.enforcename + " - " + "Cancelled" + OBL
@@ -170,7 +178,8 @@ async function generateLetter(letterData, type, letterTemplate) {
 			letterData.Is_Nomination = true;
 			break;
 		case 'Fee Removal Granted':
-			filename = name + " - " + "Fee Removal Granted Debtor" + OBL;
+			//Geting updated 11/22/2022
+			filename = "Fee Removal - Granted OBL" + OBL + " " + name + " - " + UserID + " - " + parseDate(new Date());
 			var url = location + '12918364' + downCode;
 			break;
 		case 'Fee Removal / Confirmed':

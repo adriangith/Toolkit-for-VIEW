@@ -1,4 +1,5 @@
-let searchButton = document.getElementById('btnNoticesSearch');
+let referenceButton = document.getElementById('btnNoticesSearch');
+if (!referenceButton) referenceButton = document.querySelector("#btnNoticeAdd");
 
 let pasteButton = document.createElement('input');
 pasteButton.setAttribute('type', 'image');
@@ -19,8 +20,8 @@ pasteButton.addEventListener('mouseup', function() {
     chrome.runtime.sendMessage(data);
 })
 
-insertAfter(pasteButton, searchButton)
+insertAfter(pasteButton, referenceButton)
 
 function insertAfter(newNode, referenceNode) {
-    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+    if (referenceNode) referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }

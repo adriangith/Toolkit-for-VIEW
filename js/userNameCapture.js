@@ -1,9 +1,13 @@
-let UserID = document.getElementById('txtLogin')
-let loginButton = document.getElementById('imgbtnLogin')
-loginButton.addEventListener("click", saveUserName(UserID.value));
+const UserID = document.getElementById('txtLogin')
+const loginButton = document.getElementById('imgbtnLogin')
+
+window.addEventListener('beforeunload', (event) => {
+	saveUserName(UserID.value)
+});
 
 function saveUserName(userName) {
-	chrome.storage.local.set({"userName": userName }, function(){	
+	chrome.storage.local.set({ "userName": userName }, function () {
 	});
-	
+
 }
+

@@ -1,32 +1,29 @@
-export function bulkWriteOff(properties) {
+export function bulkRequestEnforcementWarrant(properties) {
     return {
-        name: "Bulk Notice Writeoff",
+        name: "Request Enforcement Warrant",
         submit: [],
         elements: [
-            { tag: "textarea", label: "Paste Notice<br />Numbers:", attributes: { id: "notices", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; min-height:250px" } },
-            { tag: "select", label: "Writeoff reason:", attributes: { id: "writeoffselect", name: "txtWrittCode", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; max-height:20px" } },
-            { tag: "option", parent: "writeoffselect", text: "PPTSO:Time Served Application -  Time Served Order made", attributes: { value: "PPTSO:Time Served Application -  Time Served Order made" } },
-            { tag: "option", parent: "writeoffselect", text: "PPTSOO:Time Served Application - Time Served and/or court order made", attributes: { value: "PPTSOO:Time Served Application - Time Served and/or court order made" } },
+            { tag: "textarea", label: "Paste Debtor<br />Numbers:", attributes: { id: "debtorIDs", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; min-height:250px" } },
         ],
         progressButtons: [{
             src: "SubmitAndNextStep.png",
             float: "right",
-            text: "Writeoff Notices",
+            text: "Go to Warrants",
             id: "SubmitAndNextStep",
             class: "purpleButton",
             name: "Submit & Next Step",
-            next: true,
             groupRepeats: {
                 "Group 1": () => {
-                    let NoticeNos = document.getElementById('notices').value;
-                    let noticeArray = NoticeNos.trim().split(/\s+/);
-                    return noticeArray;
+                    const debtorIDs = document.getElementById('debtorIDs').value;
+                    const debtorIDArray = debtorIDs.trim().split(/\s+/);
+                    return debtorIDArray;
                 }
             },
             submit: [{
                 group: "Group 1",
+                iFrame: true,
                 urlParams: function (parsedDocument, dynamicParam) {
-                    this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=${dynamicParam}`
+                    this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorRequestEnforcementWarrant.aspx`
                 }
             }, {
                 group: "Group 1",

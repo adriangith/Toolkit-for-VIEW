@@ -1,49 +1,47 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><span class="toolkit-name"></span> Popup</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="styles.css">
 
-    <link href="../assets/lib/dream-admin-theme/css/bootstrap.css" rel="stylesheet" />
-    <link href="../assets/lib/dream-admin-theme/css/font-awesome.css" rel="stylesheet" />
-    <link href="../assets/fonts/montserrat.css" rel="stylesheet" />
-    <link href="styles.css" rel="stylesheet" />
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:xd_Signature msdt:dt="string"></mso:xd_Signature>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Editor msdt:dt="string">Adrian B Zafir (DJCS)</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Editor>
+<mso:Order msdt:dt="string">19235200.0000000</mso:Order>
+<mso:xd_ProgID msdt:dt="string"></mso:xd_ProgID>
+<mso:SharedWithUsers msdt:dt="string"></mso:SharedWithUsers>
+<mso:_ExtendedDescription msdt:dt="string"></mso:_ExtendedDescription>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Author msdt:dt="string">Adrian B Zafir (DJCS)</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Author>
+<mso:ComplianceAssetId msdt:dt="string"></mso:ComplianceAssetId>
+<mso:TemplateUrl msdt:dt="string"></mso:TemplateUrl>
+<mso:ContentTypeId msdt:dt="string">0x0101005F5FA1C1EF8EAA42A6347BF9B5A44C54</mso:ContentTypeId>
+<mso:TriggerFlowInfo msdt:dt="string"></mso:TriggerFlowInfo>
+<mso:_SourceUrl msdt:dt="string"></mso:_SourceUrl>
+<mso:_SharedFileIndex msdt:dt="string"></mso:_SharedFileIndex>
+<mso:TaxCatchAll msdt:dt="string"></mso:TaxCatchAll>
+<mso:MediaLengthInSeconds msdt:dt="string"></mso:MediaLengthInSeconds>
+<mso:MediaServiceImageTags msdt:dt="string"></mso:MediaServiceImageTags>
+<mso:lcf76f155ced4ddcb4097134ff3c332f msdt:dt="string"></mso:lcf76f155ced4ddcb4097134ff3c332f>
+<mso:_dlc_DocId msdt:dt="string">3762B7-1609922046-109850</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">0d5c626a-2edd-4a7b-b74c-5e935f0b5297</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://vicgov.sharepoint.com/sites/msteams_3af44a/_layouts/15/DocIdRedir.aspx?ID=3762B7-1609922046-109850, 3762B7-1609922046-109850</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
 </head>
+
 <body>
-  <div class="brandBar">
-    <img style="max-width:100%; max-height:100;"src="../assets/images/logo/logo.png" id="logo" title="Click: disable/enable Toolkit-for-YNAB. Refresh page to see update." class="btn" />
-  </div>
-
-  <div class="welcome help-block">
-    <p>Welcome to <span class="toolkit-name"></span>Toolkit for VIEW <span id="versionNumber"></span>!</p>
-  </div>
-
-  <div class="welcome help-block">
-    <label for="myfile">Select a file:</label>
-    <input type="file" id="myfile" name="myfile">
-  </div>
-  <div class="divider"></div>
-
-  <div class="buttons">
-    <a id="reportBug" href="https://github.com/toolkit-for-ynab/toolkit-for-ynab/issues" target="_blank" class="btn btn-default">
-      <i class="fa fa-2x fa-bug"></i>
-    </a>
-    <button id="toggleToolkit" type="button" class="btn btn-default">
-      <i class="fa fa-2x"></i>
-    </button>
-    <button type="button" id="openSettings" class="btn btn-primary"><i class="fa fa-cog"></i> Open Settings</button>
-  </div>
-
-  <script type="text/javascript" src="../assets/lib/dream-admin-theme/js/jquery-3.2.1.min.js"></script>
-  <script type="text/javascript" src="../assets/lib/dream-admin-theme/js/bootstrap.js"></script>
-  <script type="text/javascript" src="../js/External/xlsx.js"></script>
-  <script type="text/javascript" src="../js/External/jszip.js"></script>
-  <script type="text/javascript" src="../js/External/jszip-utils.js"></script>
-  <script type="text/javascript" src="../js/External/angular-parse-browser.js"></script>
-  <script type="text/javascript" src="../js/External/docxtemplater.js"></script>
-  <script type="text/javascript" src="../js/External/FileSaver.js"></script>
-  <script type="text/javascript" src="../js/External/docx-merger.js"></script>
-  <script type="text/javascript" src="popup.js"></script> 
+  <img src="../Images/ExtentionPromoLarge.png" style="max-width:100%; max-height:100;margin-bottom: 15px;">
+  <span class="mybutton" id="Utilities">Utilities</span>
+  <span class="mybutton">GitHub</span>
+  <span class="mybutton">Report Bug</span>
+  <span class="mybutton">Help</span>
+  <span class="mybutton">↻</span>
 </body>
+
+<script src="popup.js"></script>
 </html>
+

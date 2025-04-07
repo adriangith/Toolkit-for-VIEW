@@ -1,0 +1,98 @@
+body {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 8pt;
+}
+
+.grid-container.main{
+    display: grid;
+    grid-template-columns: 145px auto auto auto;
+    border-color: grey;
+    border-style: solid;
+    border-width: 1px;
+    width: 815px;
+    grid-column-gap: 22px 3px 3px;
+    margin: auto;
+}
+
+.grid-container.modal {
+  display: grid;
+  grid-template-columns: auto auto;
+  margin: auto;
+}
+
+#main-header {
+    grid-column: 1 / span 4;
+    background-color: #43088e;
+    color: #ffffff;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 7px;
+    margin-bottom: 8px;
+}
+
+.grid-item{
+}
+
+.label-text {
+    text-align: right;
+}
+
+.mybutton {
+    cursor: pointer;
+    box-shadow: inset 1px 1px 2px #9150e6, inset -1px -1px 2px #311b4d;
+    background-color: #59308e;
+    border-radius: 4px;
+    border: 1px solid #333333;
+    color: #FFFFFF;
+    font-family: Verdana;
+    font-size: 11px;
+    font-weight: 100;
+    padding-bottom: 1px;
+    padding-left: 11px;
+    padding-right: 11px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.8);
+    filter: blur(.25px);
+    text-decoration: none;
+    user-select: none;
+  }
+  
+  .mybutton:hover {
+    opacity: 0.5;
+  }
+
+  .modal {
+    display: none;
+  }
+  
+  .modal.is-open {
+    display: block;
+  }
+
+  .modal__overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal__container {
+    background-color: #fff;
+    padding: 30px;
+    width: 600px;
+    max-height: 100vh;
+    border-radius: 4px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .modal__close {
+    background: transparent;
+    border: 0;
+  }
+  

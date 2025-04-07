@@ -16,38 +16,37 @@ chrome.runtime.onMessage.addListener(
     if (message[5] !== undefined) {
       source = message[5]
     }
-    if (sender.url === "https://" + source + ".view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx" ||
-      sender.url === "https://" + source + ".view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx" ||
-      sender.url.toUpperCase() === ("https://" + source + ".view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H").toUpperCase() ||
-      sender.url.toUpperCase() === ("https://" + source + ".view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N").toUpperCase() ||
-      sender.url.toUpperCase() === ("https://" + source + ".view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=H&Menu=3").toUpperCase() ||
-      sender.url.toUpperCase() === ("https://" + source + ".view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N&Menu=3").toUpperCase()
+    if (sender.url.toUpperCase().includes(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations`.toUpperCase()) ||
+      sender.url.toUpperCase().includes(`https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx`.toUpperCase())
     ) {
-        /*-----------------------------------*/
-        if (message[1] === "Export obligations") {
-          getData(message[0]).then(data => {
-            table(data.a, data.First_Name + " " + data.Last_Name);
-          })
-        }
-        /*------ Call corro functions -----*/
-        console.log(message[1])
-        if (message[1] !== "Export obligations" && message[1] !== "Bulk Hold Update" && message[1] !== "Bulk Notes Update" && message[1] !== "Bulk Writeoff Update") {
-          getData(message[0]).then(data => {
-            if (message[4] === true) {
-              emailMaker(data, message);
-            } else {
-              letterSelector(data, message);
-            }
-          })
-        }
-        /*-----------------------------------*/
+      /*-----------------------------------*/
+      if (message[1] === "Export obligations") {
+        getData(message[0]).then(data => {
+          table(data.a, data.First_Name + " " + data.Last_Name);
+        }).catch(err => {
+          if (err !== 'Scraper already running') {
+            running = false; 
+          } 
+          throw err;
+        })
+
+      }
+      /*------ Call email functions -----*/
+      console.log(message[1])
+      if (message[1] !== "Export obligations" && message[1] !== "Bulk Hold Update" && message[1] !== "Bulk Notes Update" && message[1] !== "Bulk Writeoff Update" && message[4] === true) {
+        getData(message[0]).then(data => {
+          console.log('To Do: Update email function')
+          emailMaker(data, message);
+        })
+      }
+      /*-----------------------------------*/
     }
   }
 )
 
 var agencies = {}
 //Get list of Agencies
-fetch('https://trimwebdrawer.justice.vic.gov.au/record/12965363/File/document')
+fetch('https://vicgov.sharepoint.com/:u:/s/msteams_3af44a/ETiKQS5uTzxHnTmAV6Zpl9oBvhNZexZFmJrJxLNZLD6L4A?download=1')
   .then(response => {
     return response.json()
   })
@@ -68,11 +67,12 @@ async function scrape(obligations) {
   array = []
   let obligationsCount = obligations.length
   let obligationsCountFixed = obligations.length
+  let data;
   for (obligation in obligations) {
     data = await switchObligations(obligations[obligation]).then(async function () {
       let obj = {}
       const promises = config.filter(function (page) {
-        if (page.active === true && page.name !== 'debtorAddress') {
+        if (page.active === true) {
           return true;
         }
         return false;
@@ -319,6 +319,10 @@ function transformations(data, type) {
       .replace(new RegExp(' Sq$| Sq $'), ' Square')
       .replace(new RegExp(' Hwy$| Hwy $'), ' Highway')
       .replace('Po ', ' PO ');
+
+
+
+
   }
 
   if (data.Status !== undefined) {

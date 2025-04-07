@@ -124,6 +124,7 @@ async function bankruptcy() {
         let newRow = {};
         descriptionArray.some(function (item, index) {
             if (index % 2 === 0 && descriptionArray.length > 1) {
+                console.log(descriptionObject)
                 descriptionObject[item.trim()] = descriptionArray[index + 1].trim();
             }
             return (index > 4);

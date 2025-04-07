@@ -6,76 +6,77 @@ export function bankruptcyDate(properties) {
     return {
         name: "Bankruptcy Date",
         submit: [{
-            optional: () => !properties.taskId,
-            url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?CRUDMode=Create`,
-        },
-        {
-            optional: () => !properties.taskId,
-            url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?CRUDMode=Create`,
-            urlParams: function (parsedDocument) {
-                const params = {
-                    ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
-                    ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT:Notifications of Bankruptcy - Debt Program",
-                    ctl00$mainContentPlaceHolder$linkReferenceText: properties.debtorid,
-                    ctl00$mainContentPlaceHolder$sourceText: "BSP:BSP",
-                    ctl00$mainContentPlaceHolder$startDateTextBox: t.toJSON().slice(0, 10).split('-').reverse().join('/'),
-                    ctl00$mainContentPlaceHolder$reasonText: 'WSRTABBNT:Bankruptcy notification from Trustee',
-                    ctl00$mainContentPlaceHolder$startTimeTextBox: t.getHours() + ":" + t.getMinutes(),
-                    ctl00$mainContentPlaceHolder$originText: "ADMINBR:Administrator of Bankruptcy",
-                    "ctl00$mainContentPlaceHolder$createButton.x": 0,
-                    "ctl00$mainContentPlaceHolder$createButton.y": 0,
-                    "ctl00$mainContentPlaceHolder$descriptionText": 'Status: Unassigned'
-                }
-                return params;
+                optional: () => !properties.taskId,
+                url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?CRUDMode=Create`,
             },
-            after: (parsedDocument) => {
-                properties.taskId = parsedDocument.getElementById('ctl00_mainContentPlaceHolder_taskIdText').value;
+            {
+                optional: () => !properties.taskId,
+                url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?CRUDMode=Create`,
+                urlParams: function(parsedDocument) {
+                    const params = {
+                        ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
+                        ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT:Notifications of Bankruptcy - Debt Program",
+                        ctl00$mainContentPlaceHolder$linkReferenceText: properties.debtorid,
+                        ctl00$mainContentPlaceHolder$sourceText: "BSP:BSP",
+                        ctl00$mainContentPlaceHolder$startDateTextBox: t.toJSON().slice(0, 10).split('-').reverse().join('/'),
+                        ctl00$mainContentPlaceHolder$reasonText: 'WSRTABBNT:Bankruptcy notification from Trustee',
+                        ctl00$mainContentPlaceHolder$startTimeTextBox: t.getHours() + ":" + t.getMinutes(),
+                        ctl00$mainContentPlaceHolder$originText: "ADMINBR:Administrator of Bankruptcy",
+                        "ctl00$mainContentPlaceHolder$createButton.x": 0,
+                        "ctl00$mainContentPlaceHolder$createButton.y": 0,
+                        "ctl00$mainContentPlaceHolder$descriptionText": 'Status: Unassigned'
+                    }
+                    return params;
+                },
+                after: (parsedDocument) => {
+                    properties.taskId = parsedDocument.getElementById('ctl00_mainContentPlaceHolder_taskIdText').value;
+                }
+            },
+            {
+                repeat: 0,
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`
+            },
+            {
+                repeat: 0,
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+                urlParams: {
+                    'DebtorDetailsCtrl$hDivId': 1,
+                    'DebtorDetailsCtrl$DebtorIdSearch': properties.debtorid,
+                    "DebtorIndividualCtrl$editButton.x": 0,
+                    "DebtorIndividualCtrl$editButton.y": 0
+                }
             }
-        },
-        {
-            repeat: 0,
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`
-        },
-        {
-            repeat: 0,
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
-            urlParams: {
-                'DebtorDetailsCtrl$hDivId': 1,
-                'DebtorDetailsCtrl$DebtorIdSearch': properties.debtorid,
-                "DebtorIndividualCtrl$editButton.x": 0,
-                "DebtorIndividualCtrl$editButton.y": 0
-            }
-        }],
+        ],
         elements: [
             { tag: "input", label: "Date of bankruptcy:", prefill: (parsedDocument, field) => field.value = parsedDocument.getElementById("DebtorIndividualCtrl_dateOfBankruptcyTextbox").value.split("/").reverse().join("-"), attributes: { id: "dateChooser", type: "date", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start;" } }
         ],
         progressButtons: [{
-            text: "Skip",
-            id: "SkipButton",
-            name: "Skip",
-            next: true,
-            float: "right",
-            submit: []
-        },
-        {
-            text: "Update & Next Step",
-            float: "right",
-            id: "SubmitAndNextStep",
-            name: "Submit & Next Step",
-            submit: [{
-                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+                text: "Skip",
+                id: "SkipButton",
+                name: "Skip",
                 next: true,
-                urlParams: (vDocument) => {
-                    const params = {};
-                    properties.dateOfBankruptcy = document.getElementById("dateChooser").value;
-                    params["DebtorIndividualCtrl$dateOfBankruptcyTextbox"] = properties.dateOfBankruptcy.split("-").reverse().join("/");
-                    params["DebtorDetailsCtrl$DebtorIdSearch"] = properties.debtorid;
-                    params["DebtorIndividualCtrl$updateButton.x"] = 0;
-                    params["DebtorIndividualCtrl$updateButton.y"] = 0;
-                    return params;
-                }
-            }]
-        }
+                float: "right",
+                submit: []
+            },
+            {
+                text: "Update & Next Step",
+                float: "right",
+                id: "SubmitAndNextStep",
+                name: "Submit & Next Step",
+                submit: [{
+                    url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+                    next: true,
+                    urlParams: (vDocument) => {
+                        const params = {};
+                        properties.dateOfBankruptcy = document.getElementById("dateChooser").value;
+                        params["DebtorIndividualCtrl$dateOfBankruptcyTextbox"] = properties.dateOfBankruptcy.split("-").reverse().join("/");
+                        params["DebtorDetailsCtrl$DebtorIdSearch"] = properties.debtorid;
+                        params["DebtorIndividualCtrl$updateButton.x"] = 0;
+                        params["DebtorIndividualCtrl$updateButton.y"] = 0;
+                        return params;
+                    }
+                }]
+            }
         ]
     }
 }
@@ -83,17 +84,15 @@ export function bankruptcyDate(properties) {
 export function removeHolds(properties, getDebtorObligations) {
     return {
         name: "Remove Holds",
-        submit: [
-            {
-                optional: () => { return !properties.dateOfBankruptcy },
-                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
-                urlParams: {},
-                after: (parsedDocument) => {
-                    parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt') && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
-                    properties.txtNoticeCheck = [];
-                }
+        submit: [{
+            optional: () => { return !properties.dateOfBankruptcy },
+            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+            urlParams: {},
+            after: (parsedDocument) => {
+                parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt') && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+                properties.txtNoticeCheck = [];
             }
-        ],
+        }],
         elements: [
             { tag: "div", attributes: { id: "tablecontainer", style: "grid-column-start: 1; grid-column-end: 5; margin:auto; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
             { tag: "table", selectCriteria: "BRTHOLD", parent: "tablecontainer", dataSource: () => getDebtorObligations(properties.source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
@@ -113,7 +112,7 @@ export function removeHolds(properties, getDebtorObligations) {
             groupRepeats: {
                 "Group 1": () => {
                     let paramArray = [];
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         let params = {};
                         let data = this.data();
                         let all = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber)
@@ -127,7 +126,8 @@ export function removeHolds(properties, getDebtorObligations) {
                         }
                     });
                     return paramArray;
-                }, "Group 2": () => {
+                },
+                "Group 2": () => {
                     let selectArray = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber)
                     let previousObligations = selectArray.join(",");
                     if (!properties.holdsRemoved)
@@ -139,7 +139,7 @@ export function removeHolds(properties, getDebtorObligations) {
             },
             submit: [{
                 clearVIEWFormData: true,
-                optional: () => { !properties.firstName },
+                optional: () => {!properties.firstName },
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
                 after: (parsedDocument) => {
                     properties.agencies = [];
@@ -180,11 +180,11 @@ export function removeHolds(properties, getDebtorObligations) {
                 }
             }, {
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
-                optional: (parsedDocument, properties) => { return properties.allObligations.rows({ selected: true }).data().length > 10 && !parsedDocument.querySelector("#lblErrorMsg").textContent.includes('No notices match the search criteria')},
+                optional: (parsedDocument, properties) => { return properties.allObligations.rows({ selected: true }).data().length > 10 && !parsedDocument.querySelector("#lblErrorMsg").textContent.includes('No notices match the search criteria') },
                 urlParams: (parsedDocument, dynamicParams, properties) => {
                     const params = {}
                     let obs = []
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         const data = this.data();
                         obs.push(data.NoticeNumber);
                     })
@@ -233,21 +233,21 @@ export function uploadDocuments(properties) {
     let t = new Date();
     return {
         name: "Upload Documents",
-        submit: [
-            {
-                url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`
-            }
-        ],
-        elements: [
-            {
-                tag: "input", prefill: (parsedDocument, field) => {
-                    field.onchange = function () {
+        submit: [{
+            url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`
+        }],
+        elements: [{
+                tag: "input",
+                prefill: (parsedDocument, field) => {
+                    field.onchange = function() {
                         if (this.files[0].size > 10485759) {
                             alert("File must be under 10Mb");
                             this.value = "";
                         };
                     };
-                }, label: "Load Document:", attributes: { id: "fileChooser", type: "file", style: "grid-column-start: 2; grid-column-end: 5; width: 80%" }
+                },
+                label: "Load Document:",
+                attributes: { id: "fileChooser", type: "file", style: "grid-column-start: 2; grid-column-end: 5; width: 80%" }
             },
             { tag: "select", label: "Description:", attributes: { id: "descriptionChooser", style: "grid-column-start: 2; grid-column-end: 5; align-self: start; width: 80%" } },
             { tag: "option", parent: "descriptionChooser", attributes: { disabled: "", selected: "" }, text: "Type a description or select description from list" },
@@ -261,8 +261,7 @@ export function uploadDocuments(properties) {
             { tag: "option", parent: "descriptionChooser", text: "Notice of Intention - Declare Dividend" },
             { tag: "textarea", label: "Edit Description: <br />(optional, max 50 characters)", attributes: { id: "editDescription", maxlength: 50, name: 'ctl00$mainContentPlaceHolder$documentDescriptionText', style: "grid-column-start: 2; grid-column-end: 5; width: 80%" } },
         ],
-        progressButtons: [
-            {
+        progressButtons: [{
                 text: "Skip",
                 id: "SkipButton",
                 name: "Skip",
@@ -276,42 +275,43 @@ export function uploadDocuments(properties) {
                 id: "SubmitAndNextStep",
                 name: "Submit & Next Step",
                 submit: [{
-                    url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
-                    attempts: 1,
-                    format: "FormData",
-                    next: true,
-                    urlParams: async () => {
-                        const params = {
-                            ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
-                            ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT",
-                            ctl00$mainContentPlaceHolder$taskTypeIdHidden: 470,
-                            ctl00$mainContentPlaceHolder$linkReferenceText: properties.debtorid,
-                            ctl00$mainContentPlaceHolder$sourceText: "BSP:BSP",
-                            ctl00$mainContentPlaceHolder$startDateTextBox: t.toJSON().slice(0, 10).split('-').reverse().join('/'),
-                            ctl00$mainContentPlaceHolder$reasonText: 'WSRTABBNT:Bankruptcy notification from Trustee',
-                            ctl00$mainContentPlaceHolder$startTimeTextBox: t.getHours() + ":" + t.getMinutes(),
-                            ctl00$mainContentPlaceHolder$originText: "ADMINBR:Administrator of Bankruptcy",
-                            "ctl00$mainContentPlaceHolder$updateButton.x": 0,
-                            "ctl00$mainContentPlaceHolder$updateButton.y": 0,
-                            "ctl00$mainContentPlaceHolder$documentImportFileUpload": document.getElementById("fileChooser").files.item(0),
-                        }
-                        if (properties.taskId) {
-                            params.ctl00$mainContentPlaceHolder$createTaskCheck = "";
-                            params.ctl00$mainContentPlaceHolder$taskIdText = properties.taskId;
-                        }
+                        url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
+                        attempts: 1,
+                        format: "FormData",
+                        next: true,
+                        urlParams: async() => {
+                            const params = {
+                                ctl00$mainContentPlaceHolder$lstApplicationModule: "Debtors",
+                                ctl00$mainContentPlaceHolder$taskTypeText: "FVBANKRUPT",
+                                ctl00$mainContentPlaceHolder$taskTypeIdHidden: 470,
+                                ctl00$mainContentPlaceHolder$linkReferenceText: properties.debtorid,
+                                ctl00$mainContentPlaceHolder$sourceText: "BSP:BSP",
+                                ctl00$mainContentPlaceHolder$startDateTextBox: t.toJSON().slice(0, 10).split('-').reverse().join('/'),
+                                ctl00$mainContentPlaceHolder$reasonText: 'WSRTABBNT:Bankruptcy notification from Trustee',
+                                ctl00$mainContentPlaceHolder$startTimeTextBox: t.getHours() + ":" + t.getMinutes(),
+                                ctl00$mainContentPlaceHolder$originText: "ADMINBR:Administrator of Bankruptcy",
+                                "ctl00$mainContentPlaceHolder$updateButton.x": 0,
+                                "ctl00$mainContentPlaceHolder$updateButton.y": 0,
+                                "ctl00$mainContentPlaceHolder$documentImportFileUpload": document.getElementById("fileChooser").files.item(0),
+                            }
+                            if (properties.taskId) {
+                                params.ctl00$mainContentPlaceHolder$createTaskCheck = "";
+                                params.ctl00$mainContentPlaceHolder$taskIdText = properties.taskId;
+                            }
 
-                        return params
-                    }
-                }/* , {
-                    url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
-                    next: true,
-                    urlParams: (parsedDocument) => {
-                        if (parsedDocument.getElementById('ctl00_mainContentPlaceHolder_messageLable') && properties.taskId === undefined) {
-                            properties.taskId = parsedDocument.getElementById('ctl00_mainContentPlaceHolder_messageLable').textContent.split(" ")[7]
+                            return params
                         }
-                        return {};
                     }
-                } */
+                    /* , {
+                                        url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
+                                        next: true,
+                                        urlParams: (parsedDocument) => {
+                                            if (parsedDocument.getElementById('ctl00_mainContentPlaceHolder_messageLable') && properties.taskId === undefined) {
+                                                properties.taskId = parsedDocument.getElementById('ctl00_mainContentPlaceHolder_messageLable').textContent.split(" ")[7]
+                                            }
+                                            return {};
+                                        }
+                                    } */
                 ]
             }, {
                 text: "Upload and Next Document",
@@ -319,12 +319,15 @@ export function uploadDocuments(properties) {
                 next: false,
                 float: "right",
                 name: "Submit & Next Document",
-                afterAction: (parsedDocument) => { document.getElementById('content').reset(); shade.style.display = "none" },
+                afterAction: (parsedDocument) => {
+                    document.getElementById('content').reset();
+                    shade.style.display = "none"
+                },
                 submit: [{
                     url: `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx`,
                     format: "FormData",
                     attempts: 1,
-                    urlParams: async function () {
+                    urlParams: async function() {
                         const params = {
                             "ctl00$mainContentPlaceHolder$updateButton.x": 0,
                             "ctl00$mainContentPlaceHolder$updateButton.y": 0,
@@ -366,18 +369,18 @@ export function proceduralHolds(properties, getDebtorObligations) {
     return {
         name: "Place Procedural Holds",
         submit: [{
-            optional: () => { return !properties.dateOfBankruptcy },
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
-        },
-        {
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
-            urlParams: (parsedDocument) => {
-                (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+                optional: () => { return !properties.dateOfBankruptcy },
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+            },
+            {
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
+                urlParams: (parsedDocument) => {
+                    (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+                }
+            }, {
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
+                urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
             }
-        }, {
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
-            urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
-        }
         ],
         elements: [
             { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
@@ -401,7 +404,7 @@ export function proceduralHolds(properties, getDebtorObligations) {
                 urlParams: (vDocument, dynamicParams) => {
                     const params = {}
                     let warrantObligations = []
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         const data = this.data();
                         warrantObligations.push(data.NoticeNumber);
                     })
@@ -440,18 +443,18 @@ export function liftProceduralHolds(properties, getDebtorObligations) {
     return {
         name: "Lift Procedural Holds",
         submit: [{
-            optional: () => { return !properties.dateOfBankruptcy },
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
-        },
-        {
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
-            urlParams: (parsedDocument) => {
-                (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+                optional: () => { return !properties.dateOfBankruptcy },
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+            },
+            {
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
+                urlParams: (parsedDocument) => {
+                    (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+                }
+            }, {
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
+                urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
             }
-        }, {
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx`,
-            urlParams: { "DebtorExecuteActionCtrl$ddlAction": 10 }
-        }
         ],
         elements: [
             { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
@@ -475,7 +478,7 @@ export function liftProceduralHolds(properties, getDebtorObligations) {
                 urlParams: (vDocument, dynamicParams) => {
                     const params = {}
                     let warrantObligations = []
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         const data = this.data();
                         warrantObligations.push(data.NoticeNumber);
                     })
@@ -486,8 +489,8 @@ export function liftProceduralHolds(properties, getDebtorObligations) {
                         if (tr.children[2] !== undefined && warrantObligations.includes(tr.children[2].textContent)) {
                             (params[`DebtorExecuteActionCtrl$WarrantGrid$ctl${currentRow}$chkWarrantNumber`] = "on")
                         }
-                        params["SearchNoticeCtrl$lnkSelect.x"] = 0,
-                            params["SearchNoticeCtrl$lnkSelect.y"] = 0
+                        params["DebtorExecuteActionCtrl$btnCreateFDORecord.x"] = 0,
+                            params["DebtorExecuteActionCtrl$btnCreateFDORecord.y"] = 0
                     })
                     return params
                 }
@@ -512,17 +515,15 @@ export function liftProceduralHolds(properties, getDebtorObligations) {
 export function placeHolds(properties, getDebtorObligations) {
     return {
         name: "Place Holds",
-        submit: [
-            {
-                optional: () => { return !properties.dateOfBankruptcy },
-                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
-                urlParams: {},
-                after: (parsedDocument) => {
-                    parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt') && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
-                    properties.txtNoticeCheck = [];
-                }
+        submit: [{
+            optional: () => { return !properties.dateOfBankruptcy },
+            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
+            urlParams: {},
+            after: (parsedDocument) => {
+                parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt') && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
+                properties.txtNoticeCheck = [];
             }
-        ],
+        }],
         elements: [
             { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
             { tag: "table", selectCriteria: "Provable", parent: "tablecontainer", dataSource: () => getDebtorObligations(properties.source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
@@ -542,7 +543,7 @@ export function placeHolds(properties, getDebtorObligations) {
             groupRepeats: {
                 "Group 1": () => {
                     let paramArray = [];
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         let params = {};
                         let data = this.data();
                         let all = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber)
@@ -556,7 +557,8 @@ export function placeHolds(properties, getDebtorObligations) {
                         }
                     });
                     return paramArray;
-                }, "Group 2": () => {
+                },
+                "Group 2": () => {
                     let selectArray = properties.allObligations.rows({ selected: true }).data().toArray().map(row => row.NoticeNumber)
                     let previousObligations = selectArray.join(",");
                     if (!properties.holdsRemoved)
@@ -568,7 +570,7 @@ export function placeHolds(properties, getDebtorObligations) {
             },
             submit: [{
                 clearVIEWFormData: true,
-                optional: () => { !properties.firstName },
+                optional: () => {!properties.firstName },
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
                 after: (parsedDocument) => {
                     properties.agencies = [];
@@ -613,7 +615,7 @@ export function placeHolds(properties, getDebtorObligations) {
                 urlParams: (parsedDocument, dynamicParams, properties) => {
                     const params = {}
                     let obs = []
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         const data = this.data();
                         obs.push(data.NoticeNumber);
                     })
@@ -661,11 +663,9 @@ export function placeHolds(properties, getDebtorObligations) {
 export function noticeNotes(source, debtorid, taskid) {
     return {
         name: "Notice Notes",
-        submit: [
-            {
-                url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N&Menu=3`,
-            }
-        ],
+        submit: [{
+            url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N&Menu=3`,
+        }],
         elements: [
             { tag: "div", label: "Obligations:", attributes: { id: "tablecontainer", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
             { tag: "table", selectCriteria: "onHold", parent: "tablecontainer", dataSource: () => getDebtorObligations(source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
@@ -679,7 +679,7 @@ export function noticeNotes(source, debtorid, taskid) {
                 url: `https://${source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=N&Menu=3`,
                 repeat: () => {
                     let paramArray = [];
-                    properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                    properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                         let params = {};
                         let data = this.data();
                         let all = properties.allObligations.rows({ selected: true }).data().toArray()
@@ -723,25 +723,24 @@ export function debtorNote(properties) {
     return {
         name: "Debtor Note",
         submit: [{
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
-        },
-        {
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
-            urlParams: {
-                "PESNotesCtrlMain$btnAddNote.x": 0,
-                "PESNotesCtrlMain$btnAddNote.y": 0
-            }
-        }],
-        elements: [
-            {
-                tag: "textarea",
-                label: "Note:",
-                prefill: (parsedDocument, field) => {
-                    field.value = `Bankruptcy task ${properties.taskId} created. All notes attached to task.`;
-                },
-                attributes: { name: "PESNotesCtrlMain$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" }
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
             },
+            {
+                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx`,
+                urlParams: {
+                    "PESNotesCtrlMain$btnAddNote.x": 0,
+                    "PESNotesCtrlMain$btnAddNote.y": 0
+                }
+            }
         ],
+        elements: [{
+            tag: "textarea",
+            label: "Note:",
+            prefill: (parsedDocument, field) => {
+                field.value = `Bankruptcy task ${properties.taskId} created. All notes attached to task.`;
+            },
+            attributes: { name: "PESNotesCtrlMain$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" }
+        }, ],
         progressButtons: [{
             text: "Skip",
             id: "SkipButton",
@@ -771,16 +770,14 @@ export function taskNote(properties) {
     return {
         name: "Task Note",
         submit: [],
-        elements: [
-            {
-                tag: "textarea",
-                label: "Note:",
-                prefill: (parsedDocument, field, properties) => {
-                    field.value = taskNotes[properties.taskNote](properties)
-                },
-                attributes: { name: "ctl00$mainContentPlaceHolder$ctl16$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" }
+        elements: [{
+            tag: "textarea",
+            label: "Note:",
+            prefill: (parsedDocument, field, properties) => {
+                field.value = taskNotes[properties.taskNote](properties)
             },
-        ],
+            attributes: { name: "ctl00$mainContentPlaceHolder$ctl16$txtNotes", id: "noteDescription", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; height: 200px" }
+        }, ],
         progressButtons: [{
             text: "Skip",
             id: "SkipButton",
@@ -794,13 +791,13 @@ export function taskNote(properties) {
             id: "SubmitAndNextStep",
             name: "Submit & Next Step",
             submit: [{
-                urlParams: function () {
+                urlParams: function() {
                     this.url = `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?DisplayNotes=True&TaskID=${properties.taskId}&ProcessMode=User&AddNote=1`
                     return {}
                 }
             }, {
                 next: true,
-                urlParams: function () {
+                urlParams: function() {
                     this.url = `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?DisplayNotes=True&TaskID=${properties.taskId}&ProcessMode=User&AddNote=1`
                     return {
                         "ctl00$mainContentPlaceHolder$ctl16$btnUpdate.x": 0,
@@ -816,43 +813,45 @@ export function finish(properties) {
     return {
         name: "Finish",
         submit: [],
-        elements: [
-            {
-                tag: "span", noLabel: true, prefill: (vDocument, field) => {
-                    field.addEventListener('mouseup', function () {
-                        chrome.tabs.reload(properties.catalystTabID);
-                        window.close()
-                    })
-                }, attributes: { class: "mybutton", style: "height: 12px; width: 78px; transform: scale(3); grid-column-start: 1;grid-column-end: 5; margin:auto; grid-row-start: 4;" }, text: "Close Window"
-            }
-        ]
+        elements: [{
+            tag: "span",
+            noLabel: true,
+            prefill: (vDocument, field) => {
+                field.addEventListener('mouseup', function() {
+                    chrome.tabs.reload(properties.catalystTabID);
+                    window.close()
+                })
+            },
+            attributes: { class: "mybutton", style: "height: 12px; width: 78px; transform: scale(3); grid-column-start: 1;grid-column-end: 5; margin:auto; grid-row-start: 4;" },
+            text: "Close Window"
+        }]
     }
 }
 
 export function application(properties) {
     return {
         name: "Application",
-        submit: [
-            {
+        submit: [{
                 optional: () => { return !properties.dateOfBankruptcy },
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx`,
                 urlParams: {}
             },
             {
-                urlParams: function (parsedDocument) {
+                urlParams: function(parsedDocument) {
                     this.url = `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
                     (parsedDocument && parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt')) && (properties.dateOfBankruptcy = parsedDocument.getElementById('DebtorIndividualCtrl_dateOfBankruptcyTxt').textContent.trim().split("/").reverse().join("-"));
                 },
                 clearVIEWFormData: true
             }, {
-                urlParams: function () {
+                urlParams: function() {
                     this.url = `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
                     return {
                         "ctl00$mainContentPlaceHolder$editButton.x": 0,
                         "ctl00$mainContentPlaceHolder$editButton.y": 0
                     }
                 }
-            }],
+            }
+        ],
         elements: [
             { tag: "select", label: "Status:", attributes: { id: "statusChooser", style: "grid-column-start: 2; grid-column-end: 5; align-self: start; width: 80%" } },
             { tag: "option", parent: "statusChooser", attributes: { disabled: "", selected: "", value: "Select an application status" }, text: "Select an application status" },
@@ -862,22 +861,25 @@ export function application(properties) {
             { tag: "option", parent: "statusChooser", text: "Processed – accepted agreement", attributes: { value: "Processed – accepted agreement" } },
             { tag: "option", parent: "statusChooser", text: "Investigation required", attributes: { value: "Investigation required" } },
             { tag: "option", parent: "statusChooser", text: "Discharged prior 2018", attributes: { value: "Discharged prior 2018" } },
+            { tag: "option", parent: "statusChooser", text: "Discharged - pending write off", attributes: { value: "Discharged - pending write off" } },
             { tag: "option", parent: "statusChooser", text: "Agreement terminated – holds lifted", attributes: { value: "Agreement terminated – holds lifted" } },
             { tag: "option", parent: "statusChooser", text: "Processed – write-off", attributes: { value: "Processed – write-off" } },
             { tag: "input", label: "Date of bankruptcy:", prefill: (parsedDocument, field) => field.value = properties.dateOfBankruptcy, attributes: { id: "bankruptcyDateChooser", type: "date", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start;" } },
             {
-                tag: "input", label: "AFSA Reference:", prefill: (parsedDocument, thisElement) => {
+                tag: "input",
+                label: "AFSA Reference:",
+                prefill: (parsedDocument, thisElement) => {
                     const selector = parsedDocument.querySelector("#ctl00_mainContentPlaceHolder_descriptionText");
                     const description = selector ? selector.textContent : "";
                     const descriptionArray = description.split(/:|,/);
                     const descriptionObject = {};
-                    descriptionArray.some(function (item, index) {
+                    descriptionArray.some(function(item, index) {
                         if (index % 2 === 0 && descriptionArray.length > 1) {
                             descriptionObject[item.trim()] = descriptionArray[index + 1].trim();
                         }
                         return (index > 4);
                     });
-                    descriptionObject["Date of Bankruptcy"] = descriptionObject["Date of Bankruptcy"] ? descriptionObject["Date of Bankruptcy"].substring(0,10) : undefined;
+                    descriptionObject["Date of Bankruptcy"] = descriptionObject["Date of Bankruptcy"] ? descriptionObject["Date of Bankruptcy"].substring(0, 10) : undefined;
                     const select = document.getElementById("statusChooser");
                     select.value = descriptionObject.Status || "Select an application status";
                     thisElement.value = descriptionObject["AFSA Reference"] || "";
@@ -885,8 +887,7 @@ export function application(properties) {
                 attributes: { id: "afsaReference", type: "text", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; height: 20px" }
             }
         ],
-        progressButtons: [
-            {
+        progressButtons: [{
                 text: "Skip",
                 id: "SkipButton",
                 name: "Skip",
@@ -901,7 +902,7 @@ export function application(properties) {
                 name: "Submit & Next Step",
                 submit: [{
                     next: true,
-                    urlParams: function (parsedDocument) {
+                    urlParams: function(parsedDocument) {
                         this.url = `https://${properties.source}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskMaintenance.aspx?TaskId=${properties.taskId}&ProcessMode=User`;
                         const params = {
                             "ctl00$mainContentPlaceHolder$updateButton.x": 0,
@@ -919,33 +920,33 @@ export function application(properties) {
 export function letter(properties, getDebtorObligations) {
     return {
         name: "Letter",
-        submit: [
-            {
-                url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
-                after: (parsedDocument) => {
-                    properties.agencies = [];
-                    properties.debtorid = parsedDocument.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value
-                    properties.firstName = parsedDocument.getElementById('DebtorDetailsCtrl_firstnameTxt').textContent
-                    properties.lastName = parsedDocument.getElementById('DebtorDetailsCtrl_surnameTxt').textContent
-                }
+        submit: [{
+            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
+            after: (parsedDocument) => {
+                properties.agencies = [];
+                properties.debtorid = parsedDocument.getElementById('DebtorDetailsCtrl_DebtorIdSearch').value
+                properties.firstName = parsedDocument.getElementById('DebtorDetailsCtrl_firstnameTxt').textContent
+                properties.lastName = parsedDocument.getElementById('DebtorDetailsCtrl_surnameTxt').textContent
             }
-        ],
+        }],
         elements: [
             { tag: "div", attributes: { id: "tablecontainer", style: "margin: auto; grid-column-start: 1; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt; margin-bottom: 20px" } },
             { tag: "table", parent: "tablecontainer", "selectCriteria": "all", dataSource: () => getDebtorObligations(properties.source), attributes: { id: "obligationtable", class: "table", style: "grid-column-start: 2; grid-column-end: 5; width: 100%; align-self: start; font-size: 8pt;" } },
             {
-                tag: "select", label: "Address:", prefill: (parsedDocument, field) => {
+                tag: "select",
+                label: "Address:",
+                prefill: (parsedDocument, field) => {
                     properties.addressTable = parsedDocument.querySelector("#DebtorAddressesCtrl_gridDebtorAddresses_tblData > tbody");
                     const addressTableRows = Array.from(properties.addressTable.children);
                     addressTableRows.forEach((tr, i) => {
                         field.insertAdjacentHTML('beforeend', `<option ${tr.children[4].textContent.trim() === "Y" && tr.children[1].textContent.includes("Postal Address") ? "selected = 'selected'" : ""}>${tr.children[2].textContent}, ${tr.children[3].textContent}, (${tr.children[1].textContent})</option>`)
                     })
-                }, attributes: { id: "addressChooser", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" }
+                },
+                attributes: { id: "addressChooser", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" }
             },
             { tag: "input", label: "Bankruptcy Notification Date:", attributes: { id: "noteDate", type: "date", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; align-self: start; font-size: 8pt;" } }
         ],
-        progressButtons: [
-            {
+        progressButtons: [{
                 text: "Skip",
                 id: "SkipButton",
                 name: "Skip",
@@ -965,7 +966,7 @@ export function letter(properties, getDebtorObligations) {
                     },
                     "Group 2": () => {
                         const paramArray = [];
-                        properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
+                        properties.allObligations.rows({ selected: true }).every(function(rowIdx, tableLoop, rowLoop) {
                             const data = this.data();
                             console.log(data);
                             const params = {};
@@ -981,7 +982,8 @@ export function letter(properties, getDebtorObligations) {
                             }
                         });
                         return paramArray;
-                    }, "Group 3": () => {
+                    },
+                    "Group 3": () => {
                         if (properties.courtFineData[0]['Case Ref'] === "No records found") { return [] };
                         const courtFineList = [];
                         for (let courtFine of properties.courtFineData) {
@@ -990,11 +992,10 @@ export function letter(properties, getDebtorObligations) {
                         return courtFineList;
                     }
                 },
-                submit: [
-                    {
+                submit: [{
                         //This first submit ensures that the debtor Id is not changed due to having a notice from another debtor already active in VIEW.
                         group: "Group X",
-                        urlParams: function (parsedDocument, dynamicParams) {
+                        urlParams: function(parsedDocument, dynamicParams) {
                             this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=${dynamicParams}`;
                             properties.courtDetails = {};
                             return {}
@@ -1028,8 +1029,8 @@ export function letter(properties, getDebtorObligations) {
                     }, {
                         group: "Group 3",
                         clearVIEWFormData: true,
-                        urlParams: function (parsedDocument, dynamicParams) {
-                            this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorCourtFines.aspx?CaseRef=${dynamicParams.CaseRef}&NoticeNo=${dynamicParams.NoticeNo}`
+                        urlParams: function(parsedDocument, dynamicParams) {
+                            this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorCourtFines.aspx?CaseRef=${dynamicParams.CaseRef}&NoticeNo=${dynamicParams.NoticeNo}&DebtorId=${properties.debtorid}`
                             return {}
                         },
                         after: (parsedDocument) => {

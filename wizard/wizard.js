@@ -345,7 +345,7 @@ async function buildTable(element, field, parsedDocument) {
   dataTable.rows().every(function (rowIdx, tableLoop, rowLoop) {
     let data = this.data();
     let types = ["1A", "1B", "1C", "2A"];
-    let statuses = ["WARRNT", "NFDP"];
+    let statuses = ["WARRNT", "NFDP", "SELDEA"];
     let bd = moment(properties.dateOfBankruptcy, "YYYY-MM-DD")
     let td = moment(data.OffenceDate, "DD/MM/YYYY")
     let balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
@@ -394,7 +394,7 @@ async function buildTable(element, field, parsedDocument) {
 
     if (element.selectCriteria === "all") {
       //Selects all unpaid obligations
-      statuses = ["WARRNT", "CHLGLOG", "NFDP", "SELENF", "CLOG"];
+      statuses = ["WARRNT", "CHLGLOG", "NFDP", "SELENF", "CLOG", "SELDEA"];
 
       (balance > 0) &&
         (statuses.some(status => data.NoticeStatusPreviousStatus.includes(status))) &&

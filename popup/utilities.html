@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utilities</title>
+    <link rel="stylesheet" href="utilities.css">
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:xd_Signature msdt:dt="string"></mso:xd_Signature>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Editor msdt:dt="string">Adrian B Zafir (DJCS)</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Editor>
+<mso:Order msdt:dt="string">19235600.0000000</mso:Order>
+<mso:xd_ProgID msdt:dt="string"></mso:xd_ProgID>
+<mso:SharedWithUsers msdt:dt="string"></mso:SharedWithUsers>
+<mso:_ExtendedDescription msdt:dt="string"></mso:_ExtendedDescription>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Author msdt:dt="string">Adrian B Zafir (DJCS)</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Author>
+<mso:ComplianceAssetId msdt:dt="string"></mso:ComplianceAssetId>
+<mso:TemplateUrl msdt:dt="string"></mso:TemplateUrl>
+<mso:ContentTypeId msdt:dt="string">0x0101005F5FA1C1EF8EAA42A6347BF9B5A44C54</mso:ContentTypeId>
+<mso:TriggerFlowInfo msdt:dt="string"></mso:TriggerFlowInfo>
+<mso:_SourceUrl msdt:dt="string"></mso:_SourceUrl>
+<mso:_SharedFileIndex msdt:dt="string"></mso:_SharedFileIndex>
+<mso:TaxCatchAll msdt:dt="string"></mso:TaxCatchAll>
+<mso:MediaLengthInSeconds msdt:dt="string"></mso:MediaLengthInSeconds>
+<mso:MediaServiceImageTags msdt:dt="string"></mso:MediaServiceImageTags>
+<mso:lcf76f155ced4ddcb4097134ff3c332f msdt:dt="string"></mso:lcf76f155ced4ddcb4097134ff3c332f>
+<mso:_dlc_DocId msdt:dt="string">3762B7-1609922046-109854</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">c6d7db4e-91fe-4d04-8320-818c4e8b5503</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://vicgov.sharepoint.com/sites/msteams_3af44a/_layouts/15/DocIdRedir.aspx?ID=3762B7-1609922046-109854, 3762B7-1609922046-109854</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+
+<body>
+    <div class="grid-container main">
+        <header id="main-header">Utilities</header>
+        <div class="grid-item label-text">Mail Merge :</div>
+        <div class="grid-item">
+            <span class="mybutton" id="MailMerge" data-micromodal-trigger="modal-1">Open</span>
+            <img id="barcode" style="display:none" />
+        </div>
+    </div>
+
+    <div class="modal" id="modal-1" aria-hidden="true">
+        <div tabindex="-1" data-micromodal-close class="modal__overlay">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-1-title" class="modal__container">
+                <header>
+                    <h2 id="modal-1-title">Mail Merge</h2>
+                    <button aria-label="Close modal" data-micromodal-close class="modal__close"></button>
+                </header>
+                <div id="modal-1-content">
+                    <form id='Mail-merge-form'>
+                        <div class="grid-container modal">
+                            <div class="grid-item">
+                                <label id="template-url-label">
+                                    <input type="radio" name="template-source" value="template-url" id="template-url" checked> Template from URL
+                                </label><br>
+                                <label id="template-local-label">
+                                    <input type="radio" name="template-source" value="template-local" id="template-local">
+                                    Upload template from computer
+                                </label><br>
+                                <input type="file" name="template-local-file" id="template-local-file"
+                                    style="display:none"><br>
+                                <input placeholder="URL" type="text" name="template-url-text" id="template-url-text" value="">
+                            </div>
+                            <div class="grid-item">
+                                <!-- <span class="mybutton" id="help">Help</span><br> -->
+                                <label id="data-list-local-label"><input type="radio" name="data-list-source"
+                                        value="data-list-url" checked> Data list from URL</label><br>
+                                <label id="data-list-url-label"><input type="radio" name="data-list-source" value="data-list-local">
+                                    Upload data list from computer</label><br>
+                                <input type="file" name="data-list-local" id="data-list-local-file"
+                                    style="display:none"><br>
+                                <input placeholder="URL" type="text" name="data-list-url" id="data-list-url-text" value="">
+                            </div>
+                        </div>
+
+                        <label for="save-name" name="save-name">File name</label><br>
+                        <input type="text" id="save-name" name="save-name" value=""><br>
+                        <span class="mybutton" id="run-mail-merge">Run Mail Merge</span><br>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <input id="templateChooser" type="file" name="name" style="display: none;" />
+    <input id="datalistChooser" type="file" name="name" style="display: none;" />
+
+    <script src="../js/External/micromodal.min.js"></script>
+    <script src="../js/External/pizzip.js"></script>
+    <script src="../js/External/jszip.js"></script>
+    <script src="../js/External/jszip-utils.js"></script>
+    <script src="../js/External/FileSaver.js"></script>
+    <script src="../js/External/angular-parse-browser.js"></script>
+    <script src="../js/External/xlsx.js"></script>
+    <script src="../js/External/JsBarcode.all.min.js"></script>
+    <script src="../js/External/imagemodule.js"></script>
+    <script src="../js/External/docxtemplater.js"></script>
+    <script type="module" src="utilities.js"></script>
+</body>
+
+</html>

@@ -12,6 +12,14 @@ BulkWriteoff = new Link('pnl3BulkWriteOffUpdate', "Bulk Notice Writeoff", {
 	"titleTxt": "Bulk Writeoff Update"
 })
 
+BulkRequestEnforcementWarrant = new Link('pnl3BulkRequestEnforcementWarrant', "Bulk Request Enforcement Warrant", {
+	"source": document.location.host.split('.')[0],
+	"pages": ["bulkRequestEnforcementWarrant", "finish"],
+	"titleTxt": "Bulk Request Enforcement Warrant"
+})
+
+BulkRequestEnforcementWarrant.appendElement(20);
+
 /* DebtorNotesUpdate.appendElement(20);
 BulkWriteoff.appendElement(20); */
 

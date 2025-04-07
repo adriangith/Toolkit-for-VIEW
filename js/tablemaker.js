@@ -4,7 +4,7 @@ String.prototype.trunc = String.prototype.trunc ||
       };
 
 function table(data, name) {
-	config[4].active = false;
+	//config[4].active = false;
 	var wb = XLSX.utils.book_new();
 
 	var sheetName = 'Obligations'
@@ -72,7 +72,7 @@ function table(data, name) {
 
 
 async function table2(data, name) {
-	config[4].active = false;
+	//config[4].active = false;
 	const dataConfig = {
 		filename: name + " Obligations",
 	    sheet: {

@@ -6,17 +6,29 @@ let res;
 	}
 
 	if (parameters[1] === 'MOU') {
-		res = await fetch('https://trimapi.justice.vic.gov.au/record/13733834/File/document2');
+		if (parameters[2] === 'Agency FR Granted') {
+			res = await fetch('https://trimapi.justice.vic.gov.au/record/21673543/File/document2')
+		} else {
+			res = await fetch('https://trimapi.justice.vic.gov.au/record/13733834/File/document2');
+		}
 	}
 
 	if (parameters[1] === 'Unable to Contact Applicant') {
 		res = await fetch('https://trimapi.justice.vic.gov.au/record/13735474/File/document2');
 	}
 
+	if (parameters[1] === 'FVS Further Information Required') {
+		res = await fetch('https://trimapi.justice.vic.gov.au/record/15111431/File/document2');
+	}
+
+	if (parameters[1] === 'Further Information Required') {
+		res = await fetch('https://trimapi.justice.vic.gov.au/record/15111431/File/document2');
+	}
+
 		let template = await res.text();
 		data.today = getDates().today
 		data.todayplus14 = getDates().todayplus14
-		data.emailTo = data.a[0].EmailAddress !== undefined ? data.a[0].EmailAddress : "None";
+		data.emailTo = data.EmailAddress !== undefined ? data.EmailAddress : "None";
 		var result =  await Sqrl.render(template, data, { async: true, asyncHelpers: ['addAttachment'] })
 		result = result.split('----boundary_text_string');
 		marked.setOptions({'breaks': true, "gfm": true});
@@ -63,11 +75,19 @@ function getDates() {
 	var mm = monthNames[today.getMonth()];
 	var yyyy = today.getFullYear();
 	var today = dd + ' ' + mm + ' ' + yyyy;
+	var todayplus28 = new Date().addDays(28);
+	var dd28 = String(todayplus28.getDate()).padStart(2, '0');
+	var mm28 = monthNames[todayplus28.getMonth()];
+	var yyyy28 = todayplus28.getFullYear();
+	var todayplus21 = new Date().addDays(21);
+	var dd21 = String(todayplus21.getDate()).padStart(2, '0');
+	var mm21 = monthNames[todayplus21.getMonth()];
+	var yyyy21 = todayplus21.getFullYear();
 	var todayplus14 = new Date().addDays(14);
 	var dd14 = String(todayplus14.getDate()).padStart(2, '0');
 	var mm14 = monthNames[todayplus14.getMonth()];
 	var yyyy14 = todayplus14.getFullYear();
-	return {"today": today, "todayplus14": dd14 + ' ' + mm14 + ' ' + yyyy14};
+	return {"today": today, "todayplus14": dd14 + ' ' + mm14 + ' ' + yyyy14, "todayplus28": dd28 + ' ' + mm28 + ' ' + yyyy28, "todayplus21": dd21 + ' ' + mm21 + ' ' + yyyy21};
 }
 
 function downloadEmail(emlContent, parameters, data) {

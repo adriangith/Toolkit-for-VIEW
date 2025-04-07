@@ -194,7 +194,7 @@ function closeForm() {
 }
   
   chrome.storage.local.get(['value'], function(items) {
-	  if (Object.entries(items).length !== 0) {
+	  if (Object.entries(items).length !== 0 && document.querySelector('html > head > title').textContent.match(/Civica Debtors (.*)/)) {
 		  storedData = items.value
 		  for(item in items.value) {
 			var debtorId = document.querySelector('html > head > title').textContent;
@@ -265,13 +265,15 @@ s.src = chrome.runtime.getURL('js/helper.js');
 	(document.head || document.documentElement).appendChild(s);
 	
 	window.addEventListener('beforeunload', (event) => {
-		saveIT()	
+		if(document.querySelector('html > head > title').textContent.match(/Civica Debtors (.*)/)) {
+			saveIT()
+		}	
 	});
 	
 function saveIT () {
 	var value = []
 	var debtorId = document.querySelector('html > head > title').textContent;
-			debtorId = debtorId.match(/Civica Debtors (.*)/)[1];
+	debtorId = debtorId.match(/Civica Debtors (.*)/)[1];
 	value.push(debtorId)
 	var box = document.getElementById('3PA')
 	value.push(box.checked)

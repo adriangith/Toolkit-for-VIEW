@@ -94,6 +94,16 @@ let config = [
         "otherData": [],
         "active": false,
     },
+	{
+        "url": "https://djr.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorFurtherDetails.aspx",
+        "description": 'Get best address',
+        "name": 'debtorFurtherDetails',
+        "targetTags": [
+        	{field: "Date_of_Birth", tag: '#DebtorIndividualCtrl_dateOfBirthTxt', method: 'text'},
+        ],
+        "otherData": [],
+        "active": true,
+    },
     {
         "url": "https://djr.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticeAudit.aspx",
         "description": 'Parse notice audit',
@@ -114,6 +124,9 @@ let config = [
             {field: "Enforcement_Fee", tag: '#lblEnforcementFee', method: 'text'},
             {field: "Warrant_Issue_Fee", tag: '#lblWarrantIssueFee', method: 'text'},
             {field: "Amount_Waived", tag: '#lblWaiveAmt', method: 'text'},
+            {field: "Amount_Paid", tag: '#lblPayments', method: 'text'},
+            {field: "Court_Costs", tag: '#lbl2BCRTCs', method: 'text'},
+            {field: "Court_Fine", tag: '#lbl2BCRTs', method: 'text'}, 
         ],
         "otherData": [],
         "controlID": "btnSummary",

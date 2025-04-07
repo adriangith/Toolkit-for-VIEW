@@ -20,8 +20,6 @@ async function VIEWsubmit(data, incrementor, parsedDocument, dataParams, propert
       for (let set of dynamicParams) {
         for (let submitInstructions of group) {
           if (properties.portDisconnected) throw "Window Closed";
-          console.log("-------------------------");
-          console.log("Fetching:", submitInstructions.url);
           if (submitInstructions.optional && submitInstructions.optional(parsedDocument, properties) === false) continue;
           let urlParams = typeof submitInstructions.urlParams === "function" && submitInstructions.urlParams(parsedDocument, set, properties) || submitInstructions.urlParams;
           urlParams = await urlParams;
@@ -38,6 +36,8 @@ async function VIEWsubmit(data, incrementor, parsedDocument, dataParams, propert
           let fetchOptions = { method: submitInstructions.method || "POST", headers: { "x-civica-application": "CE", "sec-fetch-site": "same-origin" } };
           if (submitInstructions.body !== false) { fetchOptions.body = form_data }
           let vDocument
+          console.log("-------------------------");
+          console.log("Fetching:", submitInstructions.url);
           if (submitInstructions.sameorigin) {
             vDocument = await runFetchInContentScript(submitInstructions.url, fetchOptions);
           } else {

@@ -29,7 +29,7 @@ export function downloadLetter(address, properties) {
         let data = this.data();
 
         const types = ["1A", "1B", "1C", "2A"];
-        const statuses = ["WARRNT", "CHLGLOG", "NFDP"];
+        const statuses = ["WARRNT", "CHLGLOG", "NFDP", "SELDEA"];
         if (String(data.Offence) === "0000") {
             properties.courtDetails;
             data.hearingDate = properties.courtDetails[data.NoticeNumber].hearingDate
@@ -54,16 +54,29 @@ export function downloadLetter(address, properties) {
             (l.nonProvable.push(data));
 
     })
-    backgroundLetterMaker(l, properties)
+    properties.filename = `${titleCase(properties.firstName)} ${titleCase(properties.lastName)} - Bankruptcy Confirmation`
+    backgroundLetterMaker(l, properties, "https://trimwebdrawer.justice.vic.gov.au/record/13930494/File/document")
 }
 
+
+
+
 function angularParser(tag) {
+
     if (tag === '.') {
         return {
             get: function (s) { return s; }
         }
     }
+
+    /*  if (tag.includes('%')) {
+        return {
+            'get': function (scope) { return scope[tag] }
+        }
+    }*/
+
     const expr = expressions.compile(tag.replace(/(’|“|”)/g, "'"));
+
     return {
         get: function (s) {
             return expr(s);
@@ -71,20 +84,25 @@ function angularParser(tag) {
     }
 }
 
-async function backgroundLetterMaker(letterData, properties) {
-    const letterTemplate = await loadLetter("https://trimwebdrawer.justice.vic.gov.au/record/13930494/File/document")
+async function backgroundLetterMaker(letterData, properties, letterTemplateURL) {
+    const letterTemplate = await loadLetter(letterTemplateURL)
     /* Create a letter for each of the objects in letterData */
-    const letter = makeLetter(letterData, letterTemplate, properties)
+    const letter = makeLetter(letterData, letterTemplate, properties.filename)
 }
 
-function makeLetter(content, letterTemplate, properties) {
-    var zip = new JSZip(letterTemplate);
+export function makeLetter(content, letterTemplate, filename, imageModule) {
+
+    var zip = new PizZip(letterTemplate);
     var doc = new window.Docxtemplater().loadZip(zip)
+    if (imageModule) {
+        doc.attachModule(imageModule);
+    }
     doc.setOptions({
         parser: angularParser
     })
-
+    console.log(content)
     doc.setData(content);
+
     try {
         // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
         doc.render()
@@ -96,7 +114,7 @@ function makeLetter(content, letterTemplate, properties) {
             stack: error.stack,
             properties: error.properties,
         }
-        console.log(JSON.stringify({ error: e }));
+        // console.log(JSON.stringify({ error: e }));
         // The error thrown here contains additional information when logged with JSON.stringify (it contains a property object).
         throw error;
     }
@@ -104,8 +122,7 @@ function makeLetter(content, letterTemplate, properties) {
         type: "blob",
         mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }) //Output the document using Data-URI    
-    saveAs(out, `${titleCase(properties.firstName)} ${titleCase(properties.lastName)} - Bankruptcy Confirmation.docx`)
-    //window.close()
+    saveAs(out, filename + ".docx")
 }
 
 function loadLetter(url) {
@@ -126,7 +143,7 @@ const toDate = (dateStr = "2000-01-01") => {
 }
 
 function titleCase(string) {
-    var sentence = string.toLowerCase().split(" ");
+    var sentence = string.trim().toLowerCase().split(" ");
     for (var i = 0; i < sentence.length; i++) {
         sentence[i] = sentence[i][0].toUpperCase() + sentence[i].slice(1);
     }

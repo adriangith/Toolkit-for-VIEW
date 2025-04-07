@@ -6,12 +6,51 @@ function toggle(source) {
 		checkboxes[checkbox].checked = source.checked;
 }
 
+async function selectFVSHolds() {
+	let table = document.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_tblData > tbody");
+	let tableRows = table.childNodes;
+	for (let row = 1; row < tableRows.length - 1; row++) {
+		let cells = tableRows[row].childNodes;
+		let holdStatusCell;
+		for (let cell = 2; cell < cells.length - 2; cell++) {
+			if (cells[cell].id.includes("HoldCode")) { holdStatusCell = cells[cell] }
+		}
+
+		//Make sure all rows are unchecked
+		cells[1].querySelector('input').checked = false;
+
+		//Checks all enforcement review challenge logged.
+		if (holdStatusCell.textContent.includes("FVSPEND")) {
+			cells[1].querySelector('input').checked = true;
+		}
+	}
+}
+async function selectPAHolds() {
+	let table = document.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_tblData > tbody");
+	let tableRows = table.childNodes;
+	for (let row = 1; row < tableRows.length - 1; row++) {
+		let cells = tableRows[row].childNodes;
+		let holdStatusCell;
+		for (let cell = 2; cell < cells.length - 2; cell++) {
+			if (cells[cell].id.includes("HoldCode")) { holdStatusCell = cells[cell] }
+		}
+
+		//Make sure all rows are unchecked
+		cells[1].querySelector('input').checked = false;
+
+		//Checks all enforcement review challenge logged.
+		if (holdStatusCell.textContent.includes("PAYARNGMNT")) {
+			cells[1].querySelector('input').checked = true;
+		}
+	}
+}
+
 async function selectEnforcementReview() {
 	let table = document.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_tblData > tbody");
 	let tableRows = table.childNodes;
 	for (let row = 1; row < tableRows.length - 1; row++) {
 		let cells = tableRows[row].childNodes;
-		let contraventionCodeCell, noticeStatusCell, noticeNumberCell, balanceOutstandingCell, CurrentChallengeLoggedCell;
+		let CurrentChallengeLoggedCell;
 		for (let cell = 2; cell < cells.length - 2; cell++) {
 			if (cells[cell].id.includes("CurrentChallengeLogged")) { CurrentChallengeLoggedCell = cells[cell] }
 		}
@@ -41,7 +80,7 @@ async function selectApplicable() {
 	let table = document.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_tblData > tbody");
 	let tableRows = table.childNodes;
 
-	enforcementActionableStatuses = ["WARRNT", "NFDP", "SELNFD"];
+	enforcementActionableStatuses = ["WARRNT", "NFDP", "SELNFD", "SELDEA"];
 	ESIOffences = ["2095", "1992", "1999", "1996", "1929", "1930", "1931", "1932", "1933", "1934", "1949", "1950", "1951", "1952", "1953", "1954", "0000"]
 
 	//Iterate table rows
