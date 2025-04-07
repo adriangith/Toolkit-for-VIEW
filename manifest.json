@@ -4,6 +4,10 @@
     "description": "Provides a range of enhancements for the VIEW system",
     "short_name": "View Toolkit",
     "permissions": [
+        "storage",
+        "cookies"
+    ],
+    "host_permissions": [
         "https://trimwebdrawer.justice.vic.gov.au/*",
         "https://trimapi.justice.vic.gov.au/record/*",
         "https://vicgov-my.sharepoint.com/*",
@@ -17,24 +21,25 @@
         "https://uat2.wdp.vic.gov.au/wdp-applications/*",
         "https://api.wdp.vic.gov.au/api/VIMSImport/ImportVIMSData",
         "https://uatapi.wdp.vic.gov.au/api/VIMSImport/ImportVIMSData",
-        "https://uat2api.wdp.vic.gov.au/api/VIMSImport/ImportVIMSData",
-        "storage",
-        "cookies"
+        "https://uat2api.wdp.vic.gov.au/api/VIMSImport/ImportVIMSData"
     ],
     "icons": {
         "128": "Images/icon128.png"
     },
     "background": {
-        "page": "background.html",
-        "persistent": false
+        "service_worker": "js/background.js",
+        "type": "module"
     },
-    "browser_action": {
+    "action": {
         "default_popup": "popup/index.html",
-        "default_icon": "Images/V.png",
+        "128": {
+            "default": "Images/V.png"
+        },
         "default_title": "Toolkit for View"
     },
-    "manifest_version": 2,
-    "content_scripts": [{
+    "manifest_version": 3,
+    "content_scripts": [
+        {
             "matches": [
                 "https://*.view.civicacloud.com.au/Core/Forms/HomePage.aspx"
             ],
@@ -180,8 +185,7 @@
                 "js/External/datatables.js",
                 "js/External/bootstrap.bundle.min.js",
                 "js/External/waitingfor.js",
-                "js/WDPAutomator.js",
-                "js/External/waitingfor.js"
+                "js/WDPAutomator.js"
             ],
             "css": [
                 "css/External/select.dataTables.min.css"
@@ -207,14 +211,6 @@
         },
         {
             "matches": [
-                "https://*.view.civicacloud.com.au/Taskflow/Forms/Management/DocumentImport.aspx*"
-            ],
-            "js": [
-                "js/documentUpload.js"
-            ]
-        },
-        {
-            "matches": [
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/*"
             ],
             "css": [
@@ -232,14 +228,23 @@
         }
     ],
     "web_accessible_resources": [
+        {
+            "resources": [
         "js/External/*",
         "css/External/*",
         "js/helper.js",
         "js/tablemaker.js",
         "js/objects.js",
-        "js/like_button.js",
         "bankruptcy/*",
-        "Images/*"
+                "Images/*",
+                "js/*.js.map"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
     ],
-    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    }
 }
