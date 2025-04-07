@@ -1,0 +1,128 @@
+@-webkit-keyframes spinner-line-fade-default {
+  0%, 100% {
+    opacity: 0.22;
+    /* minimum opacity */
+  }
+  1% {
+    opacity: 1;
+  }
+}
+
+.dataTables_paginate.paging_simple_numbers {
+  color: #43088e;
+}
+
+.paginate_button.current {
+  font-weight: bold;
+}
+
+.paginate_button.next.disabled, .paginate_button.previous.disabled {
+  border-style: none;
+}
+
+.placeholder {
+  min-height: 80px;
+}
+
+.target {
+  border-color: #CCCCCC;
+  border-width: 1px;
+  border-style: solid;
+  width: 100%;
+  border-collapse: collapse;
+  border-color: #CCCCCC;
+  border-collapse: collapse;
+}
+
+.mybutton {
+  cursor: hand;
+  box-shadow: inset 1px 1px 2px #9150e6, inset -1px -1px 2px #311b4d;
+  background-color: #59308e;
+  border-radius: 4px;
+  border: 1px solid #333333;
+  color: #FFFFFF;
+  font-family: Verdana;
+  font-size: 11px;
+  font-weight: 100;
+  padding-bottom: 1px;
+  padding-left: 11px;
+  padding-right: 11px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.8);
+  filter: blur(.25px);
+  text-decoration: none;
+  user-select: none;
+}
+
+.mybutton:hover {
+  opacity: 0.5;
+}
+
+.odd, .even {
+  border-color: #cccccc;
+  border-width: 1px;
+  border-style: solid;
+  padding-right: 3px;
+  padding-left: 3px;
+  font-weight: bold;
+  font-size: 8pt;
+  background: whitesmoke;
+  padding-bottom: 5px;
+  color: black;
+  font-family: verdana, Geneva, Arial, Helvetica, sans-serif;
+  vertical-align: middle;
+}
+
+.odd td, .even td {
+  padding: 8px;
+}
+
+.dataTables_length {
+  float: left;
+}
+
+.dataTables_info {
+  float: right;
+}
+
+.dataTables_paginate {
+  float: right;
+  margin-left: 12px;
+}
+
+.dataTables_paginate * {
+  cursor: hand;
+}
+
+.paginate_button {
+  padding: 2px;
+}
+
+.dataTables_paginate, .dataTables_info {
+  padding-top: 3px;
+}
+
+.tdbuttons {
+  height: 26px;
+}
+
+.bottom {
+  margin-top: 8px;
+  height: 15;
+  margin-bottom: 15px;
+}
+
+.target>tbody>tr td {
+  border-color: #cccccc;
+  border-width: 1px;
+  border-style: solid;
+  text-align: center;
+}
+
+.target>thead>tr th {
+  min-width: 100px;
+}
+
+.gridheader {
+  height: 28px;
+}

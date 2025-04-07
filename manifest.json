@@ -94,8 +94,7 @@
                 "js/External/table.js",
                 "js/External/react.development.js",
                 "js/External/react-dom.development.js",
-                "js/External/babel.min.js",
-                "js/like_button.js"
+                "js/External/babel.min.js"
             ],
             "exclude_matches": [
                 "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/*",

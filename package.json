@@ -1,0 +1,28 @@
+{
+  "name": "Toolkit-for-VIEW",
+  "version": "0.1.0",
+  "description": "My Chrome Extension",
+  "private": true,
+  "scripts": {
+    "watch": "webpack --mode=development --watch --config config/webpack.config.js",
+    "build": "webpack --mode=production --config config/webpack.config.js"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^13.0.0",
+    "css-loader": "^7.1.2",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "angular-expressions": "^1.4.3",
+    "docxtemplater": "^3.61.0",
+    "file-saver": "^2.0.5",
+    "jquery": "^3.7.1",
+    "jszip": "^3.10.1",
+    "jszip-utils": "^0.1.0",
+    "marked": "^15.0.7",
+    "pizzip": "^3.1.8",
+    "xlsx": "^0.18.5"
+  }
+}
