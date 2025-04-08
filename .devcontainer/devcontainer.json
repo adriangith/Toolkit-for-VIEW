@@ -1,65 +1,36 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/alpine
 {
-	// Updated name to reflect the new image
-	"name": "WebDAV (hacdias)",
+  "name": "WebDAV (hacdias)",
 
-	// Use the hacdias/webdav image.
-	// Using 'latest' is convenient, but consider pinning to a specific version tag
-	// (e.g., "hacdias/webdav:2.20.0") for more reproducible builds.
-	"image": "hacdias/webdav:latest",
-	// hacdias/webdav defaults to port 8080. Forward this port so you can
-	// access the WebDAV server from your local machine (e.g., http://localhost:8080).
-	"forwardPorts": [9443],
+  // Use the hacdias/webdav image.
+  "image": "hacdias/webdav:latest",
 
-	// Optional: Add run arguments if you need to customize hacdias/webdav startup.
-	// See hacdias/webdav documentation for available flags (e.g., authentication, different port, base directory).
-	// Example: Set authentication and serve a specific path
-	 "runArgs": [
-	  "--auth",
-	  "--username", "vscode",
-	  "--password", "default",
-	  "--address", "0.0.0.0", // Ensure it listens on all interfaces inside the container
-	  "--port", "9443",
-	  "/dist" // The directory inside the container to serve (default is /srv)
-	 ],
-	// --- Your existing VS Code customizations ---
-	"customizations": {
-		"vscode": {
-			"settings": {
-				"json.schemas": [
-					{
-						"fileMatch": [
-							"/manifest.json"
-						],
-						"url": "https://json.schemastore.org/chrome-manifest"
-					}
-				],
-				"editor.formatOnSave": true,
-				"files.eol": "\n"
-			}
-			// Optional: Add extensions you might need for WebDAV interaction or development
-			// "extensions": [
-			//  "humao.rest-client" // Example: For testing HTTP requests
-			// ]
-		}
-	}
+  // Forward WebDAV port (default 8080, but you're setting it to 9443)
+  "forwardPorts": [9443],
 
-	// Optional: Specify the user the container runs as.
-	// hacdias/webdav might run as non-root by default or allow configuration. Check its docs.
-	// "remoteUser": "vscode" // Example if you add a non-root user
+  // Optional: Add run arguments
+  "runArgs": [
+    "--auth",
+    "--username", "vscode",
+    "--password", "default",
+    "--address", "0.0.0.0",
+    "--port", "9443",
+    "/dist"
+  ],
 
-	// Optional: If you need specific Linux packages installed *in addition* to what the base image provides
-	// "features": {
-	//  "ghcr.io/devcontainers/features/common-utils:2": {
-	//      "installZsh": "true",
-	//      "configureZshAsDefaultShell": "true",
-	//      "username": "vscode", // Match remoteUser if specified
-	//      "upgradePackages": "true"
-	//  }
-	// }
-
-	// Optional: Command to run after the container is created
-	// "postCreateCommand": "echo 'Container created!'",
-
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "json.schemas": [
+          {
+            "fileMatch": ["/manifest.json"],
+            "url": "https://json.schemastore.org/chrome-manifest"
+          }
+        ],
+        "editor.formatOnSave": true,
+        "files.eol": "\n"
+      }
+    }
+  }
 }
