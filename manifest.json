@@ -230,12 +230,12 @@
     "web_accessible_resources": [
         {
             "resources": [
-        "js/External/*",
-        "css/External/*",
-        "js/helper.js",
-        "js/tablemaker.js",
-        "js/objects.js",
-        "bankruptcy/*",
+                "js/External/*",
+                "css/External/*",
+                "js/helper.js",
+                "js/tablemaker.js",
+                "js/objects.js",
+                "bankruptcy/*",
                 "Images/*",
                 "js/*.js.map"
             ],

@@ -6,7 +6,7 @@ module.exports = {
     // Background and popup scripts
     background: './src/background.js',
     popup: './src/popup/index.js',
-    
+
     // Content scripts - each needs its own entry point
     contentScriptFetch: './src/js/contentScriptFetch.js',
     BulkMenu: './src/js/BulkMenu.js',
@@ -20,15 +20,26 @@ module.exports = {
     WDPAutomator: './src/js/WDPAutomator.js',
     documentUpload: './src/js/documentUpload.js',
     proceduralHoldEnhance: './src/js/proceduralHoldEnhance.js',
-    debtorAdder: './src/js/debtorAdder.js'
+    debtorAdder: './src/js/debtorAdder.jsx'
   },
+  // Add this devtool setting to avoid using eval
+  devtool: 'source-map',
   output: {
     filename: 'js/[name].js',
     path: path.resolve(__dirname, '../dist'),
     clean: true
   },
+  // Add resolve extensions to handle both js and ts files
+  resolve: {
+    extensions: ['.ts', '.js']
+  },
   module: {
     rules: [
+      {
+        test: /\.tsx?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/,
+      },
       {
         test: /\.css$/i,
         use: ['style-loader', 'css-loader'],
@@ -38,6 +49,16 @@ module.exports = {
         type: 'asset/resource',
         generator: {
           filename: 'Images/[name][ext]'
+        }
+      },
+      {
+        test: /\.(js|jsx)$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env', '@babel/preset-react']
+          }
         }
       }
     ],

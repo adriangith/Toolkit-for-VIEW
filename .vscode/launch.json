@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Chrome",
+            "request": "launch",
+            "type": "chrome",
+            "url": "https://djr.view.civicacloud.com.au/",
+            "runtimeArgs": [
+                "--load-extension=C:\\Users\\azafir\\Downloads\\dist"
+            ]
+        },
+        {
+            "name": "Debug Chrome Extension",
+            "type": "chrome",
+            "request": "launch",
+            "port": 9222,
+            "runtimeArgs": [
+                "--load-extension=${workspaceFolder}"
+            ]
+        }
+    ]
+}

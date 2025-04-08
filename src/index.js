@@ -1,5 +1,3 @@
-console.log('Chrome extension initialized');
-
 // External libraries
 import 'jszip';
 import 'jszip-utils';

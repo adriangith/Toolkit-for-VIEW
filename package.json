@@ -8,13 +8,29 @@
     "build": "webpack --mode=production --config config/webpack.config.js"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "@eslint/js": "^9.24.0",
+    "@types/chrome": "^0.0.313",
+    "babel-loader": "^10.0.0",
     "copy-webpack-plugin": "^13.0.0",
     "css-loader": "^7.1.2",
+    "eslint": "^9.24.0",
+    "eslint-plugin-json": "^4.0.1",
+    "eslint-plugin-jsonc": "^2.20.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
     "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
     "webpack": "^5.98.0",
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.1",
     "angular-expressions": "^1.4.3",
     "docxtemplater": "^3.61.0",
     "file-saver": "^2.0.5",
@@ -23,6 +39,8 @@
     "jszip-utils": "^0.1.0",
     "marked": "^15.0.7",
     "pizzip": "^3.1.8",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "xlsx": "^0.18.5"
   }
 }

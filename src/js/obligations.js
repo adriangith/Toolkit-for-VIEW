@@ -1,3 +1,5 @@
+import { saveIT } from './sharedUtils';
+
 /////Config Objects and Variables/////////////////////////////////////////////////////////////////////////////
 let optionChain = []
 
@@ -31,7 +33,7 @@ function generateButton(button, dropDown, options) {
 			const option = options.find((option) => {
 				return option.description === dropDown.value
 			})
-			exportData(option.description, option.agency, option.letters, option.extended, option.SharePoint) 
+			exportData(option.description, option.agency, option.letters, option.extended, option.SharePoint)
 		});
 	}
 	return button;
@@ -62,11 +64,11 @@ function addElements() {
 		//,
 		//	{name: "FeeButton", description: "Bulk Fee Waive"}
 	];
-	
+
 
 	var options = [
-		{ description: "Enforcement Confirmed", letters: ["Enforcement Confirmed"]},
-		{ description: "Enforcement Cancelled", agency: true, letters: ["Enforcement Cancelled", "Agency Enforcement Cancelled"]},
+		{ description: "Enforcement Confirmed", letters: ["Enforcement Confirmed"] },
+		{ description: "Enforcement Cancelled", agency: true, letters: ["Enforcement Cancelled", "Agency Enforcement Cancelled"] },
 		{ description: "ER Confirm/ FW Grant", agency: true, letters: ["ER Confirm/ FW Grant", "Agency FR Granted"] },
 		{ description: "Report Needed", letters: ["Report Needed"] },
 		{ description: "Unable to Contact Applicant", letters: ["Unable to Contact Applicant"] },
@@ -163,7 +165,7 @@ function addElements() {
 	dropDown.after(letterCheckLabel);
 
 	document.querySelectorAll('.label').forEach(element => {
-		element.addEventListener('mouseup', function() {updateButton(element)})
+		element.addEventListener('mouseup', function () { updateButton(element) })
 	})
 
 	function updateButton(element) {
@@ -216,7 +218,7 @@ function captureObligationNumbers() {
 
 	//Reference the CheckBoxes in Table.
 	let checkBoxes = grid.getElementsByTagName("input");
-	obligationChain = [];
+	const obligationChain = [];
 	//Loop through the CheckBoxes.
 	for (let i = 1; i < checkBoxes.length; i++) {
 		if (checkBoxes[i].checked) {
@@ -231,15 +233,15 @@ function captureObligationNumbers() {
 function exportData(value, agency = false, letters = [], extended = false, SharePoint = false) {
 	let obligationArray = captureObligationNumbers()
 	//	let PAT = document.getElementById('auditCheck').checked;
-	PAT = false
+	const PAT = false
 	//email = false
 	let email = document.getElementById('email').checked;
 	if (obligationArray.length > 0) {
 		const rows = parseTable(document.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_tblData"));
-		const filteredRows = rows.filter((row) => {return Object.values(row)[0] === true})
+		const filteredRows = rows.filter((row) => { return Object.values(row)[0] === true })
 		console.log(filteredRows)
 		let data = [obligationArray, value, null, PAT, email, window.location.host.split(".")[0], filteredRows, agency, letters, extended, SharePoint]
-		saveIT()
+		//saveIT()
 
 		chrome.runtime.sendMessage(data, function (response) {
 			//	console.log(response.farewell);
@@ -248,11 +250,6 @@ function exportData(value, agency = false, letters = [], extended = false, Share
 		alert('You need to select at least one obligation');
 	}
 }
-
-var s = document.createElement('script');
-s.src = chrome.runtime.getURL('js/helper.js');
-var p = document.createElement('script');
-p.src = chrome.runtime.getURL('js/External/jquery-3.4.1.js');
 
 //document.body.insertAdjacentHTML('beforeend', s);
 
@@ -299,22 +296,22 @@ function setAttributes(el, attrs) {
  * @return {(row: HTMLTableRowElement) => Object} a function that takes a table row and spits out an object
  */
 function mapRow(headings) {
-    return function mapRowToObject({ cells }) {
-        return [...cells].reduce(function (result, cell, i) {
-            const input = cell.querySelector("input,select");
-            var value;
+	return function mapRowToObject({ cells }) {
+		return [...cells].reduce(function (result, cell, i) {
+			const input = cell.querySelector("input,select");
+			var value;
 
-            if (input) {
-                value = input.type === "checkbox" ? input.checked : input.value;
+			if (input) {
+				value = input.type === "checkbox" ? input.checked : input.value;
 			} else if (headings[i] === "Offence") {
 				value = cell.title
 			} else {
-                value = cell.innerText;
-            }
+				value = cell.innerText;
+			}
 
-            return Object.assign(result, { [headings[i]]: value });
-        }, {});
-    };
+			return Object.assign(result, { [headings[i]]: value });
+		}, {});
+	};
 }
 
 /**
@@ -326,11 +323,11 @@ function mapRow(headings) {
  * @return {Array<Object>}       array of objects representing each row in the table
  */
 function parseTable(table) {
-    var headings = [...table.tHead.rows[0].cells].map(
-        heading => heading.innerText.replace(" ▲ 1", "").replace(" ▼ 1", "").replace(" ▼ 2", "").replace(" ▲ 2", "")
+	var headings = [...table.tHead.rows[0].cells].map(
+		heading => heading.innerText.replace(" ▲ 1", "").replace(" ▼ 1", "").replace(" ▼ 2", "").replace(" ▲ 2", "")
 	);
 
-    return [...table.tBodies[0].rows].map(mapRow(headings));
+	return [...table.tBodies[0].rows].map(mapRow(headings));
 }
 
 

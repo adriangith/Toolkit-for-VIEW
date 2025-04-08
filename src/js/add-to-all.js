@@ -267,54 +267,9 @@ function defaults() {
 	}
 }
 
-
-var s = document.createElement('script');
-s.src = chrome.runtime.getURL('js/helper.js');
-(document.head || document.documentElement).appendChild(s);
-
-
 window.addEventListener('beforeunload', (event) => {
 	saveIT()
 });
-
-function saveIT() {
-	var value = []
-	var debtorId = document.querySelector('#NoticeInfo_lblOtherInfo').textContent;
-	debtorId = debtorId.match(/Debtor: (.*?)[\s]/)[1];
-	value.push(debtorId)
-	var box = document.getElementById('3PA')
-	value.push(box.checked)
-	var classname = document.getElementsByClassName('textbox x')
-	for (var i = 0; i < classname.length; i++) {
-		if (classname[i].type !== "radio") {
-			value.push(classname[i].value);
-		} else {
-			value.push(classname[i].checked)
-		}
-	}
-
-	var LC = document.getElementById('3LC')
-	value.push(LC.checked)
-	var Alt3LC = document.getElementById('Alt3LC')
-	value.push(Alt3LC.checked)
-
-	if (storedData.length === 0) {
-		storedData.push(value);
-	}
-	for (array in storedData) {
-		if (value[0] === storedData[array][0]) {
-			storedData[array] = value;
-			break;
-		} else {
-			console.log(storedData.length);
-			console.log(array);
-			if (storedData.length - 1 === parseInt(array)) { console.log(value); storedData.push(value) }
-		}
-	}
-
-
-	chrome.storage.local.set({ 'value': storedData });
-}
 
 function pushToArray(arr, obj) {
 	const index = arr.findIndex((e) => e.id === obj.id);
