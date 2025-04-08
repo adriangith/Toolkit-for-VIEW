@@ -8,17 +8,6 @@
 
   // Forward WebDAV port (default 8080, but you're setting it to 9443)
   "forwardPorts": [9443],
-
-  // Optional: Add run arguments
-  "runArgs": [
-    "--auth",
-    "--username", "vscode",
-    "--password", "default",
-    "--address", "0.0.0.0",
-    "--port", "9443",
-    "/dist"
-  ],
-
   "customizations": {
     "vscode": {
       "settings": {
