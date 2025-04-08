@@ -1,25 +1,25 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/alpine
 {
-  "name": "WebDAV (hacdias)",
-
-  // Use the hacdias/webdav image.
-  "image": "hacdias/webdav:latest",
-
-  // Forward WebDAV port (default 8080, but you're setting it to 9443)
-  "forwardPorts": [9443],
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "json.schemas": [
-          {
-            "fileMatch": ["/manifest.json"],
-            "url": "https://json.schemastore.org/chrome-manifest"
-          }
-        ],
-        "editor.formatOnSave": true,
-        "files.eol": "\n"
-      }
-    }
-  }
+	"name": "Toolkit-for-VIEW",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspace",
+	"forwardPorts": [
+		9443
+	],
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"json.schemas": [
+					{
+						"fileMatch": [
+							"/manifest.json"
+						],
+						"url": "https://json.schemastore.org/chrome-manifest"
+					}
+				],
+				"editor.formatOnSave": true,
+				"files.eol": "\n"
+			}
+		}
+	}
 }

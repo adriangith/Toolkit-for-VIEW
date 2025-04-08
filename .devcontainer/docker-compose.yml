@@ -1,0 +1,14 @@
+version: '3'
+services:
+  app: 
+    image: mcr.microsoft.com/devcontainers/base:bullseye
+    volumes:
+      - .:/workspace
+    environment:
+      - NODE_ENV=development
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    #network_mode: service:webdav 
+  webdav:
+    image: hacdias/webdav:latest
+    volumes:
+      - .:/workspace
