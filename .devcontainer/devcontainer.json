@@ -4,10 +4,6 @@
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	"image": "donn/docker-alpine-webdav",
 	// Features to add to the dev container. More info: https://containers.dev/features.
-	"features": {
-		"ghcr.io/cirolosapio/devcontainers-features/alpine-node:0.0.15": {}
-	},
-	"postCreateCommand": "sudo apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community onedrive",
 	"customizations": {
 		"vscode": {
 			// Add VS Code settings here
