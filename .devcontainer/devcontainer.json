@@ -1,32 +1,66 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/alpine
 {
-	"name": "Alpine",
-	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "donn/docker-alpine-webdav",
-	// Features to add to the dev container. More info: https://containers.dev/features.
+	// Updated name to reflect the new image
+	"name": "WebDAV (hacdias)",
+
+	// Use the hacdias/webdav image.
+	// Using 'latest' is convenient, but consider pinning to a specific version tag
+	// (e.g., "hacdias/webdav:2.20.0") for more reproducible builds.
+	"image": "hacdias/webdav:latest",
+	"features": {"ghcr.io/devcontainers/features/node:1": {}},
+	// hacdias/webdav defaults to port 8080. Forward this port so you can
+	// access the WebDAV server from your local machine (e.g., http://localhost:8080).
+	"forwardPorts": [9443],
+
+	// Optional: Add run arguments if you need to customize hacdias/webdav startup.
+	// See hacdias/webdav documentation for available flags (e.g., authentication, different port, base directory).
+	// Example: Set authentication and serve a specific path
+	 "runArgs": [
+	  "--auth",
+	  "--username", "vscode",
+	  "--password", "default",
+	  "--address", "0.0.0.0", // Ensure it listens on all interfaces inside the container
+	  "--port", "9443",
+	  "/dist" // The directory inside the container to serve (default is /srv)
+	 ],
+	// --- Your existing VS Code customizations ---
 	"customizations": {
 		"vscode": {
-			// Add VS Code settings here
 			"settings": {
-				// --- Add this section for the manifest schema ---
 				"json.schemas": [
 					{
-						// Match the manifest.json file (adjust pattern if needed)
 						"fileMatch": [
-							"/manifest.json" // Matches manifest.json only at the workspace root inside the container
-							// Use "manifest.json" to match any file with that name in the workspace
+							"/manifest.json"
 						],
-						// URL to the schema definition
 						"url": "https://json.schemastore.org/chrome-manifest"
 					}
-					// You can add other schema associations here if needed
 				],
-				// --- End of manifest schema section ---
-				// Add any other desired VS Code settings for your dev container
 				"editor.formatOnSave": true,
 				"files.eol": "\n"
-				// etc.
 			}
+			// Optional: Add extensions you might need for WebDAV interaction or development
+			// "extensions": [
+			//  "humao.rest-client" // Example: For testing HTTP requests
+			// ]
 		}
 	}
+
+	// Optional: Specify the user the container runs as.
+	// hacdias/webdav might run as non-root by default or allow configuration. Check its docs.
+	// "remoteUser": "vscode" // Example if you add a non-root user
+
+	// Optional: If you need specific Linux packages installed *in addition* to what the base image provides
+	// "features": {
+	//  "ghcr.io/devcontainers/features/common-utils:2": {
+	//      "installZsh": "true",
+	//      "configureZshAsDefaultShell": "true",
+	//      "username": "vscode", // Match remoteUser if specified
+	//      "upgradePackages": "true"
+	//  }
+	// }
+
+	// Optional: Command to run after the container is created
+	// "postCreateCommand": "echo 'Container created!'",
+
 }
