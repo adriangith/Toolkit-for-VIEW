@@ -8,7 +8,6 @@
 	// Using 'latest' is convenient, but consider pinning to a specific version tag
 	// (e.g., "hacdias/webdav:2.20.0") for more reproducible builds.
 	"image": "hacdias/webdav:latest",
-	"features": {"ghcr.io/devcontainers/features/node:1": {}},
 	// hacdias/webdav defaults to port 8080. Forward this port so you can
 	// access the WebDAV server from your local machine (e.g., http://localhost:8080).
 	"forwardPorts": [9443],
