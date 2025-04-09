@@ -1,0 +1,18 @@
+services:
+  devcontainer: 
+    image: mcr.microsoft.com/devcontainers/base:bullseye
+    volumes:
+      - ..:/workspace:cached
+    environment:
+      - NODE_ENV=development
+    command: sleep infinity
+    network_mode: service:webdav
+  webdav:
+    image: ghcr.io/hacdias/webdav
+    ports:
+      - 9443:9443
+    command: ["-c", "/config.yml"]
+    restart: unless-stopped
+    volumes:
+      - ../:/data
+      - ../config-webdav.yaml:/config.yml:ro

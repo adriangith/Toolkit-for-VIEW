@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Chrome",
+            "request": "launch",
+            "type": "chrome",
+            "url": "https://djr.view.civicacloud.com.au/",
+            "runtimeArgs": [
+                "--auto-open-devtools-for-tabs --load-extension=Z:\\"
+            ],
+            "timeout": 60000
+        }
+    ]
+}
