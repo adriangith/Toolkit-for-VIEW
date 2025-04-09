@@ -288,17 +288,17 @@ function submitToWDP(obdata, fulldata, obStatus) {
 	const commandType = isVariationPresent ? 'addObligationToWDPVariationCommand' : 'addExternalEnforcementAgenciesObligationCommand'
 	const sequence = isVariationPresent ? 'obligation' : 'externalEnforcementAgenciesObligation'
 	const eventType = isVariationPresent ? 35 : 12
-	
-	const baseCharge = parseFloat(obdata["Reduced_Charge"].replace(/\$/g, '')) 
-		+ parseFloat(obdata["Court_Fine"].replace(/\$/g, ''))
-		+ parseFloat(obdata["Court_Costs"].replace(/\$/g, ''))  
 
-	const amountFee = parseFloat(obdata["Penalty_Reminder_Fee"].replace(/\$/g, '')) 
-		+ parseFloat(obdata["Registration_Fee"].replace(/\$/g, '')) 
-		+ parseFloat(obdata["Enforcement_Fee"].replace(/\$/g, '')) 
-		+ parseFloat(obdata["Warrant_Issue_Fee"].replace(/\$/g, '')) 
-		+ parseFloat(obdata["Amount_Waived"].replace(/\$/g, '')) 
-		
+	const baseCharge = parseFloat(obdata["Reduced_Charge"].replace(/\$/g, ''))
+		+ parseFloat(obdata["Court_Fine"].replace(/\$/g, ''))
+		+ parseFloat(obdata["Court_Costs"].replace(/\$/g, ''))
+
+	const amountFee = parseFloat(obdata["Penalty_Reminder_Fee"].replace(/\$/g, ''))
+		+ parseFloat(obdata["Registration_Fee"].replace(/\$/g, ''))
+		+ parseFloat(obdata["Enforcement_Fee"].replace(/\$/g, ''))
+		+ parseFloat(obdata["Warrant_Issue_Fee"].replace(/\$/g, ''))
+		+ parseFloat(obdata["Amount_Waived"].replace(/\$/g, ''))
+
 
 	const amountDueAndFee = (amountFee + baseCharge).toString()
 
@@ -351,7 +351,7 @@ function submitToWDP(obdata, fulldata, obStatus) {
 				"wdpHoldStatusID": parseInt(obdata["Balance_Outstanding"].replace(/\$/g, '')) <= 0 || obStatus[Obligation] === "CHLGLOG" || obStatus[Obligation] === "PAID" || obStatus[Obligation] === "CANCL" ? 97 : 96,
 				"eligibility": parseInt(obdata["Balance_Outstanding"].replace(/\$/g, '')) <= 0 || obStatus[Obligation] === "CHLGLOG" || obStatus[Obligation] === "PAID" || obStatus[Obligation] === "CANCL" ? "INELIGIBLE" : "ELIGIBLE",
 				"workedOffAmount": 0,
-				"manualAdjustmentAmount": Math.abs(parseFloat(obdata['Amount_Paid'].replace(/\$/g, '')))
+				"manualAdjustmentAmount": Math.abs(parseFloat(obdata['Amount_Paid'].replace(/\$/g, '')) + parseFloat(obdata['Returns'].replace(/\$/g, '')))
 			}
 		}
 	}]
