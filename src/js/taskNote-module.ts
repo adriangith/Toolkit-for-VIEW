@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 export function createBankruptcy(properties) {
     return `Bankruptcy investigated and processed.
 

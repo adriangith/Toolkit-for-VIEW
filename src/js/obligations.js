@@ -244,18 +244,12 @@ function exportData(value, agency = false, letters = [], extended = false, Share
 		//saveIT()
 
 		chrome.runtime.sendMessage(data, function (response) {
-			//	console.log(response.farewell);
+			console.log(response.farewell);
 		});
 	} else {
 		alert('You need to select at least one obligation');
 	}
 }
-
-//document.body.insertAdjacentHTML('beforeend', s);
-
-
-(document.head || document.documentElement).appendChild(s);
-(document.head || document.documentElement).appendChild(p);
 
 function setAttributes(el, attrs) {
 	for (var key in attrs) {

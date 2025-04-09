@@ -1,10 +1,12 @@
+// @ts-nocheck
+
 export function debtorBulkNotes(properties) {
     return {
         name: "Debtor Notes",
         submit: [],
         elements: [
             { tag: "textarea", label: "Paste Debtor<br />Numbers:", attributes: { id: "debtorIDs", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; min-height:80px" } },
-            { tag: "textarea", label: "Note:", attributes: { id: "debtorNote", name: "PESNotesCtrlMain$txtNotes", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; min-height:150px"} },
+            { tag: "textarea", label: "Note:", attributes: { id: "debtorNote", name: "PESNotesCtrlMain$txtNotes", style: "grid-column-start: 2; grid-column-end: 5; width: 80%; min-height:150px" } },
         ],
         progressButtons: [{
             src: "SubmitAndNextStep.png",

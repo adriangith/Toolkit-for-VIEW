@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 export function bulkWriteOff(properties) {
     return {
         name: "Bulk Notice Writeoff",

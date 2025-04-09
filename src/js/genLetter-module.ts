@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 let expressions = require('angular-expressions');
 
 export function downloadLetter(address, properties) {

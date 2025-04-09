@@ -159,7 +159,6 @@
             ],
             "js": [
                 "js/External/spin.umd.js",
-                "js/External/parseTable.js",
                 "js/External/jquery-3.4.1.js",
                 "js/External/jszip.js",
                 "js/External/datatables.js",

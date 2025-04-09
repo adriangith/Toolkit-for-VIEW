@@ -1,7 +1,11 @@
-import { Spinner } from '../js/External/spin.js';
-import * as wizardLogic from '../js/wizardLogic.js';
-import fetchRetryTimeout from '../js/fetchRetryTimeout.js';
-import VIEWsubmit from '../js/VIEWsubmit.js';
+// @ts-nocheck
+
+import { Spinner } from 'spin.js';
+import * as wizardLogic from './wizardLogic.js';
+import VIEWsubmit from './VIEWsubmit.js';
+import DataTable from 'datatables.net-dt';
+import { DotNav } from "/workspace/src/js/dotnav"
+import { parseTable } from './letter-logic'
 
 var opts = {
   lines: 13, // The number of lines to draw
@@ -24,39 +28,122 @@ var opts = {
   position: 'absolute' // Element positioning
 };
 
-let properties;
+interface Properties {
+  debtorid?: string;
+  taskId?: string;
+  allObligations?: DataTable<string>["Api"];
+  titleTxt?: string;
+  pages: string[];
+  source: string;
+  dateOfBankruptcy: string;
+  courtFineData?: any[];
+}
+
+interface WizardStage {
+  name: string;
+  elements: WizardElement[];
+  progressButtons?: ProgressButton[];
+}
+
+interface WizardElement {
+  tag: string;
+  text?: string;
+  label?: string;
+  noLabel?: boolean;
+  parent?: string;
+  dataSource?: (doc?: Document) => Promise<any[]>;
+  prefill?: (doc: Document, field: HTMLElement, props: Properties) => void;
+  attributes?: Record<string, string>;
+  selectCriteria?: string;
+}
+
+interface ProgressButton {
+  text: string;
+  id: string;
+  float: string;
+}
+
+interface TableParseOptions {
+  data: any[];
+  matchColumn: string;
+}
+
+interface SpinnerOptions {
+  lines: number;
+  length: number;
+  width: number;
+  radius: number;
+  scale: number;
+  corners: number;
+  color: string;
+  fadeColor: string;
+  speed: number;
+  rotate: number;
+  animation: string;
+  direction: number;
+  zIndex: number;
+  className: string;
+  top: string;
+  left: string;
+  shadow: string;
+  position: string;
+}
+
+let properties: Properties;
 const shade = document.getElementById('shade');
 
-const toBase64 = file => new Promise((resolve, reject) => {
+/**
+ * Converts a File object to a base64 encoded string
+ * @param file - The file to convert to base64
+ * @returns A promise that resolves with the base64 string representation of the file
+ */
+const toBase64 = (file: File): Promise<string> => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
   reader.readAsDataURL(file);
-  reader.onload = () => resolve(reader.result);
-  reader.onerror = error => reject(error);
+  reader.onload = () => resolve(reader.result as string);
+  reader.onerror = (error: ProgressEvent<FileReader>) => reject(error);
 });
 
-function updateDescription(target) {
-  document.getElementById("editDescription").value = target.value;
+/**
+ * Updates the description field with the value from the target element
+ * @param target - The HTML element that triggered the event
+ */
+function updateDescription(target: HTMLInputElement | HTMLSelectElement | EventTarget): void {
+  const editDescriptionElement = document.getElementById("editDescription") as HTMLInputElement;
+  editDescriptionElement.value = (target as HTMLInputElement).value;
 }
 
-async function getFormData(parsedDocument) {
-  const formElement = parsedDocument.querySelector("form");
-  let formData = new FormData(formElement || document.createElement('form'));
-  var formDataObject = {};
-  formData.forEach((value, key) => { formDataObject[key] = value });
-  return formDataObject;
+/**
+ * Extracts form data from a parsed document and converts it to an object
+ * @param parsedDocument - The parsed HTML document containing the form
+ * @returns A promise that resolves to an object with form field names as keys and their values
+ */
+async function getFormData(parsedDocument: Document): Promise<FormData> {
+  const formElement: HTMLFormElement | null = parsedDocument.querySelector("form");
+  return new FormData(formElement || document.createElement('form'));
 }
 
-async function parsePage(vDocument, url, fetchOptions) {
-  let getbody = function (vDocument) {
-    return new Promise((resolve, reject) => {
+interface FetchResponse extends Response {
+  text(): Promise<string>;
+}
+
+interface FetchOptions extends RequestInit {
+  method?: string;
+  body?: FormData | string;
+  headers?: Record<string, string>;
+}
+
+async function parsePage(vDocument: FetchResponse, url?: string, fetchOptions?: FetchOptions): Promise<Document> {
+  let getbody = function (vDocument: FetchResponse): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
       setTimeout(() => {
         reject('timeout')
       }, 10000)
       resolve(vDocument.text());
     })
   }
-  const htmlText = await getbody(vDocument).catch(async (e) => {
-    vDocument = await fetchRetryTimeout(url, fetchOptions)
+  const htmlText = await getbody(vDocument).catch(async (e: unknown): Promise<string> => {
+    vDocument = await fetch(url as string, fetchOptions)
     return getbody(vDocument)
   })
   const parser = new DOMParser();
@@ -64,18 +151,65 @@ async function parsePage(vDocument, url, fetchOptions) {
   return parsedDocument;
 }
 
-function disambig(parent, property) {
-  return (typeof parent[property] === "function") && (parent[property]()) || parent[property] || 0
+/**
+ * Returns the result of calling the property if it's a function, otherwise returns the property value or 0
+ * @param parent - The object containing the property
+ * @param property - The property name to access
+ * @returns The function result, property value, or 0 if undefined
+ */
+function disambig<T, K extends keyof T>(parent: T, property: K): any {
+  return (typeof parent[property] === "function") && ((parent[property] as Function)()) || parent[property] || 0;
 }
 
-async function createPageElements(data, incrementor, vDocument) {
+interface DotNavOptions {
+  callback: (idx: number) => void;
+}
+
+interface WizardButtonData {
+  text: string;
+  id: string;
+  float: string;
+}
+
+interface TableData {
+  data: any[];
+  matchColumn: string;
+}
+
+interface DataTableConfig {
+  data: any[];
+  columns: Array<{ data: string, title: string }>;
+  columnDefs: Array<{ visible?: boolean, targets: number[] | number, className?: string }>;
+  order: [number, string][];
+  dom: string;
+  select: {
+    style: string;
+    selector: string;
+  };
+  language: {
+    select: {
+      rows: string;
+    };
+  };
+  oLanguage: {
+    sInfo: string;
+    sLengthMenu: string;
+    oPaginate: {
+      sNext: string;
+      sPrevious: string;
+    };
+  };
+  createdRow?: (row: HTMLElement) => void;
+}
+
+async function createPageElements(data: WizardStage[], incrementor: number, vDocument: Document): Promise<void> {
   //Update banner text
-  document.getElementById("bannertext").innerHTML = `<span class="info">${properties.debtorid || ""}</span><span class="info">${properties.taskId || ""}</span>`
+  document.getElementById("bannertext")!.innerHTML = `<span class="info">${properties.debtorid || ""}</span><span class="info">${properties.taskId || ""}</span>`
 
   let stage = data[incrementor]
-  const content = document.getElementById("content");
+  const content = document.getElementById("content")!;
   content.innerHTML = "";
-  let elementArray = stage.elements.map(async element => {
+  let elementArray = stage.elements.map(async (element: WizardElement) => {
     let field = document.createElement(element.tag);
     element.text && (field.innerHTML = element.text);
 
@@ -99,31 +233,36 @@ async function createPageElements(data, incrementor, vDocument) {
       properties.allObligations = await buildTable(element, field, vDocument);
     }
 
-    element.parent && (element.tag !== "table") && document.getElementById(element.parent).append(field);
+    element.parent && (element.tag !== "table") && document.getElementById(element.parent)!.append(field);
     element.prefill && (element.prefill(vDocument, field, properties));
     element.attributes && setAttributes(field, element.attributes);
     if (document.getElementById("descriptionChooser")) {
-      document.getElementById("descriptionChooser").addEventListener("click", event => updateDescription(event.target));
+      document.getElementById("descriptionChooser")!.addEventListener("click", event => updateDescription(event.target!));
     }
   })
-  Promise.all(elementArray).then(function () { shade.style.display = "none"; })
+  Promise.all(elementArray).then(function () { shade!.style.display = "none"; })
 }
 
-async function buildPage(data, incrementor) {
+async function buildPage(data: WizardStage[], incrementor: number): Promise<void> {
   let stage = data[incrementor] // Current page in the wizard
-  document.getElementById(stage.name).click();
+  document.getElementById(stage.name)!.click();
   //Show spinner.
-  shade.style.display = "block";
-  let vDocument = await VIEWsubmit(data, incrementor, undefined, stage);
-  createPageElements(data, incrementor, vDocument);
-  createProgressButtons(data, incrementor, vDocument);
+  shade!.style.display = "block";
+  let vDocument = await VIEWsubmit(data, incrementor, undefined, { submit: [], ...stage });
+  if (vDocument instanceof Document) {
+    createPageElements(data, incrementor, vDocument);
+    createProgressButtons(data, incrementor, vDocument);
+  } else {
+    console.error("Expected Document but received:", vDocument);
+    shade!.style.display = "none";
+  }
 }
 
-async function createProgressButtons(data, incrementor, parsedDocument) {
+async function createProgressButtons(data: WizardStage[], incrementor: number, parsedDocument: Document): Promise<void> {
   let stage = data[incrementor];
-  const buttonBar = document.getElementById('buttonBar');
+  const buttonBar = document.getElementById('buttonBar')!;
   buttonBar.innerHTML = ""; //Clear footer (submit buttons)
-  stage.progressButtons && stage.progressButtons.map((buttonData, formData) => {
+  stage.progressButtons && stage.progressButtons.map((buttonData: ProgressButton) => {
     const button = document.createElement("span")
     button.textContent = buttonData.text;
     button.id = buttonData.id;
@@ -131,8 +270,8 @@ async function createProgressButtons(data, incrementor, parsedDocument) {
     button.style.float = buttonData.float;
     buttonBar.append(button);
     button.addEventListener("mouseup", async () => {
-      shade.style.display = "block";
-      const next = await VIEWsubmit(data, incrementor, parsedDocument, buttonData, properties);
+      shade!.style.display = "block";
+      const next = await VIEWsubmit(data, incrementor, parsedDocument, { ...buttonData, submit: [] }, properties);
       if (next) {
         incrementor++;
         buildPage(data, incrementor)
@@ -141,10 +280,9 @@ async function createProgressButtons(data, incrementor, parsedDocument) {
   });
 }
 
-async function startWizard(data) {
-
-  let spinner = new Spinner(opts).spin(shade);
-  const navDots = document.getElementById('navDots')
+async function startWizard(data: WizardStage[]): Promise<void> {
+  let spinner = new Spinner(opts).spin(shade || undefined);
+  const navDots = document.getElementById('navDots')!
 
   data.map((stage, i) => {
     const a = document.createElement('a');
@@ -157,12 +295,12 @@ async function startWizard(data) {
     li.addEventListener('mouseup', function () {
       buildPage(data, i)
     });
-    [].slice.call(document.querySelectorAll('.dotstyle > ul')).forEach(function (nav) {
-      new DotNav(nav, {
-        callback: function (idx) {
+    [].slice.call(document.querySelectorAll('.dotstyle > ul')).forEach(function (nav: HTMLElement) {
+      new (DotNav as any)(nav, {
+        callback: function (idx: number) {
         }
       });
-      document.getElementById('navigation').style.justifyContent = "center"
+      document.getElementById('navigation')!.style.justifyContent = "center"
     });
   });
 
@@ -171,11 +309,12 @@ async function startWizard(data) {
 }
 
 /* Starts the wizard function */
-var onCreate = async function (message) {
+var onCreate = async function (message: { data: Properties }): Promise<void> {
   // Ensure it is run only once, as we will try to message twice
   chrome.runtime.onMessage.removeListener(onCreate);
   properties = message.data;
-  properties.titleTxt && (document.getElementById('titletxt').innerText = properties.titleTxt)
+  properties.titleTxt && (document.getElementById('titletxt')!.innerText = properties.titleTxt)
+  // @ts-ignore
   let stages = properties.pages.map(page => wizardLogic[page](properties, getDebtorObligations))
   startWizard(stages);
 }
@@ -183,11 +322,11 @@ var onCreate = async function (message) {
 /* Called when the window is created and loaded */
 chrome.runtime.onMessage.addListener(onCreate);
 
-async function getDebtorObligations(source, parsedDocument) {
-  let warrantData;
+async function getDebtorObligations(source: string, parsedDocument?: Document): Promise<any[]> {
+  let warrantData: any[] | undefined;
   if (parsedDocument !== undefined && parsedDocument.getElementById("WarrantGrid")) {
-    const WarrantGrid = parsedDocument.getElementById("WarrantGrid");
-    const headerRow = WarrantGrid.firstElementChild.firstElementChild;
+    const WarrantGrid = parsedDocument.getElementById("WarrantGrid")! as HTMLTableElement;
+    const headerRow = WarrantGrid.firstElementChild!.firstElementChild!;
     const thead = document.createElement('thead');
     WarrantGrid.insertAdjacentElement('afterbegin', thead);
     thead.append(headerRow);
@@ -199,45 +338,58 @@ async function getDebtorObligations(source, parsedDocument) {
   let formData = await getFormData(parsedDocument)
 
   //Get page with all obligations if more than 50
-  let obligationRowCount;
-  let warrantRowCount;
+  let obligationRowCount: number;
+  let warrantRowCount: number;
   try {
-
     if (!parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_NoRecordsCell")) {
-      obligationRowCount = parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span").textContent.trim().split(" ");
+      obligationRowCount = Number(parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span")!.textContent!.trim().split(" ").slice(-1));
     } else {
       obligationRowCount = 0;
     }
 
     if (!parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_NoRecordsCell")) {
-      warrantRowCount = parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_PageChooserCell > span").textContent.trim().split(" ");
+      warrantRowCount = Number(parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_PageChooserCell > span")!.textContent!.trim().split(" ").slice(-1));
     } else {
       warrantRowCount = 0;
     }
 
   } catch (err) {
     alert("Unable to access obligations in VIEW");
+    obligationRowCount = 0;
+    warrantRowCount = 0;
   }
-  if (Number(obligationRowCount[obligationRowCount.length - 1]) > 50 ||
-    Number(warrantRowCount[warrantRowCount.length - 1]) > 10
+
+
+  if (Number(obligationRowCount) > 50 ||
+    Number(warrantRowCount) > 10
   ) {
-    formData["DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage"] = 0;
-    formData["DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage"] = 0;
-    formData["DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage"] = 0;
-    var form_data = new FormData();
-    for (var key in formData) { form_data.append(key, formData[key]); }
-    vDocument = await fetch(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`, {
-      method: "POST",
-      body: form_data
-    });
+    if (
+      "DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage" in formData &&
+      "DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage" in formData &&
+      "DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage" in formData
+    ) {
+      formData["DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage"] = 0;
+      formData["DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage"] = 0;
+      formData["DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage"] = 0;
+
+      var form_data = new FormData();
+      for (var key in formData) { form_data.append(key, formData[key]); }
+      vDocument = await fetch(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`, {
+        method: "POST",
+        body: form_data
+      });
+    }
+    else {
+      throw new Error("Unable to find the page size element in the form data.");
+    }
     parsedDocument = await parsePage(vDocument)
   }
 
-  properties.courtFineData = parseTable(parsedDocument.getElementById("DebtorCourtOrdersCtrl_DebtorCourtFinesTable_tblData"))
+  properties.courtFineData = parseTable(parsedDocument.getElementById("DebtorCourtOrdersCtrl_DebtorCourtFinesTable_tblData")!)
 
-  let debtorData;
+  let debtorData: any[];
   if (!parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_NoRecordsCell")) {
-    debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData"))
+    debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData")!)
   } else {
     debtorData = [];
   }
@@ -254,7 +406,7 @@ async function getDebtorObligations(source, parsedDocument) {
       data: debtorData,
       matchColumn: "Notice Number"
     }, {
-      data: parseTable(parsedDocument.getElementById('DebtorWarrantsCtrl_DebtorWarrantsTable_tblData')),
+      data: parseTable(parsedDocument.getElementById('DebtorWarrantsCtrl_DebtorWarrantsTable_tblData')!),
       matchColumn: "Obligation No."
     })
   }
@@ -262,10 +414,10 @@ async function getDebtorObligations(source, parsedDocument) {
   return debtorData;
 }
 
-async function buildTable(element, field, parsedDocument) {
-  let tableData = await element.dataSource(parsedDocument)
-  tableData = tableData.map(function (row) {
-    const newRow = {};
+async function buildTable(element: WizardElement, field: HTMLElement, parsedDocument: Document): Promise<DataTable<string>["Api"]> {
+  let tableData = await element.dataSource!(parsedDocument)
+  tableData = tableData.map(function (row: any) {
+    const newRow: Record<string, string> = {};
     newRow.checkbox = "";
     Object.keys(row).forEach(function (key) {
       newRow[key.replace(/\.|\-|\?|[(]|\//g, "").replace(/\)/g, "").replace(/ /g, "")] = row[key]
@@ -273,14 +425,14 @@ async function buildTable(element, field, parsedDocument) {
     return newRow;
   });
 
-  $.fn.dataTable.moment('DD/MM/YYYY');
+  ($.fn.dataTable as any).moment('DD/MM/YYYY');
 
-  document.getElementById(element.parent).append(field);
+  document.getElementById(element.parent!)!.append(field);
   console.log(tableData);
-  const dataTableConfig = {
+  const dataTableConfig: DataTableConfig = {
     "data": tableData,
     "columns": [
-      { "data": "checkbox" },
+      { "data": "checkbox", "title": "" },
       { "data": "NoticeNumber", "title": "Notice Number" },
       { "data": "InfringementNo", "title": "Infringement No." },
       { "data": "InputType", "title": "Input Type" },
@@ -329,7 +481,7 @@ async function buildTable(element, field, parsedDocument) {
     dataTableConfig.columns.push({ "data": "Status", "title": "Warrant Status" });
     dataTableConfig.columnDefs[0].targets = [2, 5, 7, 8, 10, 11, 12]
     dataTableConfig.columnDefs.push({ targets: 14, className: "truncate" })
-    dataTableConfig.createdRow = function (row) {
+    dataTableConfig.createdRow = function (row: HTMLElement) {
       var td = $(row).find(".truncate");
       td.attr("title", td.html());
     }
@@ -342,7 +494,7 @@ async function buildTable(element, field, parsedDocument) {
     dataTable.columns(7).search("WARRNT").draw();
   }
 
-  dataTable.rows().every(function (rowIdx, tableLoop, rowLoop) {
+  dataTable.rows().every(function (rowIdx: number, tableLoop: number, rowLoop: number) {
     let data = this.data();
     let types = ["1A", "1B", "1C", "2A"];
     let statuses = ["WARRNT", "NFDP", "SELDEA"];
@@ -406,35 +558,33 @@ async function buildTable(element, field, parsedDocument) {
   return dataTable
 }
 
-const toDate = (dateStr = "2000-01-01") => {
+const toDate = (dateStr: string = "2000-01-01"): Date => {
   const [day, month, year] = dateStr.split("-").reverse()
-  return new Date(year, month - 1, day)
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
 }
 
-
-
-const mergeById = (a1, a2) =>
+const mergeById = (a1: TableData, a2: TableData): any[] =>
   a1.data.map(itm => ({
     ...a2.data.find((item) => (item[a2.matchColumn] === itm[a1.matchColumn]) && item),
     ...itm
   }));
 
-function setAttributes(el, attrs) {
+function setAttributes(el: HTMLElement, attrs: Record<string, string>): void {
   for (var key in attrs) {
     el.setAttribute(key, attrs[key]);
   }
 }
 
-async function runFetchInContentScript(url, fetchOptions) {
-  const iframe = document.getElementById("CS");
+export async function runFetchInContentScript(url: string, fetchOptions?: RequestInit): Promise<any> {
+  const iframe = document.getElementById("CS") as HTMLIFrameElement | null;
   if (iframe) {
-    await loadAgain(iframe, url, fetchOptions);
-  } else if (!iframe) {
-    await loadFirst(url, fetchOptions);
+    return await loadAgain(iframe, url, fetchOptions);
+  } else {
+    return await loadFirst(url, fetchOptions);
   }
 }
 
-function loadFirst(url, fetchOptions) {
+function loadFirst(url: string, fetchOptions?: RequestInit): Promise<any> {
   const iframe = document.createElement('iframe');
   iframe.id = "CS"
   document.body.append(iframe);
@@ -443,7 +593,7 @@ function loadFirst(url, fetchOptions) {
   return new Promise(function (resolve, reject) {
     iframe.onload = function () {
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {
+        chrome.tabs.sendMessage(tabs[0].id!, { url, fetchOptions }, function (response) {
           resolve(response);
         });
       });
@@ -451,11 +601,11 @@ function loadFirst(url, fetchOptions) {
   });
 }
 
-function loadAgain(iframe, url, fetchOptions) {
+function loadAgain(iframe: HTMLIFrameElement, url: string, fetchOptions?: RequestInit): Promise<any> {
   console.log(url);
   return new Promise(function (resolve, reject) {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {
+      chrome.tabs.sendMessage(tabs[0].id!, { url, fetchOptions }, function (response) {
         resolve(response);
       });
     });

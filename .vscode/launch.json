@@ -7,17 +7,9 @@
             "type": "chrome",
             "url": "https://djr.view.civicacloud.com.au/",
             "runtimeArgs": [
-                "--load-extension=C:\\Users\\azafir\\Downloads\\dist"
-            ]
-        },
-        {
-            "name": "Debug Chrome Extension",
-            "type": "chrome",
-            "request": "launch",
-            "port": 9222,
-            "runtimeArgs": [
-                "--load-extension=${workspaceFolder}"
-            ]
+                "--auto-open-devtools-for-tabs --load-extension=Z:\\"
+            ],
+            "timeout": 60000
         }
     ]
 }

@@ -1,4 +1,6 @@
-const fetchTimeout = (url, options = {}) => {
+// @ts-nocheck
+
+const fetchTimeout = (url: string, options: { timeout?: number } = {}) => {
   let { timeout = 90000, ...rest } = options;
   if (rest.signal) throw new Error("Signal not supported in timeoutable fetch");
   const controller = new AbortController();

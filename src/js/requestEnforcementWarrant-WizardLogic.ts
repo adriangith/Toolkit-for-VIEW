@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 export function bulkRequestEnforcementWarrant(properties) {
     return {
         name: "Request Enforcement Warrant",

@@ -1,8 +1,11 @@
+//Reference: https://containers.dev/guide/dockerfile#docker-compose-image
 {
 	"name": "Toolkit-for-VIEW",
+	"remoteUser": "vscode",
 	"dockerComposeFile": "docker-compose.yml",
-	"service": "app",
+	"service": "devcontainer",
 	"workspaceFolder": "/workspace",
+	"postCreateCommand": "npm install && npm run watch",
 	"forwardPorts": [
 		9443
 	],
@@ -21,5 +24,8 @@
 				"files.eol": "\n"
 			}
 		}
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/node:1": {}
 	}
 }
