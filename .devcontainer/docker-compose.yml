@@ -8,11 +8,15 @@ services:
     command: sleep infinity
     network_mode: service:webdav
   webdav:
-    image: ghcr.io/hacdias/webdav
-    ports:
-      - 9443:9443
-    command: ["-c", "/config.yml"]
+    image: bytemark/webdav
     restart: unless-stopped
+    ports:
+      - "80:8081"
+    environment:
+      AUTH_TYPE: Digest
+      USERNAME: alice
+      PASSWORD: secret1234
+      ANONYMOUS_METHODS: ALL
     volumes:
-      - ../:/data
-      - ../config-webdav.yaml:/config.yml:ro
+      - ../dist:/var/lib/dav/data
+

@@ -351,7 +351,7 @@ function submitToWDP(obdata, fulldata, obStatus) {
 				"wdpHoldStatusID": parseInt(obdata["Balance_Outstanding"].replace(/\$/g, '')) <= 0 || obStatus[Obligation] === "CHLGLOG" || obStatus[Obligation] === "PAID" || obStatus[Obligation] === "CANCL" ? 97 : 96,
 				"eligibility": parseInt(obdata["Balance_Outstanding"].replace(/\$/g, '')) <= 0 || obStatus[Obligation] === "CHLGLOG" || obStatus[Obligation] === "PAID" || obStatus[Obligation] === "CANCL" ? "INELIGIBLE" : "ELIGIBLE",
 				"workedOffAmount": 0,
-				"manualAdjustmentAmount": Math.abs(parseFloat(obdata['Amount_Paid'].replace(/\$/g, '')) + parseFloat(obdata['Returns'].replace(/\$/g, '')))
+				"manualAdjustmentAmount": Math.abs(parseFloat(obdata['Amount_Paid'].replace(/\$/g, '')) + parseFloat(obdata['Returns'].replace(/\$/g, '')) + parseFloat(obdata['Transfer_In'].replace(/\$/g, '')))
 			}
 		}
 	}]
