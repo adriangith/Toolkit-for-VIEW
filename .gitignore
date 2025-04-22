@@ -1,5 +1,1 @@
-dist/DavLock
-dist/DavLock.dir
-dist/DavLock.pag
-dist/data/test/.DAV/.state_for_dir.dir
-dist/data/test/.DAV/.state_for_dir.pag
+.devcontainer/rclone.conf
