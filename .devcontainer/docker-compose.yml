@@ -1,18 +1,48 @@
 services:
-  devcontainer: 
+  devcontainer:
     image: mcr.microsoft.com/devcontainers/base:bullseye
     volumes:
       - ..:/workspace:cached
     environment:
       - NODE_ENV=development
     command: sleep infinity
-    network_mode: service:webdav
-  webdav:
-    image: ghcr.io/hacdias/webdav
-    ports:
-      - 9443:9443
-    command: ["-c", "/config.yml"]
+    network_mode: service:rclone
+    depends_on:
+      - rclone
+  rclone:
+    build:
+      context: .
+      dockerfile: rclone.dockerfile
+    container_name: rclone
     restart: unless-stopped
     volumes:
-      - ../:/data
-      - ../config-webdav.yaml:/config.yml:ro
+      - ../dist:/data
+      - .:/config/rclone
+    environment:
+      - RCLONE_CONFIG=/config/rclone/rclone.conf
+
+    # --- Add this line to override the default entrypoint ---
+    entrypoint: /bin/sh
+
+    # --- Ensure command starts with -c and uses $$ for shell variables ---
+    command: >
+      -c '
+        echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Starting rclone services..." && \
+        rclone rcd --rc-web-gui --rc-web-gui-no-open-browser --rc-addr :5572 --rc-user decoyer --rc-pass decoyer154877 & \
+        RCD_PID=$$! && \
+        echo "[$$(date "+%Y-%m-%d %H:%M:%S")] rclone rcd started (PID $$RCD_PID)." && \
+        sleep 2 && \
+        echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Performing initial sync..." && \
+        rclone sync -v /data remote:Toolkit && \
+        echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Initial sync complete." && \
+        echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Watching /data for changes..." && \
+        inotifywait -m -r -e close_write,delete,move,create /data | \
+        while read path action file; do \
+          echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Change detected ($$action on $${path}$$file), triggering sync..." && \
+          rclone sync -v /data remote:Toolkit && \
+          echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Sync finished." ; \
+        done && \
+        echo "[$$(date "+%Y-%m-%d %H:%M:%S")] Watcher loop exited. Cleaning up rclone rcd (PID $$RCD_PID)..." && \
+        kill $$RCD_PID && \
+        wait $$RCD_PID
+      '
