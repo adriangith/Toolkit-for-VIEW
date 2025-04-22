@@ -1,4 +1,2 @@
-dist/main.js
-dist/manifest.json
-dist/html/popup.html
 node_modules/
+.devcontainer/rclone.conf
