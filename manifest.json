@@ -5,7 +5,8 @@
     "short_name": "View Toolkit",
     "permissions": [
         "storage",
-        "cookies"
+        "cookies",
+        "offscreen"
     ],
     "host_permissions": [
         "https://trimwebdrawer.justice.vic.gov.au/*",
@@ -27,7 +28,7 @@
         "128": "Images/icon128.png"
     },
     "background": {
-        "service_worker": "js/background.js",
+        "service_worker": "background.js",
         "type": "module"
     },
     "action": {
@@ -244,6 +245,12 @@
         }
     ],
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'"
+        "extension_pages": "script-src 'self'; object-src 'self';",
+        "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; child-src 'self';"
+    },
+    "sandbox": {
+        "pages": [
+            "html/genLetter-module.html"
+        ]
     }
 }
