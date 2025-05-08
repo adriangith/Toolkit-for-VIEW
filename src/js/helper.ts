@@ -1,4 +1,4 @@
-import { selectionRules, CellsInfo, ProcessorRule } from './tableProcessorConfig';
+import { selectionRules, CellsInfo } from './tableProcessorConfig';
 
 /////Helper functions/////////////////////////////////////////////////////////////////////////////////
 

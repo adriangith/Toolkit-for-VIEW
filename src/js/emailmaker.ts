@@ -1,5 +1,5 @@
-import Sqrl from 'squirrelly'
 import marked from 'marked';
+import { letterDataProps } from './letter-logic';
 
 const templateMap = {
 	'Report Needed': 'https://trimapi.justice.vic.gov.au/record/13724486/File/document2',
@@ -12,7 +12,7 @@ const templateMap = {
 	'Further Information Required': 'https://trimapi.justice.vic.gov.au/record/15111431/File/document2'
 };
 
-export async function emailMaker(data: { today: string; todayplus14: string; emailTo: any; EmailAddress: undefined; }, parameters: [any, keyof typeof templateMap, ...any[]]) {
+export async function emailMaker(data: Partial<letterDataProps>, parameters: [string, keyof typeof templateMap, ...unknown[]]) {
 
 
 	let templateUrl;
@@ -30,37 +30,13 @@ export async function emailMaker(data: { today: string; todayplus14: string; ema
 	data.today = getDates().today
 	data.todayplus14 = getDates().todayplus14
 	data.emailTo = data.EmailAddress !== undefined ? data.EmailAddress : "None";
-	let result = template.split('----boundary_text_string');
+	const result = template.split('----boundary_text_string');
 	marked.setOptions({ 'breaks': true, "gfm": true });
 	result[1] = await marked.parse(result[1]);
 	template = result.join('----boundary_text_string \n');
 	template = template.replace('<p>Content-Type: text/html</p>', 'Content-Type: text/html \n');
 	downloadEmail(template, parameters, data);
 }
-
-function readFileAsync(blob: Blob): Promise<string> {
-	return new Promise((resolve, reject) => {
-		let reader = new FileReader();
-
-		reader.onload = () => {
-			resolve(reader.result as string); // Type assertion here
-		};
-
-		reader.onerror = reject;
-
-		reader.readAsDataURL(blob);
-	});
-}
-/* 
-Sqrl.helpers.define('addAttachment', async function (str) {
-	let out: string
-	let res = await fetch('https://trimapi.justice.vic.gov.au/record/' + str.params[0] + '/File/document2');
-	let blob = await res.blob();
-
-	out = await readFileAsync(blob);
-	out = out.replace('data:application/octet-stream;base64,', '')
-	return out
-}) */
 
 export { };
 
@@ -71,38 +47,38 @@ declare global {
 }
 
 Date.prototype.addDays = function (days: number) {
-	var date = new Date(this.valueOf());
+	const date = new Date(this.valueOf());
 	date.setDate(date.getDate() + days);
 	return date;
 }
 
 export function getDates() {
-	var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+	const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 	const todayDate = new Date();
-	var dd = String(todayDate.getDate()).padStart(2, '0');
-	var mm = monthNames[todayDate.getMonth()];
-	var yyyy = todayDate.getFullYear();
-	var today: string = dd + ' ' + mm + ' ' + yyyy;
-	var todayplus28 = new Date().addDays(28);
-	var dd28 = String(todayplus28.getDate()).padStart(2, '0');
-	var mm28 = monthNames[todayplus28.getMonth()];
-	var yyyy28 = todayplus28.getFullYear();
-	var todayplus21 = new Date().addDays(21);
-	var dd21 = String(todayplus21.getDate()).padStart(2, '0');
-	var mm21 = monthNames[todayplus21.getMonth()];
-	var yyyy21 = todayplus21.getFullYear();
-	var todayplus14 = new Date().addDays(14);
-	var dd14 = String(todayplus14.getDate()).padStart(2, '0');
-	var mm14 = monthNames[todayplus14.getMonth()];
-	var yyyy14 = todayplus14.getFullYear();
+	const dd = String(todayDate.getDate()).padStart(2, '0');
+	const mm = monthNames[todayDate.getMonth()];
+	const yyyy = todayDate.getFullYear();
+	const today: string = dd + ' ' + mm + ' ' + yyyy;
+	const todayplus28 = new Date().addDays(28);
+	const dd28 = String(todayplus28.getDate()).padStart(2, '0');
+	const mm28 = monthNames[todayplus28.getMonth()];
+	const yyyy28 = todayplus28.getFullYear();
+	const todayplus21 = new Date().addDays(21);
+	const dd21 = String(todayplus21.getDate()).padStart(2, '0');
+	const mm21 = monthNames[todayplus21.getMonth()];
+	const yyyy21 = todayplus21.getFullYear();
+	const todayplus14 = new Date().addDays(14);
+	const dd14 = String(todayplus14.getDate()).padStart(2, '0');
+	const mm14 = monthNames[todayplus14.getMonth()];
+	const yyyy14 = todayplus14.getFullYear();
 	return { "today": today, "todayplus14": dd14 + ' ' + mm14 + ' ' + yyyy14, "todayplus28": dd28 + ' ' + mm28 + ' ' + yyyy28, "todayplus21": dd21 + ' ' + mm21 + ' ' + yyyy21 };
 }
 
-function downloadEmail(emlContent: string, parameters: [any, "Report Needed" | "MOU" | "Unable to Contact Applicant" | "FVS Further Information Required" | "Further Information Required", ...any[]] | string[], data: { today?: string; todayplus14?: string; emailTo?: any; EmailAddress?: undefined; First_Name?: any; Last_Name?: any; enforcename?: any; }) {
-	var encodedUri = encodeURI(emlContent); //encode spaces etc like a url
+function downloadEmail(emlContent: string, parameters: [string, "Report Needed" | "MOU" | "Unable to Contact Applicant" | "FVS Further Information Required" | "Further Information Required", ...unknown[]] | string[], data: { today?: string; todayplus14?: string; emailTo?: string; EmailAddress?: undefined; First_Name?: string; Last_Name?: string; enforcename?: string; }) {
+	let encodedUri = encodeURI(emlContent); //encode spaces etc like a url
 	encodedUri = encodedUri.replace(/#/g, '%23')
-	var a = document.createElement('a'); //make a link in document
-	var linkText = document.createTextNode("fileLink");
+	const a = document.createElement('a'); //make a link in document
+	const linkText = document.createTextNode("fileLink");
 	a.appendChild(linkText);
 	a.href = encodedUri;
 	a.id = 'fileLink';

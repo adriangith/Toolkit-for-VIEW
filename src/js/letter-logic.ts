@@ -1,34 +1,17 @@
-import { DataParams } from "./VIEWsubmit.js";
+/*eslint no-implicit-coercion: ["error", { "disallowTemplateShorthand": true }]*/
 import { emailMaker, getDates } from "./emailmaker";
-
-// Declare external global libraries/variables if not properly typed via imports/types
-declare const JSZipUtils: {
-    getBinaryContent(url: string, callback: (err: Error | null, data: ArrayBuffer) => void): void;
-};
-
-// Import types or functions from other modules
-// Assuming VIEWsubmit takes config and properties and returns a Promise
-import VIEWsubmit from "./VIEWsubmit"; // Adjust if it has a default export or named exports
-
+import { VIEWObligationListHeadings, Message, ChromeStorage } from "./obligations";
 // Assuming makeLetter takes data, template buffer, and filename
-import { makeLetter } from './genLetter-module'; // Adjust if default export
-type MakeLetterType = (data: any, template: ArrayBuffer, filename: string) => void;
-import { Data } from "pizzip"
-type FetchRetryTimeoutType = (url: string, options?: RequestInit) => Promise<Response>;
+import { DebtorData } from './sharedUtils'; // Adjust import path as needed
+import { initialiseWorkbookProcesser } from './xlsxConverter'; // Adjust import path as needed
+import { saveAs } from 'file-saver';
+
+
+const workbook = initialiseWorkbookProcesser("https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1")
 
 // --- Interfaces and Type Definitions ---
 
-interface ObligationRowData {
-    "Notice Number": string;
-    "Input Type": string; // e.g., "1A", "1C"
-    "Balance Outstanding": string; // e.g., "$123.45"
-    "Infringement No.": string;
-    "Offence": string;
-    "Offence Date": string; // e.g., "DD/MM/YYYY"
-    "Issued": string; // e.g., "DD/MM/YYYY"
-    "Notice Status/Previous Status": string; // e.g., "CHLGLOG", "SELDEA", "WARRNT", "NFDP"
-    "Due Date": string; // e.g., "DD/MM/YYYY"
-    // Properties added later
+export interface ObligationRowData {
     "Obligation"?: string;
     "Balance_Outstanding"?: string;
     "Infringement"?: string;
@@ -41,9 +24,13 @@ interface ObligationRowData {
     "Challenge"?: string; // Added from reviewTableData
 }
 
+
+/**
+ * Associates an obligation with its corresponding agency name.
+ */
 interface AgencyInfo {
     key: string; // Notice Number
-    value: string; // Agency Code/Name
+    value: string; // Agency Name
 }
 
 interface AddressInfo {
@@ -56,600 +43,798 @@ interface AddressInfo {
 interface TemplateMeta {
     kind: 'Agency' | 'Debtor';
     letter: string; // Letter name, e.g., 'Agency Enforcement Cancelled'
-    template: Promise<ArrayBuffer>; // Promise resolving to the template binary data
+    template: Promise<string | ArrayBuffer | null | void>; // Promise resolving to the template binary data
 }
 
-interface Properties {
-    obligationRows: ObligationRowData[];
-    source: string; // e.g., "finesvictoria"
-    agency: boolean; // Flag indicating if agency letters are needed
-    letters: string[]; // Array of letter names, e.g., ['Enforcement Confirmed']
-    extended: boolean; // Flag for extended processing?
+export type VIEWObligationRow = {
+    [key in typeof VIEWObligationListHeadings[number]]: string
+}
+
+export type letterDataProps = {
+    First_Name: string;
+    Last_Name: string;
+    Company_Name: string | undefined;
+    Is_Company: boolean | undefined;
+    Address_1: string;
+    Town: string;
+    Town2: string;
+    State: string;
+    Post_Code: string | undefined;
+    Debtor_ID: string | undefined;
+    Challenge: string | undefined;
+    UserID: string;
+    OnlyNFDLapsed: boolean;
+    kind?: 'Agency' | 'Debtor';
+    enforcename?: string; // Agency Code/Name
+    selectedObValue?: string; // Selected obligation value
+    todayplus14?: string; // Date 14 days from now
+    todayplus21?: string; // Date 21 days from now
+    todayplus28?: string; // Date 14 days from now
+    MOU?: boolean; // Assuming this comes from merged agency data
+    today: string;
+    emailTo: string;
+    EmailAddress: undefined;
+    AgencyEmail: string;
+    tParty?: boolean; // Assuming this comes from merged agency data
+    legalCentre?: boolean; // Assuming this comes from merged agency data
+    applicantName?: string; // Assuming this comes from merged agency data
+    appOrganisation?: string; // Assuming this comes from merged agency data
+    appStreet?: string; // Assuming this comes from merged agency data
+    appTown?: string; // Assuming this comes from merged agency data
+    appState?: string; // Assuming this comes from merged agency data
+    appPost?: string; // Assuming this comes from merged agency data
+    recipient?: '3rd Party' | 'Debtor' | 'Alt 3rd Party' | 'Unknown'; // Assuming this comes from merged agency data
+    altApplicantName?: string; // Assuming this comes from merged agency data
+    altAppOrganisation?: string; // Assuming this comes from merged agency data
+    altAppStreet?: string; // Assuming this comes from merged agency data
+    altAppTown?: string; // Assuming this comes from merged agency data
+    altAppState?: string; // Assuming this comes from merged agency data
+    altAppPost?: string; // Assuming this comes from merged agency data
+    Person_unaware_1?: string; // Assuming this comes from merged agency data
+    Person_unaware_2?: string; // Assuming this comes from merged agency data
+    ECCV?: string; // Assuming this comes from merged agency data
+    No_Grounds?: string; // Assuming this comes from merged agency data
+    name?: string; // Assuming this comes from merged agency data
+} & (Record<'altname', string | undefined> & Record<"a", ObligationRowData[]>)
+
+export type Properties = {
+    VIEWObligationData: VIEWObligationRow[];
+    obligationRows?: ObligationRowData[]
+    VIEWEnvironment: string; // e.g., "finesvictoria"
+    IncludesAgencyCorrespondence: boolean; // Flag indicating if agency letters are needed
+    letters?: string[]; // Array of letter names, e.g., ['Enforcement Confirmed']
+    RequiresExtendedAttributes: boolean; // Flag for extended processing?
     SharePoint: boolean; // Flag to load templates from SharePoint
     // Properties added during processing
     agencies?: AgencyInfo[];
     obligationsCountFixed?: number;
     obligationsCount?: number;
-    agenciesList?: Promise<Response>; // Promise for agency address list fetch
-    reviewList?: Promise<Response>; // Promise for review list fetch
-    templates?: TemplateMeta[];
+    agenciesList?: Record<string, string>[]; // Promise for agency address list fetch
+    reviewList?: Promise<Response> | string | Response; // Changed Array<string> to string based on usage
+    templates?: Promise<TemplateMeta>[] | TemplateMeta[];
     DebtorId?: string;
     lastName?: string;
     firstName?: string;
     companyName?: string;
     Is_Company?: boolean;
     Address?: AddressInfo;
-    challengeType?: string; // Added from getChallenge group
-    letterData?: any[]; // Array of data objects for makeLetter
+    challengeType?: string; // Added from getDefaultChallenge group
+    letterData?: Partial<letterDataProps>[]; // Array of data objects for makeLetter
+    // Added properties based on usage in getAppData and letterTypes
+    tParty?: boolean;
+    legalCentre?: boolean;
+    applicantName?: string;
+    appOrganisation?: string;
+    appStreet?: string;
+    appTown?: string;
+    appState?: string;
+    appPost?: string;
+    recipient?: '3rd Party' | 'Debtor' | 'Alt 3rd Party' | 'Unknown';
+    altApplicantName?: string;
+    altAppOrganisation?: string;
+    altAppStreet?: string;
+    altAppTown?: string;
+    altAppState?: string;
+    altAppPost?: string;
+    OnlyNFDLapsed?: boolean;
+    UserID?: string;
+    selectedObValue?: string;
+    MOU?: boolean; // Assuming this comes from merged agency data
+    AgencyEmail?: string; // Assuming this comes from merged agency data
+    enforcename?: string; // Assuming this comes from merged agency data
+    portDisconnected?: boolean; // Assuming this comes from merged agency data
 }
 
-// Type for the message received by the listener
-// Using 'any' for indices as the structure isn't strictly defined by an interface in the JS
-// A more robust approach would be to send an object with named properties instead of an array.
-type IncomingMessage = [
-    any, // 0: Unknown
-    string, // 1: Some string identifier (checked for 'Bulk', 'Export')
-    any, // 2: Unknown
-    any, // 3: Unknown
-    boolean, // 4: Boolean flag (checked for false)
-    string, // 5: source
-    ObligationRowData[], // 6: obligationRows
-    boolean, // 7: agency flag
-    string[], // 8: letters array
-    boolean, // 9: extended flag
-    boolean // 10: SharePoint flag
-];
+
+
 
 // Type for parsed table data (flexible key-value pairs)
 type ParsedTableRow = Record<string, string>;
 
-// Type for the structure returned by letterGen
-interface SubmitStep {
-    url?: string | ((parsedDocument: Document, properties: Properties) => string);
-    urlParams?: (parsedDocument: Document | null, set: any, properties: Properties) => void | Record<string, any> | ((parsedDocument: Document | null, dynamicParams: any) => Record<string, any>);
-    after?: (parsedDocument: Document | null, properties: Properties) => void;
-    group?: string; // Identifier for groupRepeats
-    clearVIEWFormData?: boolean;
-    // Allow 'this' context modification for URL
-    [key: string]: any; // Allow dynamic properties like 'this.url' assignment
-}
-
-interface LetterGenConfig extends DataParams {
-    groupRepeats?: Record<string, () => Record<string, string>[]>;
-}
 
 // Type for Chrome storage local data
 interface ChromeStorageData {
     obligationsCount?: number;
     obligationsCountFixed?: number;
-    value?: Record<string, any[]>; // Structure from getAppData
+    value?: Record<string, unknown[]>; // Structure from getAppData
     userName?: string;
 }
 
-interface LetterTypeDef {
-    filename: string;
-    Props?: string[];
+// Type definition for the parameters passed to the afterAction function
+type AfterActionParams = {
+    document?: Document | null; // Make document optional as it might not always be present
+    properties?: Properties;
+};
+
+
+/**
+ * By default a step must navigate to a new URL (via the step's url property). An optional afterAction function will be called after the URL is loaded.
+ * The afterAction function can be used to perform additional actions after the URL is loaded, such as parsing the document or updating properties.
+ * @param params - The parameters passed to the function, including the document and properties
+ * @returns A Promise or void, depending on the implementation of the function.
+*/
+type afterAction = (params: AfterActionParams) => Promise<void> | void;
+
+export type urlParamsType = ({ that, iterationReference, properties }: { that?: Document, iterationReference?: paramArrayObject, properties?: Properties }) => Record<string, string> | void | Promise<Record<string, string>> | Promise<void>;
+
+// Type definition for a single step in the process configuration
+type step = {
+    url?: string
+    urlParams?: urlParamsType;
+    afterAction?: afterAction;
+    group?: string; // Identifier for stepGroup
+    clearVIEWFormData?: boolean;
+    optional?: (initialParsedDocument?: Document, properties?: Properties) => boolean; // Optional property to indicate if the step is optional
+    formDataTarget?: string; // Target for form data
+    clearWizardFormData?: boolean; // Flag to clear form data
+    method?: string; // HTTP method (GET, POST, etc.)
+    body?: string; // Request body for POST requests
+    sameorigin?: boolean; // Flag for same-origin policy
+    next?: boolean
+};
+
+type stepGroup = {
+    [key: string]: (properties: Properties) => paramArrayObject[] | Promise<paramArrayObject[]>; // Function returning an array of paramArrayObject
+};
+
+
+/**
+ * A process has three main components:
+ * @property stepGroup - Defines named groups. Steps associated with a group will be repeated for each item returned by the group function.
+ * @property steps - Defines the steps to be executed in the process.
+ * @property afterAction - A function to be executed after all steps are completed.
+ */
+export type processConfig = {
+    stepGroup: stepGroup;
+    steps: step[];
+    afterAction: afterAction; // Use the defined afterAction type
+    next?: boolean; // Optional property to indicate if the process should continue to the next step
+};
+
+type paramArrayObject = {
+    txtNoticeNo?: string;
 }
 
-// --- Global State ---
-let running: boolean = false; // Simple lock state
-
-// --- Chrome Message Listener ---
-chrome.runtime.onMessage.addListener(
-    (message: IncomingMessage, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void): boolean | undefined => {
-        // Basic check for message structure - consider adding more validation
-        if (!Array.isArray(message) || message.length < 11) {
-            console.warn("Received unexpected message format:", message);
-            return;
-        }
-
-        const source = message[5];
-        const expectedUrlPart = `https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations`.toUpperCase();
-
-        if (sender.url && sender.url.toUpperCase().includes(expectedUrlPart) &&
-            !message[1].includes('Bulk') && !message[1].includes('Export') &&
-            message[4] === false) {
-
-            const properties: Partial<Properties> = {}; // Start with partial, will be filled
-            properties.obligationRows = message[6];
-            properties.source = message[5];
-            properties.agency = message[7];
-            properties.letters = message[8];
-            properties.extended = message[9];
-            properties.SharePoint = message[10];
-
-            // Ensure all required properties are present before launching
-            if (properties.obligationRows && properties.source && properties.letters) {
-                launch(properties as Properties)
-                    .then(() => {
-                        console.log("Launch completed successfully.");
-                        // sendResponse({ status: "success" }); // Optional: respond if needed
-                    })
-                    .catch(error => {
-                        console.error("Error during launch:", error);
-                        // sendResponse({ status: "error", message: error instanceof Error ? error.message : String(error) }); // Optional: respond on error
-                        // Re-throw if necessary for higher-level handlers
-                        // throw error;
-                    });
-                return true; // Indicates that sendResponse will be called asynchronously (optional)
-            } else {
-                console.error("Missing required properties in message:", message);
-            }
-        }
-        // Return false or undefined if not handling the message or not responding asynchronously
-        return undefined;
-    }
-);
-
-// --- Main Launch Function ---
-async function launch(properties: Properties): Promise<void> {
-    try {
-        // Assuming VIEWsubmit matches the inferred type
-        await (VIEWsubmit)({}, 0, undefined, letterGen(properties), properties);
-    } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        if (errorMessage !== 'Scraper already running') {
-            running = false; // Reset lock only if it's not the 'already running' error
-        }
-        // Re-throw the original error to propagate it
-        throw err;
-    }
-}
 
 // --- Letter Generation Configuration ---
-function letterGen(properties: Properties): LetterGenConfig {
-    if (running === true) {
-        throw new Error('Scraper already running'); // Throw an actual Error object
-    }
-    running = true;
-
+export function letterGen(properties: Properties): processConfig {
     return {
-        groupRepeats: {
-            "obligationsGroup": (): Record<string, string>[] => {
+        stepGroup: {
+            obligationsGroup: () => {
                 properties.agencies = properties.agencies ?? []; // Initialize if undefined
-                let paramArray: Record<string, string>[] = [];
-                if (properties.agency || properties.extended) {
-                    properties.obligationRows.forEach(data => {
-                        const params: Record<string, string> = {};
-                        if (data["Input Type"]?.includes('1A')) {
-                            properties.agencies!.push({ key: data["Notice Number"], value: "TRAFFIC CAMERA OFFICE" });
-                        } else if (data["Input Type"]?.includes('1C')) {
-                            properties.agencies!.push({ key: data["Notice Number"], value: "VICTORIA POLICE TOLL ENFORCEMENT OFFICE" });
-                        } else {
-                            params["txtNoticeNo"] = data["Notice Number"];
-                            paramArray.push(params);
-                        }
-                    });
+                if (properties.IncludesAgencyCorrespondence || properties.RequiresExtendedAttributes) {
+                    const obligations = properties.VIEWObligationData
+                    properties.obligationsCountFixed = 0;
+                    properties.obligationsCount = 0;
+                    if (!obligations) {
+                        console.error("Obligations are undefined or empty.");
+                        return [] as paramArrayObject[]; // Return empty array if obligations are not available
+                    }
+                    obligations.filter(obligation => obligation["Input Type"].includes('1A'))
+                        .forEach(obligation => properties.agencies!.push({ key: obligation["Notice Number"], value: "TRAFFIC CAMERA OFFICE" }));
+                    obligations.filter(obligation => obligation["Input Type"].includes('1B'))
+                        .forEach(obligation => properties.agencies!.push({ key: obligation["Notice Number"], value: "VICTORIA POLICE TOLL ENFORCEMENT OFFICE" }));
+                    return obligations.filter(obligation => !obligation["Input Type"].includes('1B') && !obligation["Input Type"].includes('1A'))
+                        .map(data => {
+                            if (!properties?.obligationsCountFixed) {
+                                console.error("obligationCountFixed is undefined.");
+                                return {} as paramArrayObject; // Return empty array if obligationCountFixed is not available
+                            }
+                            if (!properties?.obligationsCount) {
+                                console.error("obligationsCount is undefined.");
+                                return {} as paramArrayObject; // Return empty array if obligationCountFixed is not available
+                            }
+                            properties.obligationsCountFixed++
+                            properties.obligationsCount++
+                            return {
+                                "txtNoticeNo": data["Notice Number"]
+                            } as paramArrayObject;
+                        });
+                } else {
+                    return [] as paramArrayObject[];
                 }
-                properties.obligationsCountFixed = paramArray.length;
-                properties.obligationsCount = paramArray.length;
-                return paramArray;
             },
-            "getChallenge": (): Record<string, string>[] => {
-                const paramArray: Record<string, string>[] = [];
+            getUserId: async () => {
+                const userId = await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'getStorage', data: { key: "UserId" } });
+                if (!userId) {
+                    return [{}] as paramArrayObject[]; // Return empty array if UserId is not available
+                }
+                return [] as paramArrayObject[];
+            },
+            /**
+             * Sets the default challenge type based on the first selected obligation if no challenge is logged.
+             * @returns {txtNoticeNo: string}[] - Returns an array of obligation objects with the obligation number.
+             */
+            "getDefaultChallenge": () => {
+                const paramArray = [];
                 // Ensure obligationRows exists and has at least one element
-                if (properties.obligationRows?.[0]?.['Notice Status/Previous Status'] &&
-                    !properties.obligationRows[0]['Notice Status/Previous Status'].includes('CHLGLOG')) {
-                    paramArray.push({ "txtNoticeNo": properties.obligationRows[0]["Notice Number"] });
+                if (properties.VIEWObligationData?.[0]?.['Notice Status/Previous Status'] &&
+                    !properties.VIEWObligationData[0]['Notice Status/Previous Status'].includes('CHLGLOG')) {
+                    paramArray.push({ "txtNoticeNo": properties.VIEWObligationData[0]["Notice Number"] });
                 }
                 return paramArray;
             }
         },
-        submit: [{
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
-            urlParams: (parsedDocument: Document | null, set: any, props: Properties): void => {
-                // Ensure chrome storage types are correct
-                const storageData: ChromeStorageData = { 'obligationsCount': 10, "obligationsCountFixed": 10 };
-                chrome.storage.local.set(storageData);
-
-                // Assuming fetchRetryTimeout matches the inferred type
-                props.agenciesList = (fetch as FetchRetryTimeoutType)('https://vicgov.sharepoint.com/:u:/s/msteams_3af44a/ETiKQS5uTzxHnTmAV6Zpl9oBvhNZexZFmJrJxLNZLD6L4A?download=1');
-                props.reviewList = (fetch as FetchRetryTimeoutType)(`https://${props.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDecisionReview.aspx`);
-                props.templates = props.letters.map((letter): TemplateMeta => {
-                    const urlKey = letter as keyof typeof letterURL; // Type assertion
-                    const trimRecordId = letterURL[urlKey];
-                    if (!trimRecordId) {
-                        console.error(`No URL found for letter type: ${letter}`);
-                        // Handle error appropriately - maybe return a dummy template promise?
-                        throw new Error(`Missing URL configuration for letter: ${letter}`);
+        steps: [
+            {
+                url: `https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
+                urlParams: async ({ properties }): Promise<void> => {
+                    // Ensure chrome storage types are correct
+                    chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCount", value: 10 } });
+                    chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCountFixed", value: 10 } });
+                    if (!properties) {
+                        throw new Error("Properties are undefined.");
                     }
-                    const letterTemplateURL = `https://trimapi.justice.vic.gov.au/record/${trimRecordId}/File/document2`;
-                    // Assuming the SharePoint URL structure is consistent and uses the same ID
-                    const SharePointletterTemplateURL = `https://vicgov-my.sharepoint.com/:w:/g/personal/adrian_zafir_justice_vic_gov_au/${trimRecordId}?download=1`;
+                    // Assuming fetchRetryTimeout matches the inferred type
+                    properties.agenciesList = await (await workbook).fetchAndConvertXlsxToJson({
+                        Sheet: "Agencies"
+                    })
 
-                    return {
-                        "kind": letter === 'Agency Enforcement Cancelled' ||
-                            letter === 'Agency Fee Removal' ||
-                            letter === 'FVS Eligible Agency' ||
-                            letter === 'Agency FR Granted' ||
-                            letter === 'Agency Enforcement Cancelled Updated' || // Ensure this is in letterURL
-                            letter === "Notice of Deregistration" ? 'Agency' : 'Debtor',
-                        "letter": letter,
-                        "template": props.SharePoint === true ? loadLetter(SharePointletterTemplateURL) : loadLetter(letterTemplateURL)
-                    };
-                });
+                    properties.reviewList = fetch(`https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDecisionReview.aspx`);
+                    if (!properties.letters) {
+                        throw new Error(`Letters are undefined.`);
+                    }
+
+                    properties.templates = properties.letters.map(async (letter): Promise<TemplateMeta> => {
+                        const letterURL = await (await workbook).fetchAndConvertXlsxToJson({
+                            Sheet: "Templates",
+                            Column: "Link"
+                        })
+                        const urlKey = letter as keyof typeof letterURL; // Type assertion
+                        const downloadCode = letterURL[urlKey];
+                        if (!downloadCode) {
+                            console.error(`No URL found for letter type: ${letter}`);
+                            // Handle error appropriately - maybe return a dummy template promise?
+                            throw new Error(`Missing URL configuration for letter: ${letter}`);
+                        }
+                        // if (downloadCode.includes("https://")) {
+
+                        console.log('downloadcode', downloadCode)
+                        const letterTemplateURL = `https://vicgov.sharepoint.com/:w:/s/VG002447/${downloadCode}?download=1`;
+                        return {
+                            "kind": letter === 'Agency Enforcement Cancelled' ||
+                                letter === 'Agency Fee Removal' ||
+                                letter === 'FVS Eligible Agency' ||
+                                letter === 'Agency FR Granted' ||
+                                letter === 'Agency Enforcement Cancelled Updated' ||
+                                letter === "Notice of Deregistration" ? 'Agency' : 'Debtor',
+                            "letter": letter,
+                            "template": loadLetter(letterTemplateURL, letter)
+                        };
+                    });
+
+                },
+                afterAction: ({ document, properties }) => {
+                    if (!properties) {
+                        throw new Error("Properties are undefined.");
+                    }
+
+                    if (!document) {
+                        throw new Error("Document is undefined.");
+                    }
+                    const elementValueGetterById = createElementValueGetterById(document);
+                    properties.DebtorId = elementValueGetterById("DebtorDetailsCtrl_DebtorIdSearch");
+                    properties.lastName = elementValueGetterById("DebtorDetailsCtrl_surnameTxt");
+                    properties.firstName = elementValueGetterById("DebtorDetailsCtrl_firstnameTxt");
+                    properties.companyName = elementValueGetterById("DebtorDetailsCtrl_companyNameTxt");
+                    properties.Is_Company = true;
+                    if (properties.companyName === "") properties.Is_Company = false;
+                    if (properties.companyName === undefined) properties.Is_Company = false;
+                    let addressTableData = parseTable(document.querySelector("#DebtorAddressesCtrl_gridDebtorAddresses_tblData"));
+                    let addressParts;
+
+                    addressTableData = addressTableData.filter(function (row) {
+                        return row["Best Address"] === "Y"
+                    });
+
+                    const addressObject = convertArrayToObject(addressTableData, "Type");
+
+                    for (const priority of addressPriority) {
+                        if (addressObject[priority] !== undefined) {
+                            addressParts = addressObject[priority].Address.split(",")
+                            addressParts.push(addressObject[priority].Postcode)
+                            break;
+                        }
+                    }
+
+                    if (addressParts === undefined) {
+                        console.error("Address parts are undefined.");
+                        return; // Exit if addressParts is not found
+                    }
+
+                    if (addressParts.length > 4) {
+                        addressParts[1] = `${addressParts[0]}${addressParts[1]}`;
+                        addressParts.shift();
+                    }
+                    properties.Address = {
+                        "Address_1": addressParts[0].trim(),
+                        "Town": addressParts[1].trim(),
+                        "State": addressParts[2].trim(),
+                        "Post_Code": addressParts[3] ? addressParts[3].trim() : undefined
+                    }
+                }
             },
-            after: (parsedDocument: Document | undefined): void => {
-                if (!parsedDocument) return; // Guard against null document
-
-                // Use optional chaining and nullish coalescing for safer access
-                properties.DebtorId = (parsedDocument.querySelector("#DebtorDetailsCtrl_DebtorIdSearch") as HTMLInputElement)?.value?.trim() ?? '';
-                properties.lastName = parsedDocument.querySelector("#DebtorDetailsCtrl_surnameTxt")?.textContent?.trim() ?? '';
-                properties.firstName = parsedDocument.querySelector("#DebtorDetailsCtrl_firstnameTxt")?.textContent?.trim() ?? '';
-                properties.companyName = parsedDocument.querySelector("#DebtorDetailsCtrl_companyNameTxt")?.textContent?.trim() ?? '';
-                properties.Is_Company = !!properties.companyName; // Simpler boolean check
-
-                const addressTable = parsedDocument.querySelector("#DebtorAddressesCtrl_gridDebtorAddresses_tblData") as HTMLTableElement | null;
-                if (!addressTable) {
-                    console.warn("Address table not found.");
-                    properties.Address = { Address_1: "", Town: "", State: "", Post_Code: "" }; // Default empty address
-                    return;
-                }
-
-                let addressTableData = parseTable(addressTable);
-                let addressParts: string[] = []; // Initialize as empty array
-
-                addressTableData = addressTableData.filter(row => row["Best Address"] === "Y");
-
-                const addressObject = convertArrayToObject(addressTableData, "Type");
-
-                for (const priority of addressPriority) {
-                    if (addressObject[priority]?.Address) { // Check if priority exists and has Address
-                        addressParts = addressObject[priority].Address.split(",");
-                        addressParts.push(addressObject[priority].Postcode ?? ''); // Use nullish coalescing for postcode
-                        break;
+            {
+                group: "obligationsGroup",
+                urlParams: function ({ iterationReference }) {
+                    if (!iterationReference?.txtNoticeNo) {
+                        throw new Error("iterationReference.txtNoticeNo is undefined. This is required to switch notices");
                     }
-                }
 
-                // Clean up address parts (ensure strings before trimming)
-                addressParts = addressParts.map(part => String(part || '').trim());
+                    this.url = `https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=${iterationReference.txtNoticeNo}`;
+                    return {}; // Return empty object as params are in URL
+                },
+                afterAction: ({ document }): void => {
+                    if (!document || !properties.obligationsCountFixed || properties.obligationsCount === undefined) return;
 
-                // Handle unit numbers etc. combined with street name
-                if (addressParts.length > 0 && addressParts.length > 4) { // Check length before accessing index 1
-                    addressParts[1] = `${addressParts[0]} ${addressParts[1]}`; // Add space
-                    addressParts.shift();
-                }
+                    const progress = ((properties.obligationsCountFixed - properties.obligationsCount + 1) / properties.obligationsCountFixed) * 10; // Correct progress calculation
+                    properties.obligationsCount--;
+                    const storageData: ChromeStorageData = { 'obligationsCount': progress, "obligationsCountFixed": 10 }; // Consider if fixed should be dynamic
+                    chrome.storage.local.set(storageData);
 
-                properties.Address = {
-                    "Address_1": addressParts[0] ?? '', // Provide defaults
-                    "Town": addressParts[1] ?? '',
-                    "State": addressParts[2] ?? '',
-                    "Post_Code": addressParts[3] ?? undefined
-                };
+                    const noticeNo = (document.getElementById("NoticeInfo_txtNoticeNo") as HTMLInputElement)?.value;
+                    const agencyCode = document.getElementById("NoticeInfo_lblAgencyCode")?.textContent;
+
+                    if (noticeNo && agencyCode) {
+                        properties.agencies = properties.agencies ?? [];
+                        properties.agencies.push({ key: noticeNo, value: agencyCode });
+                    } else {
+                        console.warn("Could not extract notice number or agency code.");
+                    }
+                },
+                clearVIEWFormData: true
+            }, {
+                group: "getDefaultChallenge",
+                urlParams: function ({ iterationReference }) {
+                    if (!iterationReference) {
+                        throw new Error("iterationReference is undefined.");
+                    }
+                    this.url = `https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=${iterationReference.txtNoticeNo}`;
+                    return {};
+                },
+                clearVIEWFormData: true
+            }, {
+                group: "getDefaultChallenge",
+                url: `https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticeChallengeHistory.aspx`,
+                afterAction: ({ document }): void => {
+                    if (!document) return;
+                    const challengeText = document.querySelector("#lblChallengeCodeVal")?.textContent ?? '';
+                    const match = challengeText.match(/Enforcement - (.*)/);
+                    properties.challengeType = match ? match[1] : 'No Challenge Logged';
+                },
+                clearVIEWFormData: true
+            }, {
+                group: "getUserId",
+                url: `https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskList.aspx?ProcessMode=User`,
+                afterAction: ({ document }): void => {
+                    if (!document) {
+                        throw new Error("Document is undefined.");
+                    }
+                    const UserId = createElementValueGetterById(document)("ctl00_mainContentPlaceHolder_taskListOwnerLabel");
+                    chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "UserId", value: UserId } });
+                },
+                clearVIEWFormData: true
             }
-        }, {
-            group: "obligationsGroup",
-            urlParams: function (this: SubmitStep, parsedDocument: Document | undefined, dynamicParams: Record<string, string>): Record<string, any> {
-                // Modify the URL on the 'this' context (the step object)
-                this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=${dynamicParams.txtNoticeNo}`;
-                return {}; // Return empty object as params are in URL
-            },
-            after: (parsedDocument: Document | undefined): void => {
-                if (!parsedDocument || !properties.obligationsCountFixed || properties.obligationsCount === undefined) return;
-
-                const progress = ((properties.obligationsCountFixed - properties.obligationsCount + 1) / properties.obligationsCountFixed) * 10; // Correct progress calculation
-                properties.obligationsCount--;
-                const storageData: ChromeStorageData = { 'obligationsCount': progress, "obligationsCountFixed": 10 }; // Consider if fixed should be dynamic
-                chrome.storage.local.set(storageData);
-
-                const noticeNo = (parsedDocument.getElementById("NoticeInfo_txtNoticeNo") as HTMLInputElement)?.value;
-                const agencyCode = parsedDocument.getElementById("NoticeInfo_lblAgencyCode")?.textContent;
-
-                if (noticeNo && agencyCode) {
-                    properties.agencies = properties.agencies ?? [];
-                    properties.agencies.push({ key: noticeNo, value: agencyCode });
-                } else {
-                    console.warn("Could not extract notice number or agency code.");
-                }
-            },
-            clearVIEWFormData: true
-        }, {
-            group: "getChallenge",
-            urlParams: function (this: SubmitStep, parsedDocument: Document | undefined, dynamicParams: Record<string, string>): Record<string, any> {
-                this.url = `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=${dynamicParams.txtNoticeNo}`;
-                return {};
-            },
-            clearVIEWFormData: true
-        }, {
-            group: "getChallenge",
-            url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticeChallengeHistory.aspx`,
-            after: (parsedDocument: Document | undefined): void => {
-                if (!parsedDocument) return;
-                const challengeText = parsedDocument.querySelector("#lblChallengeCodeVal")?.textContent ?? '';
-                const match = challengeText.match(/Enforcement - (.*)/);
-                properties.challengeType = match ? match[1] : 'No Challenge Logged';
-            },
-            clearVIEWFormData: true
-        }
         ],
-        afterAction: async (doc?, props?): Promise<void> => {
-            // Ensure required promises exist before proceeding
-            if (!props || !props.agenciesList || !props.reviewList || !props.templates) {
-                console.error("Prerequisite data (agenciesList, reviewList, templates) missing in afterAction.");
-                running = false; // Reset lock on error
-                throw new Error("Missing prerequisite data for afterAction.");
+        afterAction: async ({ properties }) => {
+            if (!properties) {
+                throw new Error("Properties are undefined");
+            }
+            if (properties.agencies === undefined) {
+                throw new Error("Agencies are undefined");
             }
 
-            // Combine agency info into a lookup object
-            const agencyLookup: Record<string, string> = (props.agencies ?? []).reduce((obj: { [x: string]: any; }, item: { key: string | number; value: any; }) => {
-                obj[item.key] = item.value;
-                return obj;
-            }, {} as Record<string, string>);
+            const reduced = properties.agencies.reduce<Record<string, string>>((obj, item) => (obj[item.key] = item.value, obj), {});
 
-            try {
-                // Resolve all promises concurrently
-                const results = await Promise.all([
-                    props.agenciesList.then((response: { json: () => any; }) => response.json()), // Assuming JSON response
-                    props.reviewList.then((response: { text: () => any; }) => response.text()),   // Assuming text/HTML response
-                    // Resolve template promises (already initiated)
-                    ...props.templates.map((t: { template: any; }) => t.template)
-                ]);
+            if (properties.agenciesList === undefined) {
+                throw new Error("Agency list is undefined");
+            }
 
-                const agenciesListData = results[0]; // Type this if structure is known (e.g., { addresses: any[] })
-                const reviewListHtml = results[1] as string;
-                const templateBuffers = results.slice(2) as ArrayBuffer[];
+            if (properties.obligationRows === undefined) {
+                throw new Error("Obligation rows are undefined");
+            }
 
-                // Assign resolved templates back to properties.templates
-                props.templates.forEach((templateMeta: { template: Promise<ArrayBuffer>; }, index: number) => {
-                    // Re-wrap in a resolved promise if needed elsewhere, or just store buffer
-                    templateMeta.template = Promise.resolve(templateBuffers[index]);
-                });
+            properties.obligationRows = properties.VIEWObligationData.map(row => {
+                const infData = {
+                    Obligation: row['Notice Number'],
+                    Balance_Outstanding: row['Balance Outstanding'],
+                    Infringement: row['Infringement No.'],
+                    Offence: row['Offence'],
+                    OffenceDate: row['Offence Date'],
+                    IssueDate: row['Issued'],
+                    altname: reduced[row['Notice Number']],
+                    NoticeStatus: row['Notice Status/Previous Status'],
+                    ProgressionDate: row['Due Date'],
+                    NFDlapsed: false
+                };
 
-                // Process obligation rows
-                props.obligationRows = props.obligationRows.map((row: ObligationRowData): ObligationRowData => {
-                    const noticeNumber = row['Notice Number'];
-                    const dueDate = row['Due Date'];
-                    const noticeStatus = row['Notice Status/Previous Status'];
+                const dateParts = infData.ProgressionDate.split("/");
+                //convert dataParts to an object with year, month and day as numbers
+                const datePartsObj = {
+                    year: Number(dateParts[2]),
+                    month: Number(dateParts[1]) - 1, // Month is 0-indexed in JS Date
+                    day: Number(dateParts[0])
+                };
 
-                    let isLapsed = false;
-                    if (dueDate) {
-                        const dateParts = dueDate.split("/");
-                        if (dateParts.length === 3) {
-                            // Check date format before creating Date object
-                            const year = parseInt(dateParts[2], 10);
-                            const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
-                            const day = parseInt(dateParts[0], 10);
-                            if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                                isLapsed = new Date(year, month, day).getTime() < Date.now();
+                infData.NFDlapsed =
+                    infData.NoticeStatus === 'SELDEA' || infData.NoticeStatus === 'WARRNT' ||
+                    (new Date(datePartsObj.year, datePartsObj.month, datePartsObj.day).getTime() < new Date().getTime() && infData.NoticeStatus === 'NFDP')
+                return infData;
+            });
+
+            const parser = new DOMParser()
+            if (!properties.reviewList) {
+                throw new Error("Review list is not available");
+            }
+
+            if (properties.reviewList instanceof Promise) {
+                properties.reviewList = await properties.reviewList.then(response => { return response.text() });
+            }
+
+            if (typeof properties.reviewList !== 'string') {
+                throw new Error("Review list is undefined or not a string");
+            }
+
+            const reviewDoc = parser.parseFromString(properties.reviewList, 'text/html');
+            const reviewTableData = parseTable(reviewDoc.querySelector("#DebtorDecisionCtrl_DebtorNoticesTable_tblData"));
+
+            reviewTableData.forEach(reviewdata => {
+                if (!properties.obligationRows) {
+                    throw new Error("Obligation rows are undefined");
+                }
+                const ob = properties.obligationRows.find(data => (reviewdata['Notice Number'] == data['Obligation']))
+                if (ob !== undefined) ob.Challenge = challengeList[reviewdata['Challenge Code']]
+            })
+
+            //check if getData('userName') is a string after resolving. If it is not a string throw error:
+            const userName = await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'getStorage', data: { key: "userName" } }).then((res) => res.value);
+
+            if (typeof userName !== 'string') {
+                throw new Error("User name is not a string");
+            }
+            const letterData = {
+                "First_Name": toTitleCaseHypen(toTitleCase(properties.firstName)).trim().split(" ")[0],
+                "Last_Name": toTitleCaseHypen(toTitleCase(properties.lastName)).trim(),
+                "Company_Name": properties.Is_Company ? toTitleCase(properties.companyName).trim() : undefined,
+                "Is_Company": properties.Is_Company,
+                "Address_1": toTitleCase(properties?.Address?.Address_1).trim(),
+                "Town": properties.Address?.Town,
+                "Town2": toTitleCase(properties.Address?.Town),
+                "State": properties.Address?.State,
+                "Post_Code": properties.Address?.Post_Code,
+                "Debtor_ID": properties.DebtorId,
+                "Challenge": properties.obligationRows[0].Challenge || properties.challengeType,
+                "UserID": userName,
+                "OnlyNFDLapsed": false
+            }
+
+            letterData.OnlyNFDLapsed = !properties.obligationRows.some(row => row.NFDlapsed === false);
+
+            await getAppData(letterData);
+
+            const replacements: [RegExp, string][] = [
+                [/ Gr$/i, " Grove"],
+                [/ St$/i, " Street"],
+                [/ Dr$/i, " Drive"],
+                [/ Ct$/i, " Court"],
+                [/ Rd$/i, " Road"],
+                [/ Ave?$/i, " Avenue"],
+                [/ Cre?s?$/i, " Crescent"],
+                [/ Pl$/i, " Place"],
+                [/ Tce$/i, " Terrace"],
+                [/ Bvd$/i, " Boulevard"],
+                [/ Cl$/i, " Close"],
+                [/ Cir$/i, " Circle"],
+                [/ Pde$/i, " Parade"],
+                [/ Cct$/i, " Circuit"],
+                [/ Wy$/i, " Way"],
+                [/ Esp$/i, " Esplanade"],
+                [/ Sq$/i, " Square"],
+                [/ Hwy$/i, " Highway"],
+                [/^Po /i, "PO "]
+            ];
+
+            // Apply each replacement sequentially
+            for (const [regex, replacementString] of replacements) {
+                if (letterData.Address_1) { // Ensure Address_1 is not null or undefined
+                    letterData.Address_1 = letterData.Address_1.replace(regex, replacementString);
+                }
+            }
+            properties.letterData = []
+
+            if (properties.IncludesAgencyCorrespondence) {
+                properties.letterData = groupByArray(properties.obligationRows, 'altname');
+
+                const mergeByIdProps = {
+                    baseArray: properties.letterData,
+                    matchArray: properties.agenciesList,
+                    baseArrayKey: "altname",
+                    matchArrayKey: "altname",
+                }
+                properties.letterData = mergeById(mergeByIdProps)
+
+                properties.letterData = properties.letterData.map(item => ({ ...item, ...letterData, kind: "Agency" }));
+            }
+            if (!properties.letters) {
+                throw new Error(`Letters are undefined.`);
+            }
+
+            if (properties.letters[0] !== "Notice of Deregistration") {
+                properties.letterData.push({ ...letterData, a: properties.obligationRows, kind: "Debtor" })
+            }
+
+            await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCount", value: 0 } });
+            await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCountFixed", value: 10 } });
+            if (!properties.letterData) {
+                throw new Error("Letter data is undefined");
+            }
+
+            const documentFilenames = await (await workbook).fetchAndConvertXlsxToJson({
+                Sheet: "Templates",
+                Column: "Filename"
+            })
+
+
+
+            const letterGenerationResultPromise = properties.letterData.map(async data => {
+                if (!properties.templates) {
+                    throw new Error("Templates is not defined");
+                }
+                if (!properties.obligationRows) {
+                    throw new Error("Obligation rows are undefined in letter data");
+                }
+                if (!data.First_Name) {
+                    throw new Error("First name is undefined in letter data");
+                }
+
+                // First, resolve all template promises
+                const resolvedTemplates = await Promise.all(properties.templates);
+                // Then find the matching template
+                const selectedTemplate = resolvedTemplates.find(template => template.kind === data.kind);
+                console.log(properties.templates);
+                const documentFileName = documentFilenames[selectedTemplate?.letter as keyof typeof documentFilenames]
+                if (!documentFileName) {
+                    throw new Error(`Document filename is undefined for letter: ${selectedTemplate?.letter}`);
+                }
+
+                const o = properties.obligationRows ?? [];
+                const OBL = o.length === 1 ? " OBL " + o[0]?.Obligation : " x " + o.length;
+                const firstChallenge = o[0]?.Challenge;
+                const ReviewType = firstChallenge === "Special circumstances" ? "ER Special" : firstChallenge !== undefined ? "ER General" : "Review";
+                const dt = formatDate(); // Calculate date once
+
+
+                const letterType = templateSubstitution<{ name?: string, UserID?: string, OBL?: string, ReviewType?: string, dt?: string }>(documentFileName, { ...data, name: data.Is_Company ? data.Company_Name : data.First_Name.charAt(0) + " " + data.Last_Name, OBL, dt, ReviewType });
+
+
+
+                if (!selectedTemplate) {
+                    throw new Error("Unable to match data with template.");
+                }
+
+                const documentProps = await (await workbook).fetchAndConvertXlsxToJson({
+                    Sheet: "Templates",
+                    Column: "Props"
+                })
+
+                data.selectedObValue = '$' + formatMoney(data.a?.reduce((t, o) => t + Number(o.Balance_Outstanding?.replace(/[^0-9.-]+/g, "")), 0));
+
+                if (documentProps[selectedTemplate.letter] !== undefined) {
+                    documentProps[selectedTemplate.letter]?.split(",").forEach((prop) => {
+                        if (prop === "todayplus14") {
+                            data[prop] = getDates().todayplus14;
+                        }
+                        if (prop === "todayplus28") {
+                            data[prop] = getDates().todayplus28;
+                        }
+                        if (prop === "todayplus21") {
+                            data[prop] = getDates().todayplus21;
+                        }
+                    })
+                }
+
+                const template = await selectedTemplate.template;
+
+                const message = { data, template, letterType };
+
+                return new Promise((resolve, reject) => {
+                    // Create and append the iframe
+                    const sandbox = document.createElement('iframe');
+                    sandbox.id = 'theFrame';
+                    sandbox.src = 'genLetter-module.html';
+                    document.body.appendChild(sandbox);
+
+                    // Create a timeout to reject the promise if it takes too long
+                    const timeoutId = setTimeout(() => {
+                        cleanup();
+                        reject(new Error(`Letter generation timeout for ${letterType}`));
+                    }, 30000); // 30 second timeout
+
+                    // Function to clean up resources
+                    const cleanup = () => {
+                        clearTimeout(timeoutId);
+                        window.removeEventListener('message', messageHandler);
+
+                        if (sandbox) {
+                            // Clear any references to the iframe's contentWindow
+                            sandbox.src = 'about:blank';
+                            // Remove from DOM
+                            if (sandbox.parentNode) {
+                                sandbox.parentNode.removeChild(sandbox);
                             }
                         }
-                    }
+                    };
 
-                    return {
-                        ...row, // Spread existing row data
-                        Obligation: noticeNumber,
-                        Balance_Outstanding: row['Balance Outstanding'],
-                        Infringement: row['Infringement No.'],
-                        Offence: row['Offence'],
-                        OffenceDate: row['Offence Date'],
-                        IssueDate: row['Issued'],
-                        altname: agencyLookup[noticeNumber] ?? 'Unknown Agency', // Use lookup
-                        NoticeStatus: noticeStatus,
-                        ProgressionDate: dueDate,
-                        NFDlapsed: noticeStatus === 'SELDEA' || noticeStatus === 'WARRNT' || (isLapsed && noticeStatus === 'NFDP')
+                    // Message handler that resolves the promise when a message is received
+                    const messageHandler = (event: MessageEvent<{
+                        type: string;
+                        correspondence: string;
+                    }>) => {
+                        if (event.data.type === letterType) {
+                            const correspondence = event.data.correspondence;
+                            saveAs(correspondence, letterType + ".docx");
+
+                            // Clean up resources
+                            cleanup();
+
+                            // Resolve the promise with the correspondence data
+                            resolve(correspondence);
+                        }
+                    };
+
+                    // Add the message handler
+                    window.addEventListener('message', messageHandler);
+
+                    // Set up the onload handler
+                    sandbox.onload = () => {
+                        // Post your message
+                        sandbox.contentWindow?.postMessage(message, '*');
                     };
                 });
 
-                // Parse review list HTML
-                const parser = new DOMParser();
-                const reviewDoc = parser.parseFromString(reviewListHtml, 'text/html');
-                const reviewTable = reviewDoc.querySelector("#DebtorDecisionCtrl_DebtorNoticesTable_tblData") as HTMLTableElement | null;
-
-                if (reviewTable) {
-                    const reviewTableData = parseTable(reviewTable);
-                    reviewTableData.forEach(reviewdata => {
-                        const challengeCode = reviewdata['Challenge Code'] as keyof typeof challengeList;
-                        const ob = props.obligationRows.find((data: { Obligation: string; }) => reviewdata['Notice Number'] == data.Obligation);
-                        if (ob) {
-                            ob.Challenge = challengeList[challengeCode] ?? 'Unknown Challenge'; // Use lookup
-                        }
-                    });
-                } else {
-                    console.warn("Review table not found in fetched HTML.");
-                }
-
-                // Prepare base letter data
-                const baseLetterData: any = { // Use 'any' for flexibility initially, refine if possible
-                    "First_Name": toTitleCaseHypen(toTitleCase(props.firstName ?? '')).trim().split(" ")[0],
-                    "Last_Name": toTitleCaseHypen(toTitleCase(props.lastName ?? '')).trim(),
-                    "Company_Name": props.Is_Company ? toTitleCase(props.companyName ?? '').trim() : undefined,
-                    "Is_Company": props.Is_Company ?? false,
-                    "Address_1": toTitleCase(props.Address?.Address_1 ?? '').trim(),
-                    "Town": props.Address?.Town ?? '',
-                    "Town2": toTitleCase(props.Address?.Town ?? ''), // Duplicate?
-                    "State": props.Address?.State ?? '',
-                    "Post_Code": props.Address?.Post_Code,
-                    "Debtor_ID": props.DebtorId,
-                    "Challenge": props.obligationRows?.[0]?.Challenge ?? props.challengeType ?? 'No Challenge Logged',
-                    "UserID": await getData('userName') // Assuming getData returns Promise<string | undefined>
-                };
-
-                baseLetterData.OnlyNFDLapsed = !(props.obligationRows?.some((row: { NFDlapsed: boolean; }) => row.NFDlapsed === false) ?? false);
-
-                // Enhance base data with AppData
-                await getAppData(baseLetterData); // Modifies baseLetterData in place
-
-                // Address formatting (make safer)
-                const replacements: [RegExp, string][] = [
-                    [/ Gr$/i, " Grove"], [/ St$/i, " Street"], [/ Dr$/i, " Drive"], [/ Ct$/i, " Court"],
-                    [/ Rd$/i, " Road"], [/ Ave?$/i, " Avenue"], [/ Cre?s?$/i, " Crescent"], [/ Pl$/i, " Place"],
-                    [/ Tce$/i, " Terrace"], [/ Bvd$/i, " Boulevard"], [/ Cl$/i, " Close"], [/ Cir$/i, " Circle"],
-                    [/ Pde$/i, " Parade"], [/ Cct$/i, " Circuit"], [/ Wy$/i, " Way"], [/ Esp$/i, " Esplanade"],
-                    [/ Sq$/i, " Square"], [/ Hwy$/i, " Highway"], [/^Po /i, "PO "]
-                ];
-                let address1 = baseLetterData.Address_1 || '';
-                replacements.forEach(([regex, replacement]) => {
-                    address1 = address1.replace(regex, replacement);
-                });
-                baseLetterData.Address_1 = address1;
-
-
-                // Prepare final letter data array
-                props.letterData = [];
-
-                if (props.agency && agenciesListData?.addresses) { // Check agenciesListData structure
-                    let groupedByAgency = groupBy(props.obligationRows ?? [], 'altname');
-                    // Ensure mergeById handles potential missing data gracefully
-                    groupedByAgency = mergeById(groupedByAgency, agenciesListData.addresses, "altname", "altname"); // Assuming 'altname' matches key in addresses
-                    props.letterData.push(...groupedByAgency.map((item: any) => ({ ...item, ...baseLetterData, kind: "Agency" })));
-                }
-
-                if (!props.letters.includes("Notice of Deregistration")) { // Check if debtor letter is needed
-                    // Ensure 'a' property is expected by downstream consumers
-                    props.letterData.push({ ...baseLetterData, a: props.obligationRows, kind: "Debtor" });
-                }
-
-                const storageUpdate: ChromeStorageData = { 'obligationsCount': 0, "obligationsCountFixed": 10 };
-                chrome.storage.local.set(storageUpdate);
-
-                // Generate letters
-                if (!props.letterData || props.letterData.length === 0) {
-                    console.log("No letter data generated.");
-                    running = false; // Reset lock
-                    return;
-                }
-
-                for (const data of props.letterData) {
-                    // Determine letter type and find corresponding template meta
-                    const userId = String(data.UserID ?? 'UnknownUser'); // Ensure UserID is string
-                    const nameForFilename = data.Is_Company ? data.Company_Name : `${data.First_Name?.charAt(0)} ${data.Last_Name}`;
-                    const letterTypeMap = letterTypes(data.a ?? [], data.enforcename ?? 'UnknownAgency', nameForFilename ?? 'UnknownName', userId); // Provide defaults
-
-                    const templateMeta = props.templates?.find((template: { kind: any; }) => template.kind === data.kind);
-
-                    if (!templateMeta) {
-                        console.warn(`No template found for kind: ${data.kind}`);
-                        continue; // Skip if no template
+                /*if (data.MOU === true &&
+                    !properties.letters?.some(type => type === 'Agency Fee Removal' || type === "Notice of Deregistration")) {
+                    const agencyTemplates = await properties.templates.find(async template => {
+                        const temp = await template;
+                        return (temp.kind === 'Agency' && temp.letter);
+                    })
+                    if (!agencyTemplates) {
+                        throw new Error("Agency templates are undefined");
                     }
-
-                    const letterTypeName = templateMeta.letter as keyof typeof letterTypeMap;
-                    const specificLetterType = letterTypeMap[letterTypeName];
-
-                    if (!specificLetterType) {
-                        console.warn(`No letter type definition found for: ${letterTypeName}`);
-                        continue; // Skip if no definition
+                    if (!data.AgencyEmail) {
+                        throw new Error("Agency email is undefined");
                     }
+                    emailMaker(data, [data.AgencyEmail, 'MOU', agencyTemplates]);
+                }*/
+            })
 
-                    // Calculate selected obligation value
-                    data.selectedObValue = '$' + formatMoney((data.a ?? []).reduce((t: number, o: ObligationRowData) => t + Number(String(o.Balance_Outstanding || '0').replace(/[^0-9.-]+/g, "")), 0));
-
-                    // Add dynamic properties based on letter type Props
-                    if (specificLetterType.Props) {
-                        const dates = getDates(); // Get dates once if needed
-                        specificLetterType.Props.forEach(prop => {
-                            data[prop] = true; // Default value
-                            if (prop === "todayplus14") data[prop] = dates.todayplus14;
-                            if (prop === "todayplus28") data[prop] = dates.todayplus28;
-                            if (prop === "todayplus21") data[prop] = dates.todayplus21;
-                            // Add other specific prop handlers if necessary
-                        });
-                    }
-
-                    // Resolve the template promise before calling makeLetter
-                    const templateBuffer = await templateMeta.template;
-
-                    // Assuming makeLetter matches the inferred type
-                    (makeLetter as MakeLetterType)(data, templateBuffer, specificLetterType.filename);
-
-                    // Email generation logic (ensure emailMaker is defined and typed)
-                    if (data.MOU === true &&
-                        !props.letters.some((type: string) => type === 'Agency Fee Removal' || type === "Notice of Deregistration")) {
-                        const agencyTemplateMeta = props.templates?.find((template: { kind: string; }) => template.kind === 'Agency');
-                        if (agencyTemplateMeta) {
-                            emailMaker(data, [data.AgencyEmail, 'MOU', agencyTemplateMeta.letter]);
-                        }
-                    }
-                }
-
-            } catch (error) {
-                console.error("Error during afterAction processing:", error);
-                // Rethrow or handle as appropriate
-                throw error;
-            } finally {
-                running = false; // Ensure lock is always reset
-            }
+            const letterGenerationResults = await Promise.all(letterGenerationResultPromise);
+            console.log("Letter generation results:", letterGenerationResults);
         }
-    };
+    }
 }
 
 // --- Helper Functions with Types ---
 
-function getAppData(data: any): Promise<Record<string, any[]>> { // Improve 'any' if possible
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['value'], (items: ChromeStorageData) => {
-            if (chrome.runtime.lastError) {
-                console.error(chrome.runtime.lastError.message);
-                return reject(chrome.runtime.lastError);
-            }
-            const applicationData = items.value ?? {};
-            data.tParty = false; // Default
-            data.legalCentre = false; // Default
+function getAppData(data: Partial<letterDataProps>): Promise<Record<string, string[]>> {
+    return new Promise((resolve) => {
+        return chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'getStorage', data: { key: "value" } })
+            .then((items) => {
+                let applicationData: DebtorData[] = [];
+                // Check if items.value is actually an array before assigning it
+                if (Array.isArray(items.value)) {
+                    // If it is an array, assign it.
+                    // We use 'as DebtorData[]' as a type assertion, telling TypeScript
+                    // to trust that the elements within items.value conform to DebtorData.
+                    // This is necessary because items.value might be typed as unknown[] or any[].
+                    applicationData = items.value as DebtorData[];
+                } else if (items.value != null) {
+                    // Log an error if items.value exists but is not an array,
+                    // as the subsequent code expects an array.
+                    console.error(`Storage data ('items.value') was expected to be an array, but received type: ${typeof items.value}`);
+                    // applicationData remains []
+                }
+                // If items.value was null or undefined, applicationData remains []
 
-            for (const applicationKey in applicationData) {
-                const appDetails = applicationData[applicationKey];
-                // Check array length before accessing indices
-                if (Array.isArray(appDetails) && appDetails.length > 18 && appDetails[0] === data.Debtor_ID) {
-                    data.legalCentre = false; // Reset per application check
-                    if (appDetails[1] === true) { // Assuming index 1 indicates tParty status
-                        data.tParty = true;
-                        data.applicantName = appDetails[2];
-                        data.appOrganisation = appDetails[3];
-                        data.appStreet = appDetails[4];
-                        data.appTown = appDetails[5];
-                        data.appState = appDetails[6];
-                        data.appPost = appDetails[7];
-                        data.legalCentre = appDetails[17]; // Potential Legal Centre flag for main 3rd party
+                data.tParty = false; // Default
+                data.legalCentre = false; // Default
 
-                        // Determine recipient based on flags at indices 8, 9, 10
-                        if (appDetails[8] === true) {
-                            data.recipient = '3rd Party';
-                        } else if (appDetails[9] === true) {
-                            data.recipient = 'Debtor';
-                        } else if (appDetails[10] === true) {
-                            data.recipient = 'Alt 3rd Party';
-                            data.altApplicantName = appDetails[11];
-                            data.altAppOrganisation = appDetails[12];
-                            data.altAppStreet = appDetails[13];
-                            data.altAppTown = appDetails[14];
-                            data.altAppState = appDetails[15];
-                            data.altAppPost = appDetails[16];
-                            // Assuming index 18 is the legal centre flag specifically for Alt 3rd Party
-                            data.legalCentre = appDetails[18]; // Overwrite if Alt 3rd party is chosen
+                for (const applicationKey in applicationData) {
+                    const appDetails = applicationData[applicationKey];
+                    // Check array length before accessing indices
+                    if (Array.isArray(appDetails) && appDetails.length > 18 && appDetails[0] === data.Debtor_ID) {
+                        data.legalCentre = false; // Reset per application check
+                        if (appDetails[1] === true) { // Assuming index 1 indicates tParty status
+                            data.tParty = true;
+                            data.applicantName = appDetails[2];
+                            data.appOrganisation = appDetails[3];
+                            data.appStreet = appDetails[4];
+                            data.appTown = appDetails[5];
+                            data.appState = appDetails[6];
+                            data.appPost = appDetails[7];
+                            data.legalCentre = appDetails[17]; // Potential Legal Centre flag for main 3rd party
+
+                            // Determine recipient based on flags at indices 8, 9, 10
+                            if (appDetails[8] === true) {
+                                data.recipient = '3rd Party';
+                            } else if (appDetails[9] === true) {
+                                data.recipient = 'Debtor';
+                            } else if (appDetails[10] === true) {
+                                data.recipient = 'Alt 3rd Party';
+                                data.altApplicantName = appDetails[11];
+                                data.altAppOrganisation = appDetails[12];
+                                data.altAppStreet = appDetails[13];
+                                data.altAppTown = appDetails[14];
+                                data.altAppState = appDetails[15];
+                                data.altAppPost = appDetails[16];
+                                // Assuming index 18 is the legal centre flag specifically for Alt 3rd Party
+                                data.legalCentre = appDetails[18]; // Overwrite if Alt 3rd party is chosen
+                            } else {
+                                // Default recipient if no flag is set?
+                                data.recipient = 'Unknown'; // Or Debtor/3rd Party based on data.tParty?
+                            }
+                            break; // Found matching debtor, stop searching
                         } else {
-                            // Default recipient if no flag is set?
-                            data.recipient = 'Unknown'; // Or Debtor/3rd Party based on data.tParty?
+                            // Debtor ID matched, but tParty flag (index 1) is false
+                            data.tParty = false;
+                            // Potentially break here too if only one entry per Debtor_ID is expected
+                            break;
                         }
-                        break; // Found matching debtor, stop searching
-                    } else {
-                        // Debtor ID matched, but tParty flag (index 1) is false
-                        data.tParty = false;
-                        // Potentially break here too if only one entry per Debtor_ID is expected
-                        break;
                     }
                 }
-            }
-            // Resolve with the original retrieved items.value structure
-            resolve(items.value ?? {});
-        });
+                // Resolve with the original retrieved items.value structure
+                resolve((items.value ?? {}) as Record<string, string[]>);
+            });
     });
 }
 
 
-function loadLetter(url: string): Promise<ArrayBuffer> {
-    return new Promise((resolve, reject) => {
-        JSZipUtils.getBinaryContent(url, (err, data) => {
-            if (err) {
-                console.error("Error loading letter template:", err);
-                running = false; // Reset lock on error
-                reject(err);
-            } else {
-                resolve(data);
+async function loadLetter(url: string, letterName: string): Promise<string | ArrayBuffer | null> {
+    return fetch(url)
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            if (response.headers.get('Content-Type') !== 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                throw new Error(`File not found for '${letterName}' template. Please verify the URL is correct - ${url}`);
+            }
+            return response.blob(); // Get response body as a Blob
+        })
+        .then((blob) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                    resolve(reader.result);
+                }
+                reader.onerror = function () {
+                    reject(new Error("Failed to read blob"));
+                }
+                reader.readAsDataURL(blob);
+            });
         });
-    });
 }
 
-const addressPriority: string[] = ["Postal Address", "Residential Address", "Unknown Address"];
+const addressPriority = ["Postal Address", "Residential Address", "Unknown Address"];
 
 const challengeList: Record<string, string> = {
     "E_EXCIRCUM": "Exceptional circumstances",
@@ -657,84 +842,7 @@ const challengeList: Record<string, string> = {
     "E_SPCIRCUM": "Special circumstances",
     "E_CONTRLAW": "Contrary to the law",
     "E_MISTAKID": "Mistake of identity"
-};
-
-// Ensure all keys used in code exist here
-const letterURL: Record<string, string> = {
-    'Agency Enforcement Cancelled': "21860542",
-    'Agency Fee Removal': "12918361",
-    'Enforcement Confirmed': "21908189",
-    'Enforcement Cancelled': "21864380",
-    "ER Confirm/ FW Grant": "21922728",
-    'Report Needed': "12918375",
-    'Wrong person applying. No grounds': "12918368",
-    'Paid in full. Ineligible': "12918367",
-    'Outside Person Unaware. Ineligible': "12918370", // Used twice in original JS? Check logic
-    'Offence n/e Person Unaware. No grounds': "12918370", // Used twice in original JS? Check logic
-    'Unable to Contact Applicant': "12918377",
-    'Claim of payment adv contact agency': "14513448",
-    'Notice of Deregistration': "14688539",
-    'Further Information Required': "15102090",
-    'FVS Eligible Debtor': "15104893",
-    'FVS Eligible Agency': "15104895",
-    'FVS Ineligible': "15111337",
-    'FVS Further Information Required': "15111404",
-    'PSL': "15119430",
-    'Suspension of driver licence': "15531068",
-    "Suspension of vehicle registration - Ind": "17470564",
-    "Suspension of vehicle registration - Corp": "17470563",
-    'Court Fine Fee Waive Granted': "EXKiK2Ln98ZFq1RNxyVlAuIB9XFcwmEu0u-wn-u9xLRaeg", // Different format?
-    "Special Circumstances No grounds": "18754905", // Duplicate key? Check logic
-    "POI - direction to produce": "21266650",
-    "PA Refused - Active 7DN": "21379969",
-    "No Grounds": "21781572", // Duplicate key? Check logic
-    "PA Refused": "21780824",
-    "EOT Refused": "21781515",
-    "PA Refused-Sanction": "21538164",
-    "PA App Incomplete": "21543595",
-    "Company PA Ineligible SZWIP": "21543668",
-    "EOT Refused - Infringements stage": "21547909",
-    "PA Refused Expired 7DN": "21554295",
-    "Fee Removal PIF": "21569882",
-    "CF Fee Removal Granted": "21588427",
-    "CF Fee Removal Refused": "21623835",
-    'Fee Removal Refused': "21625790", // Duplicate key? Check logic
-    'FR Refused - Active 7DN': "21630687",
-    'FW Refused - Sanction': "21642104",
-    "FR Granted": "21602358",
-    "Agency FR Granted": "21609844",
-    "FR Granted - Active 7DN": "21575815",
-    "FR Granted - Sanction": "21582960",
-    "Ineligible for ER - offence type": "21720126",
-    "Court not an option": "21746214",
-    "ER Ineligible Deregistered Company": "21758558",
-    "Ineligible Paid in full": "21761625", // Duplicate key? Check logic
-    "Appeal not available": "21761877",
-    "Nomination Not Grounds": "21767490",
-    "ER Ineligible Court Fine": "21771157",
-    "Spec Circ Options": "21774656",
-    "ER Additional Info": "21738969",
-    "Ineligible for ER enforcement action": "21745145",
-    "Ineligible PU - Outside Time": "21787906",
-    "Ineligible for ER previous review": "21790863",
-    "ER Ineligible PU": "21794412",
-    "Claim of payment to agency": "21797592", // Duplicate key? Check logic
-    "Request for photo evidence": "21811532",
-    "Ineligible Incorrect company applying": "21815023",
-    "Spec Circ No Grounds": "21825433", // Duplicate key? Check logic
-    "Spec Circ Report Required": "21827269",
-    "Unauthorised 3rd party applying": "21834939",
-    "Ineligible Incorrect person applying": "21846719",
-    "Spec Circ App Required": "21976745",
-    "Spec Circ Report Insufficient": "21979090",
-    "SC 3P Lawyer - Report Insufficient": "21977719",
-    "ER Application Incomplete": "21982730",
-    "SC 3P Lawyer - Report Required": "21991100",
-    "ER Confirm/FW Grant - Active 7DN": "21993681",
-    "ER Confirm/FW Grant - 7DN Expired option": "21993728",
-    // Add any missing ones like 'Agency Enforcement Cancelled Updated' if needed
-    'Agency Enforcement Cancelled Updated': "MISSING_ID", // Placeholder
-};
+}
 
 function padTo2Digits(num: number): string {
     return num.toString().padStart(2, '0');
@@ -748,145 +856,32 @@ function formatDate(date: Date = new Date()): string {
     ].join('');
 }
 
-// Returns a map of letter names to their definitions (filename, props)
-function letterTypes(
-    obligationRows: ObligationRowData[],
-    enforcename: string,
-    name: string,
-    UserID: string
-): Record<string, LetterTypeDef> {
-    const o = obligationRows ?? [];
-    const OBL = o.length === 1 ? " OBL " + o[0]?.Obligation : " x " + o.length;
-    const firstChallenge = o[0]?.Challenge;
-    const ReviewType = firstChallenge === "Special circumstances" ? "ER Special" : firstChallenge !== undefined ? "ER General" : undefined;
-    const dt = formatDate(); // Calculate date once
 
-    // Build the map directly
-    const types: Record<string, LetterTypeDef> = {
-        'Agency Enforcement Cancelled': { filename: `${enforcename} - Cancelled${OBL} ${name} - ${UserID} - ${dt}` },
-        'Agency Fee Removal': { filename: `${enforcename} - Fee Removal - Granted${OBL} ${name} - ${UserID} - ${dt}` },
-        'Enforcement Confirmed': { filename: `${ReviewType ?? 'Review'} - Confirmed${OBL} ${name} - ${UserID} - ${dt}` },
-        'Enforcement Cancelled': { filename: `${ReviewType ?? 'Review'} - Cancelled${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Confirm/ FW Grant': { filename: `${ReviewType ?? 'Review'} - Confirmed With Fee Removal - Granted${OBL} ${name} - ${UserID} - ${dt}`, Props: ["ECCV"] },
-        'Report Needed': { filename: `Report Needed${OBL} ${name} - ${UserID} - ${dt}`, Props: ["todayplus14"] },
-        'Further Information Required': { filename: `Further Information Required${OBL} ${name} - ${UserID} - ${dt}`, Props: ["todayplus14"] },
-        'Wrong person applying. No grounds': { filename: `No Grounds${OBL} ${name} - ${UserID} - ${dt}` },
-        'Paid in full. Ineligible': { filename: `Paid In Full${OBL} ${name} - ${UserID} - ${dt}` },
-        'Outside Person Unaware. Ineligible': { filename: `Outside Person Unware${OBL} ${name} - ${UserID} - ${dt}`, Props: ["Person_unaware_1"] },
-        'Offence n/e Person Unaware. No grounds': { filename: `No Grounds Person Unware${OBL} ${name} - ${UserID} - ${dt}`, Props: ["Person_unaware_2"] },
-        'Unable to Contact Applicant': { filename: `Unable To Contact Applicant${OBL} ${name} - ${UserID} - ${dt}` },
-        'Special Circumstances No grounds': { filename: `No Grounds${OBL} ${name} - ${UserID} - ${dt}` }, // Duplicate?
-        'Claim of payment adv contact agency': { filename: `Cont Agency${OBL} ${name} - ${UserID} - ${dt}` },
-        'Notice of Deregistration': { filename: `Notice Of Deregistration${OBL} ${name} - ${UserID} - ${dt}` },
-        'FVS Eligible Debtor': { filename: `${name} - FVS Eligible${OBL}`, Props: ["todayplus28"] },
-        'FVS Eligible Agency': { filename: `${name} - ${enforcename} - FVS Eligible${OBL}` },
-        'FVS Ineligible': { filename: `${name} - ${enforcename} - FVS Ineligible${OBL}` },
-        'FVS Further Information Required': { filename: `${name} - ${enforcename} - FVS Further Information Required${OBL}`, Props: ["todayplus21"] },
-        'Suspension of driver licence': { filename: `${name} - Suspension of driver licence${OBL}` },
-        'Suspension of vehicle registration - Ind': { filename: `${name} - Suspension of vehicle registration${OBL}` },
-        'Suspension of vehicle registration - Corp': { filename: `${name} - Suspension of vehicle registration${OBL}` },
-        'PSL': { filename: `${name} - PSL${OBL}` },
-        'Court Fine Fee Waive Granted': { filename: `Court Fine - Fee Removal - Granted${OBL} ${name} - ${UserID} - ${dt}` },
-        'POI - direction to produce': { filename: `${name} - POI - direction to produce${OBL}`, Props: ["todayplus28"] },
-        'PA Refused - Active 7DN': { filename: `${name} - PA Refused - Active 7DN${OBL}`, Props: ["todayplus28"] },
-        'No Grounds': { filename: `No Grounds${OBL} ${name} - ${UserID} - ${dt}`, Props: ["No_Grounds"] }, // Duplicate?
-        'PA Refused': { filename: `PA Refused${OBL} ${name} - ${UserID} - ${dt}` },
-        'EOT Refused': { filename: `EOT Refused${OBL} ${name} - ${UserID} - ${dt}` },
-        'PA Refused-Sanction': { filename: `PA Refused-Sanction${OBL} ${name} - ${UserID} - ${dt}` },
-        'PA App Incomplete': { filename: `PA App Incomplete${OBL} ${name} - ${UserID} - ${dt}` },
-        'Company PA Ineligible SZWIP': { filename: `Company PA Ineligible SZWIP${OBL} ${name} - ${UserID} - ${dt}` },
-        'EOT Refused - Infringements stage': { filename: `EOT Refused - Infringements stage${OBL} ${name} - ${UserID} - ${dt}` },
-        'PA Refused Expired 7DN': { filename: `PA Refused Expired 7DN${OBL} ${name} - ${UserID} - ${dt}` },
-        'Fee Removal PIF': { filename: `Fee Removal PIF${OBL} ${name} - ${UserID} - ${dt}` },
-        'CF Fee Removal Granted': { filename: `CF Fee Removal Granted${OBL} ${name} - ${UserID} - ${dt}` },
-        'CF Fee Removal Refused': { filename: `CF Fee Removal Refused${OBL} ${name} - ${UserID} - ${dt}` },
-        'Fee Removal Refused': { filename: `Fee Removal Refused${OBL} ${name} - ${UserID} - ${dt}` }, // Duplicate?
-        'FR Refused - Active 7DN': { filename: `FR Refused - Active 7DN${OBL} ${name} - ${UserID} - ${dt}` },
-        'FW Refused - Sanction': { filename: `FW Refused - Sanction${OBL} ${name} - ${UserID} - ${dt}` },
-        'FR Granted': { filename: `FR Granted${OBL} ${name} - ${UserID} - ${dt}` },
-        'Agency FR Granted': { filename: `${enforcename} - Agency FR Granted${OBL} ${name} - ${UserID} - ${dt}` },
-        'FR Granted - Active 7DN': { filename: `FR Granted - Active 7DN${OBL} ${name} - ${UserID} - ${dt}` }, // Enforce name was here?
-        'FR Granted - Sanction': { filename: `FR Granted - Sanction${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible for ER - offence type': { filename: `Ineligible for ER - offence type${OBL} ${name} - ${UserID} - ${dt}` },
-        'Court not an option': { filename: `Court not an option${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Ineligible Deregistered Company': { filename: `ER Ineligible Deregistered Company${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible Paid in full': { filename: `Ineligible Paid in full${OBL} ${name} - ${UserID} - ${dt}` }, // Duplicate?
-        'Appeal not available': { filename: `Appeal not available${OBL} ${name} - ${UserID} - ${dt}` },
-        'Nomination Not Grounds': { filename: `Nomination Not Grounds${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Ineligible Court Fine': { filename: `ER Ineligible Court Fine${OBL} ${name} - ${UserID} - ${dt}` },
-        'Spec Circ Options': { filename: `Spec Circ Options${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Additional Info': { filename: `ER Additional Info${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible for ER enforcement action': { filename: `Ineligible for ER enforcement action${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible PU - Outside Time': { filename: `Ineligible PU - Outside Time${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible for ER previous review': { filename: `Ineligible for ER previous review${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Ineligible PU': { filename: `ER Ineligible PU${OBL} ${name} - ${UserID} - ${dt}` },
-        'Claim of payment to agency': { filename: `Claim of payment to agency${OBL} ${name} - ${UserID} - ${dt}` }, // Duplicate?
-        'Request for photo evidence': { filename: `Request for photo evidence${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible Incorrect company applying': { filename: `Ineligible Incorrect company applying${OBL} ${name} - ${UserID} - ${dt}` },
-        'Spec Circ No Grounds': { filename: `Spec Circ No Grounds${OBL} ${name} - ${UserID} - ${dt}` }, // Duplicate?
-        'Spec Circ Report Required': { filename: `Spec Circ Report Required${OBL} ${name} - ${UserID} - ${dt}` },
-        'Unauthorised 3rd party applying': { filename: `Unauthorised 3rd party applying${OBL} ${name} - ${UserID} - ${dt}` },
-        'Ineligible Incorrect person applying': { filename: `Ineligible Incorrect person applying${OBL} ${name} - ${UserID} - ${dt}` },
-        'Spec Circ App Required': { filename: `Spec Circ App Required${OBL} ${name} - ${UserID} - ${dt}` },
-        'Spec Circ Report Insufficient': { filename: `Spec Circ Report Insufficient${OBL} ${name} - ${UserID} - ${dt}` },
-        'SC 3P Lawyer - Report Insufficient': { filename: `SC 3P Lawyer - Report Insufficient${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Application Incomplete': { filename: `ER Application Incomplete${OBL} ${name} - ${UserID} - ${dt}` },
-        'SC 3P Lawyer - Report Required': { filename: `SC 3P Lawyer - Report Required${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Confirm/FW Grant - Active 7DN': { filename: `ER Confirm/FW Grant - Active 7DN${OBL} ${name} - ${UserID} - ${dt}` },
-        'ER Confirm/FW Grant - 7DN Expired option': { filename: `ER Confirm/FW Grant - 7DN Expired option${OBL} ${name} - ${UserID} - ${dt}` },
-        // Add any missing letter types referenced elsewhere
-        'Agency Enforcement Cancelled Updated': { filename: `${enforcename} - Cancelled Updated${OBL} ${name} - ${UserID} - ${dt}` }, // Example
-    };
 
-    return types;
-}
+const mergeById =
+    <
+        T extends Record<L, unknown>,
+        U extends Record<K, unknown>,
+        K extends PropertyKey,
+        L extends PropertyKey,
+    >({
+        baseArray,
+        matchArray,
+        baseArrayKey,
+        matchArrayKey
+    }:
+        {
+            baseArray: T[],
+            matchArray: U[],
+            baseArrayKey: L,
+            matchArrayKey: K
+        }) =>
+        baseArray.map(itm => ({
+            ...matchArray.find((item) => (item[matchArrayKey] === itm[baseArrayKey] as PropertyKey)),
+            ...itm
+        }));
 
-// Generic types T and U, K is key property name
-function mergeById<
-    // IDType: The type of the property used for matching (e.g., string, number)
-    IDType extends PropertyKey, // PropertyKey is string | number | symbol
-    K extends PropertyKey,      // Type of the key in T
-    L extends PropertyKey,      // Type of the key in U
-    // T may have an optional property K of type IDType
-    T extends { [P in K]?: IDType },
-    // U must have a property L of type IDType
-    U extends Record<L, IDType>
->(
-    a1: T[],
-    a2: U[],
-    property1: K,
-    property2: L
-    // The return type implies all items from a1 are returned,
-    // potentially merged with properties from a matching U item.
-    // Using Partial<U> because a match isn't guaranteed for every T.
-): (T & Partial<U>)[] {
-
-    // Create a Map for efficient lookups based on property2 values from a2
-    const mapU = new Map<IDType, U>();
-    for (const item of a2) {
-        // Ensure item has the property before setting
-        if (Object.prototype.hasOwnProperty.call(item, property2)) {
-            mapU.set(item[property2], item);
-        }
-    }
-
-    return a1.map(itm => {
-        // Look up the corresponding item from a2 using the map
-        // Skip undefined properties
-        const propValue = itm[property1];
-        if (propValue === undefined) {
-            return itm as T & Partial<U>;
-        }
-        const matchingItem = mapU.get(propValue as IDType);
-
-        // Spread itm first, then add/override with properties from matchingItem if it exists.
-        // If matchingItem is undefined, spreading it results in no added properties.
-        // The type assertion `{} as U` is no longer needed due to Partial<U> return type.
-        return { ...itm, ...(matchingItem ?? {}) };
-    });
-}
-
-function toTitleCase(str: string): string {
+function toTitleCase(str: string | undefined): string {
     if (!str) return "";
     return str.replace(
         /\w\S*/g,
@@ -897,20 +892,6 @@ function toTitleCase(str: string): string {
 function toTitleCaseHypen(str: string): string {
     if (!str) return "";
     return str.toLowerCase().replace(/(?:^|\s|\/|-)\w/g, (match) => match.toUpperCase());
-}
-
-// Specify return type more accurately if known (e.g., string | number | undefined)
-function getData(sKey: keyof ChromeStorageData): Promise<any> {
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get(sKey, (items: Partial<ChromeStorageData>) => {
-            if (chrome.runtime.lastError) {
-                console.error(chrome.runtime.lastError.message);
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve(items[sKey]);
-            }
-        });
-    });
 }
 
 // --- HTML Table Parsing Utilities ---
@@ -949,25 +930,54 @@ export function parseTable(table: HTMLTableElement | null): ParsedTableRow[] {
     return Array.from(table.tBodies[0].rows).map(mapRow(headings));
 }
 
+/**
+ * Groups an array of objects by the value of a specified property.
+ * @template T The type of objects in the array.
+ * @template K The key of T to group by.
+ * @param arr The array of objects to group.
+ * @param property The property key (must be a key of T) to group by.
+ * @returns A Record where keys are the string representations of the property values
+ *          and values are arrays of objects belonging to that group.
+ */
+export function groupByObject<T, K extends keyof T>(arr: T[], property: K) {
+    // Use Record<string, T[]> as the accumulator type
+    return arr.reduce((memo: Record<string, T[]>, currentItem) => {
+        // Get the value of the property for the current item
+        const groupValue = currentItem[property];
 
-function convertArrayToObject<T extends Record<string, any>>(array: T[], key: keyof T): Record<string, T> {
-    const initialValue: Record<string, T> = {};
-    return array.reduce((obj, item) => {
-        const keyValue = String(item[key]); // Ensure key is a string
-        obj[keyValue] = item;
-        return obj;
-    }, initialValue);
+        // Convert the group value to a string to use as the object key.
+        // Handles null/undefined by grouping them under the key "undefined".
+        // Adjust this logic if you need different handling (e.g., separate "null" key).
+        const key = String(groupValue ?? "undefined");
+
+        // If this group key doesn't exist in the memo object yet, initialize it with an empty array
+        if (!memo[key]) {
+            memo[key] = [];
+        }
+
+        // Push the current item into the array for its group
+        memo[key].push(currentItem);
+
+        // Return the updated memo object for the next iteration
+        return memo;
+    }, {}); // Start with an empty object as the initial value for the accumulator
 }
 
 
-function groupBy(arr: any[], property: string) {
-    return arr.reduce(function (memo, x) {
-        console.log()
-        if (!memo.some((item: { [x: string]: any; }) => item[property] === x[property])) { memo.push({ [property]: x[property], a: [] }) }
-        memo.map((itm: { [x: string]: any; a: any[]; }) => itm[property] === x[property] && itm.a.push(x))
+export function groupByArray<O extends object, K extends keyof O>(arr: O[], property: K) {
+    return arr.reduce<(Record<K, O[K]> & Record<"a", O[]>)[]>(function (memo, x) {
+        if (!memo.some(item => item[property] === x[property])) { memo.push({ [property]: x[property], a: [] } as unknown as (Record<K, O[K]> & Record<"a" | K, O[]>)) }
+        memo.map(itm => itm[property] === x[property] && itm.a.push(x))
         return memo;
     }, []);
 }
+
+const objectA = { foo: 'foo' };
+const objectB = { bar: 'bar' };
+
+const merged = { ...objectA, ...objectB };
+
+merged['foo'] = 'newFoo'; // This will overwrite the value of 'foo' in the merged object
 
 function formatMoney(amount: number | string | null | undefined, decimalCount: number = 2, decimal: string = ".", thousands: string = ","): string {
     try {
@@ -990,4 +1000,89 @@ function formatMoney(amount: number | string | null | undefined, decimalCount: n
         console.error("Error formatting money:", e);
         return String(amount ?? ''); // Return original string or empty on error
     }
+}
+
+/**
+ * Creates a function that retrieves trimmed element values/content by ID
+ * from a specific document.
+ *
+ * @param doc The Document object to search within.
+ * @returns A function that accepts an element ID and returns its trimmed value/content.
+ */
+function createElementValueGetterById(doc: Document): (id: string) => string {
+    /**
+     * Selects an element by ID from the pre-configured document,
+     * retrieves its value or text content, checks for null/undefined, and trims it.
+     * Throws an error if the element is not found or its value/content is null/undefined.
+     *
+     * @param id The ID of the element (without the leading '#').
+     * @returns The trimmed string value or text content of the element.
+     * @throws Error if the element is not found or its value/content is null or undefined.
+     */
+    return function getTrimmedValueById(id: string): string {
+        // Construct the CSS selector
+        const selector = `#${id}`;
+
+        // Query for the element within the captured 'doc'
+        const element = doc.querySelector<HTMLElement>(selector); // Use HTMLElement as a base type
+
+        // Check if the element exists
+        if (!element) {
+            throw new Error(`Element with ID "${id}" not found in the document.`);
+        }
+
+        let content: string | null | undefined;
+
+        // Check if it's an element type that typically uses .value
+        if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+            content = element.value;
+        } else {
+            // Otherwise, use textContent
+            content = element.textContent;
+        }
+
+        // Check if the retrieved content is null or undefined
+        if (content === null || content === undefined) {
+            // Provide a more specific error message based on what was attempted
+            const attemptedProperty = (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) ? 'value' : 'textContent';
+            throw new Error(`Element with ID "${id}" found, but its ${attemptedProperty} is null or undefined.`);
+        }
+
+        // Trim and return the content
+        return content.trim();
+    };
+}
+
+
+const convertArrayToObject = <T extends keyof A, A extends Record<string, string>>(array: A[], key: T) => {
+    const initialValue: Record<string, A> = {};
+    return array.reduce((obj, item) => {
+        return {
+            ...obj,
+            [item[key]]: item,
+        };
+    }, initialValue);
+};
+
+/**
+ * Substitutes values into a template string.
+ * @param {string} template 
+ * @param {Object} values 
+ * @returns {string} 
+ */
+type NestedObject = {
+    [key: string]: string | number | boolean | NestedObject;
+};
+
+function templateSubstitution<T extends NestedObject>(template: string, values: T): string {
+    return template.replace(/\${([^{}]*)}/g, (match, expression: string) => {
+        const value = expression.split('.').reduce<unknown>((obj, key) => {
+            if (obj && typeof obj === 'object' && key in obj) {
+                return (obj as Record<string, unknown>)[key];
+            }
+            return undefined;
+        }, values);
+
+        return value !== undefined ? String(value) : match;
+    });
 }

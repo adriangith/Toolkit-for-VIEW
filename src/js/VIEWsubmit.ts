@@ -1,15 +1,19 @@
-declare function runFetchInContentScript(url?: string | URL, options?: RequestInit): Promise<Document>;
+import { Properties, groupByObject, processConfig, letterGen } from "./letter-logic"
+import { Message } from "./obligations"
+
+
+// --- Type Definitions ---
 
 // Type for the object created from FormData
 type FormDataObject = Record<string, FormDataEntryValue>; // FormDataEntryValue is string | File
 
 // Interface for individual submission steps
 interface SubmitInstruction {
-  url?: string | ((doc?: Document, set?: any, props?: Properties) => string | Promise<string>);
-  group?: string; // Used by groupBy
-  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD"; // Common HTTP methods
+  url: string; // URL to fetch
+  group?: string | "Ungrouped"; // Used by groupBy function. Default: "Ungrouped"
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD"; // Default: "POST"
   body?: boolean; // Default: true, whether to include body
-  urlParams?: Record<string, any> | ((doc?: Document, set?: any, props?: Properties) => Record<string, any> | Promise<Record<string, any>>);
+  urlParams?: Record<string, string> | ((doc?: Document, set?: string, props?: Properties) => Record<string, string> | Promise<Record<string, string>>);
   formDataTarget?: number; // Index in previousFormData to use
   clearWizardFormData?: boolean; // Flag to clear current page's form data
   clearVIEWFormData?: boolean; // Flag to clear accumulated form data
@@ -22,59 +26,52 @@ interface SubmitInstruction {
 
 // Type for dynamic grouping parameters
 // The value can be a function returning an array of parameters, or just an array.
-// Using 'any' for the array elements as structure isn't defined here.
-type GroupedRepeats = Record<string, ((props?: Properties) => any[]) | any[]>;
+type GroupedRepeat = Record<string, (props?: Properties) => Record<string, string>[]>;
 
 // Interface for the main configuration object
-export interface DataParams {
-  submit: SubmitInstruction[]; // Array of submission steps
+export interface ScraperSteps {
+  steps: SubmitInstruction[]; // Array of submission steps - Changed from 'submit' to 'steps'
   action?: (doc?: Document) => void; // Initial action
-  groupRepeats?: GroupedRepeats; // Dynamic parameters for groups
+  groupRepeats?: GroupedRepeat; // Dynamic parameters for groups
   afterAction?: (doc?: Document, props?: Properties) => void; // Action after all loops complete
   next?: boolean; // Final return flag for the entire function
 }
 
-// Interface for the properties object passed around
-interface Properties {
-  portDisconnected?: boolean;
-  // Add other known properties here
-  [key: string]: any; // Allow other arbitrary properties
+// Interface for parameters passed to the main VIEWsubmit function
+export type VIEWsubmitParams = {
+  properties: Properties;
+  scraperStepsOption: 'ObligationSummaryScraperRuleSet'; // Or other keys from processRuleSet
+  incrementor?: number; // Optional incrementor (usage depends on context)
+  additionalData?: string; // Optional additional data string
+  initialParsedDocument?: Document; // Optional starting document
 }
+
+
+// --- Constants and Stub Functions ---
+
+const processRuleSet = {
+  'ObligationSummaryScraperRuleSet': letterGen
+}
+
+// Stub function for development/testing
+function runFetchInContentScript(url: string, options: RequestInit): Promise<Response> {
+  console.warn('Using stub implementation of runFetchInContentScript');
+  // Just use regular fetch for now, will be replaced with actual implementation later
+  return fetch(url, options);
+}
+
+// Export the stub function
+export { runFetchInContentScript };
 
 // --- Helper Functions ---
-
-/**
- * Groups an array of objects by a specified property.
- * Items without the property or where the property is undefined are placed in "Ungrouped".
- * @template T - The type of objects in the array.
- * @param {T[]} arr - The array to group.
- * @param {string} property - The name of the property to group by.
- * @returns {Record<string, T[]>} - An object where keys are property values and values are arrays of matching objects.
- */
-function groupBy<T extends Record<string, any>>(arr: T[], property: string): Record<string, T[]> {
-  return arr.reduce((memo: Record<string, T[]>, x: T) => {
-    let key = x[property];
-    // Assign to 'Ungrouped' if the property doesn't exist or is undefined
-    if (key === undefined || key === null) {
-      key = "Ungrouped";
-    } else {
-      key = String(key); // Ensure key is a string
-    }
-
-    if (!memo[key]) {
-      memo[key] = [];
-    }
-    memo[key].push(x);
-    return memo;
-  }, {});
-}
 
 /**
  * Extracts form data from the first <form> element found in a Document.
  * @param {Document} targetDocument - The Document to search for a form.
  * @returns {Promise<FormDataObject>} - A promise resolving to an object containing the form data.
  */
-async function getFormData(targetDocument: Document): Promise<FormDataObject> {
+async function getFormData(targetDocument: Document | undefined): Promise<FormDataObject> {
+  if (!(targetDocument instanceof Document)) return {};
   // Find the first form element, or create a dummy one if none exists to avoid errors with FormData constructor
   const formElement = targetDocument.querySelector<HTMLFormElement>("form") ?? document.createElement('form');
   const formData = new FormData(formElement);
@@ -138,179 +135,116 @@ async function parsePage(vDocument: Response, url: string, fetchOptions: Request
  * @param data - (Currently unused in snippet) Additional data. Type 'any' for flexibility.
  * @param incrementor - (Currently unused in snippet) Function or object for incrementing. Type 'any'.
  * @param initialParsedDocument - The parsed Document from a *previous* step, if applicable.
- * @param dataParams - Configuration object defining the submission steps and logic.
+ * @param ScraperSteps - Configuration object defining the submission steps and logic.
  * @param [properties={}] - Optional object containing state or configuration flags.
  * @returns {Promise<Document | boolean>} - Resolves to the final parsed Document, or a boolean based on 'next' flags.
  * @throws {string | Error} - Throws if properties.portDisconnected is true.
  */
-async function VIEWsubmit(
-  data: any, // Unused in snippet, keep as any or specify if known
-  incrementor: any, // Unused in snippet, keep as any or specify if known
-  initialParsedDocument: Document | undefined,
-  dataParams: DataParams,
-  properties: Properties = {}
-): Promise<Document | boolean> {
 
-  let currentFormData: FormDataObject = {}; // Form data accumulated/used in the current step
-  const previousFormData: FormDataObject[] = []; // History of formData objects
+
+
+chrome.runtime.onMessage.addListener((msg: Message<VIEWsubmitParams>, sender, sendResponse) => {
+  if (msg.type !== "VIEWsubmit") return;
+  const VIEWSubmitParams = msg.data;
+  VIEWsubmit(VIEWSubmitParams).then((res) => {
+    sendResponse({
+      message: JSON.stringify(res),
+    });
+  })
+    .catch((err) => {
+      sendResponse(
+        {
+          message: JSON.stringify(err, Object.getOwnPropertyNames(err)),
+        }
+      );
+      throw err;
+    });
+  return true;
+});
+
+async function VIEWsubmit({
+  properties,
+  scraperStepsOption,
+  initialParsedDocument
+}: VIEWsubmitParams): Promise<Document | boolean> {
+
+  const formDataCollection: FormDataObject[] = []; // History of formData objects
   let lastParsedDocument: Document | undefined = initialParsedDocument;
 
-  // Get initial form data from the previous step's document, if provided
-  if (lastParsedDocument) {
-    currentFormData = await getFormData(lastParsedDocument);
-  };
-
-  // Execute initial action, if defined
-  dataParams.action?.(lastParsedDocument);
+  const scraperSteps: processConfig = processRuleSet[scraperStepsOption](properties)
 
   // Group submission instructions
-  const groups = groupBy<SubmitInstruction>(dataParams.submit, "group"); // Explicit generic type
+  const groups = groupByObject(scraperSteps.steps, "group"); // Use the moved GroupedData type
 
-  const groupedRepeats = dataParams.groupRepeats || { Ungrouped: () => [{}] }; // Default repeat structure
+  const groupedRepeats = scraperSteps.stepGroup || { Ungrouped: () => [{}] } as GroupedRepeat; // Use the moved GroupedRepeat type
 
   // Iterate through each group of submit instructions
-  for (const [groupName, group] of Object.entries(groups)) {
-    // Determine dynamic parameters for this group, default to [{}] for one iteration
-    const groupRepeatsFnOrArray = groupedRepeats[groupName];
-    const dynamicParams: any[] = typeof groupRepeatsFnOrArray === "function"
-      ? groupRepeatsFnOrArray(properties)
-      : (Array.isArray(groupRepeatsFnOrArray) ? groupRepeatsFnOrArray : [{}]); // Ensure it's an array
+  for (const [groupName,
+    group] of Object.entries(groups)) {
+    // Resolve the parameters for this group's iterations concisely
+    const repeatDefinition = groupedRepeats[groupName];
+    const iterationReferences = typeof repeatDefinition === 'function'
+      ? (repeatDefinition(properties) || [{}]) // Call function or default
+      : (repeatDefinition || [{}]);           // Use value or default
 
-    // Iterate through dynamic parameter sets for the current group
-    for (const set of dynamicParams) {
-      // Iterate through instructions within the current group and set
+    // Iterate through the resolved parameters (now guaranteed to be an array)
+    for (const iterationReference of await iterationReferences) {
       for (const submitInstructions of group) {
-        if (properties.portDisconnected) {
-          throw new Error("Window Closed"); // Throw an Error object
-        }
+        if (properties.portDisconnected) throw "Window Closed";
+        if (submitInstructions.optional && submitInstructions.optional(initialParsedDocument, properties) === false) continue;
+        const urlParams = await (typeof submitInstructions.urlParams === "function" ? submitInstructions.urlParams({ that: initialParsedDocument, iterationReference: iterationReference, properties: properties }) : submitInstructions.urlParams);
+        //Get form data, if any, from wizard page
+        let lastFetchFormData = await getFormData(lastParsedDocument);
+        let wizardFormData = await getFormData(document);
+        formDataCollection.push(lastFetchFormData);
+        const index = submitInstructions.formDataTarget || formDataCollection.length - 1;
+        lastFetchFormData = formDataCollection[Number(index)];
+        if (submitInstructions.clearWizardFormData) { wizardFormData = {} };
+        if (submitInstructions.clearVIEWFormData) { lastFetchFormData = {} };
+        if (urlParams) { lastFetchFormData = { ...lastFetchFormData, ...urlParams, ...wizardFormData } }
+        const form_data = new FormData();
+        for (const key in lastFetchFormData) { form_data.append(key, lastFetchFormData[key]); }
 
-        // Check if this instruction step is optional and should be skipped
-        if (submitInstructions.optional?.(lastParsedDocument, properties) === false) {
-          continue; // Skip this instruction
-        }
-
-        // Calculate URL parameters, handling sync/async functions or static objects
-        let urlParamsResult = typeof submitInstructions.urlParams === "function"
-          ? submitInstructions.urlParams(lastParsedDocument, set, properties)
-          : submitInstructions.urlParams;
-        // Await if the result is a Promise, otherwise use directly
-        const resolvedUrlParams: Record<string, any> | undefined = await urlParamsResult;
-
-        // Get form data from the *current* wizard page (the live document)
-        let wizardPageFormData = await getFormData(document); // Use global 'document'
-
-        // Store the current state of formData before potentially modifying it
-        previousFormData.push(currentFormData);
-
-        // Determine which previous formData state to use as the base (default: last one)
-        const index = submitInstructions.formDataTarget ?? previousFormData.length - 1;
-        if (index >= 0 && index < previousFormData.length) {
-          currentFormData = previousFormData[index];
-        } else {
-          console.warn(`formDataTarget index ${index} out of bounds. Using last available form data.`);
-          currentFormData = previousFormData[previousFormData.length - 1] || {};
-        }
-
-
-        // Optionally clear form data based on flags
-        if (submitInstructions.clearWizardFormData) {
-          wizardPageFormData = {};
-        }
-        if (submitInstructions.clearVIEWFormData) {
-          currentFormData = {};
-        }
-
-        // Merge form data: base + URL params + current wizard page data
-        // Ensure resolvedUrlParams is an object before spreading
-        const mergedFormData = {
-          ...currentFormData,
-          ...(resolvedUrlParams && typeof resolvedUrlParams === 'object' ? resolvedUrlParams : {}),
-          ...wizardPageFormData
-        };
-
-        // Create FormData for the fetch request body
-        const fetchFormData = new FormData();
-        for (const key in mergedFormData) {
-          // FormData can handle string or Blob/File. Ensure value is not object/array.
-          if (Object.prototype.hasOwnProperty.call(mergedFormData, key) && typeof mergedFormData[key] !== 'object') {
-            fetchFormData.append(key, mergedFormData[key]);
-          } else if (mergedFormData[key] instanceof File || mergedFormData[key] instanceof Blob) {
-            fetchFormData.append(key, mergedFormData[key]);
-          }
-          // Note: Complex objects/arrays are skipped here. Handle serialization if needed.
-        }
-
-        // Prepare fetch options
-        const fetchOptions: RequestInit = {
+        const fetchOptions = {
           method: submitInstructions.method || "POST",
-          headers: {
-            "x-civica-application": "CE",
-            "sec-fetch-site": "same-origin",
-            // Add other headers if necessary
-          },
-        };
-
-        if (submitInstructions.body !== false) { // Include body unless explicitly false
-          fetchOptions.body = fetchFormData;
+          headers: { "x-civica-application": "CE", "sec-fetch-site": "same-origin" },
+          body: submitInstructions.body ? form_data : undefined
         }
-
-        // Determine the fetch URL, handling sync/async functions
-        let urlResult = typeof submitInstructions.url === 'function'
-          ? submitInstructions.url(lastParsedDocument, set, properties)
-          : submitInstructions.url;
-        const targetUrl: string | undefined = await urlResult; // Await if it's a promise
-
-
+        let vDocument
+        if (!submitInstructions.url) {
+          throw "No URL provided for submission";
+        }
         console.log("-------------------------");
-        console.log(`Workspaceing: ${targetUrl} with method ${fetchOptions.method}`);
-        // Perform the fetch operation
-        let fetchResponse: Response | Document; // Type depends on branch
-        
-        // Ensure targetUrl is defined before proceeding
-        if (!targetUrl) {
-          throw new Error("Target URL is undefined for fetch operation");
-        }
-        
+        console.log("Fetching:", submitInstructions.url);
         if (submitInstructions.sameorigin) {
-          // Assumes runFetchInContentScript directly returns a parsed Document
-          fetchResponse = await runFetchInContentScript(targetUrl, fetchOptions);
-          lastParsedDocument = fetchResponse; // Update lastParsedDocument directly
+          vDocument = await fetch(submitInstructions.url, fetchOptions);
         } else {
-          fetchResponse = await fetch(targetUrl, fetchOptions);
-          const attempts = submitInstructions.attempts || 3; // Use specified attempts or default
-          // Parse the response (handles retries internally if needed)
-          lastParsedDocument = await parsePage(fetchResponse, targetUrl, fetchOptions);
+          vDocument = await fetch(submitInstructions.url, fetchOptions);
+          lastParsedDocument = await parsePage(vDocument, submitInstructions.url, fetchOptions);
+          wizardFormData = await getFormData(lastParsedDocument);
         }
-
-
-        // Update formData based on the *newly* parsed document for the next iteration/step
-        currentFormData = await getFormData(lastParsedDocument);
-
-
-        // Execute post-fetch action for this instruction
-        submitInstructions.after?.(lastParsedDocument);
-
-        // Check for early return based on instruction flag
+        (function (afterAction) {
+          if (afterAction) afterAction({ document: lastParsedDocument, properties })
+        })(submitInstructions.afterAction)
         if (submitInstructions.next === true) {
-          return true;
+          return true
         }
-      } // End loop: submitInstructions
-    } // End loop: set (dynamicParams)
-  } // End loop: groupName (groups)
-
-  // Execute final action after all groups/steps are processed
-  dataParams.afterAction?.(lastParsedDocument, properties);
-
-  // Final return based on dataParams flag
-  if (dataParams.next === true) {
-    return true;
+      }
+    }
   }
-  if (dataParams.next === false) {
-    return false;
+  await (async function (afterAction) {
+    if (afterAction) await afterAction({ document: lastParsedDocument, properties })
+  })(scraperSteps.afterAction)
+
+  if (scraperSteps.next === true) {
+    return true
+  }
+
+  if (scraperSteps.next === false) {
+    return false
   }
 
   // Default return: the last parsed document or false if undefined
   return lastParsedDocument || false;
 }
-
 export default VIEWsubmit;

@@ -1,7 +1,7 @@
 // TypeScript version of sharedUtils
 
 // Define interfaces for your data structures
-interface DebtorData {
+export interface DebtorData {
     id: string;
     thirdParty: boolean;
     contactName: string;

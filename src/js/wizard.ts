@@ -575,7 +575,7 @@ function setAttributes(el: HTMLElement, attrs: Record<string, string>): void {
   }
 }
 
-export async function runFetchInContentScript(url: string, fetchOptions?: RequestInit): Promise<any> {
+export async function runFetchInContentScript(url: string | ((doc?: Document, set?: any, props?: Properties) => string | Promise<string>), fetchOptions?: RequestInit): Promise<any> {
   const iframe = document.getElementById("CS") as HTMLIFrameElement | null;
   if (iframe) {
     return await loadAgain(iframe, url, fetchOptions);
