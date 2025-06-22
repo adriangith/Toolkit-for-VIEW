@@ -1,223 +1,15 @@
 /*eslint no-implicit-coercion: ["error", { "disallowTemplateShorthand": true }]*/
-import { emailMaker, getDates } from "./emailmaker";
-import { VIEWObligationListHeadings, Message, ChromeStorage } from "./obligations";
+import { getDates } from "./emailmaker";
+import { ChromeStorageData, letterDataProps, Message, paramArrayObject, ParsedTableRow, ProcessConfig, Properties, Template } from "./types";
 // Assuming makeLetter takes data, template buffer, and filename
 import { DebtorData } from './sharedUtils'; // Adjust import path as needed
 import { initialiseWorkbookProcesser } from './xlsxConverter'; // Adjust import path as needed
 import { saveAs } from 'file-saver';
 
-
 const workbook = initialiseWorkbookProcesser("https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1")
 
-// --- Interfaces and Type Definitions ---
-
-export interface ObligationRowData {
-    "Obligation"?: string;
-    "Balance_Outstanding"?: string;
-    "Infringement"?: string;
-    "OffenceDate"?: string;
-    "IssueDate"?: string;
-    "altname"?: string; // Agency Code/Name
-    "NoticeStatus"?: string;
-    "ProgressionDate"?: string;
-    "NFDlapsed"?: boolean;
-    "Challenge"?: string; // Added from reviewTableData
-}
-
-
-/**
- * Associates an obligation with its corresponding agency name.
- */
-interface AgencyInfo {
-    key: string; // Notice Number
-    value: string; // Agency Name
-}
-
-interface AddressInfo {
-    Address_1: string;
-    Town: string;
-    State: string;
-    Post_Code?: string;
-}
-
-interface TemplateMeta {
-    kind: 'Agency' | 'Debtor';
-    letter: string; // Letter name, e.g., 'Agency Enforcement Cancelled'
-    template: Promise<string | ArrayBuffer | null | void>; // Promise resolving to the template binary data
-}
-
-export type VIEWObligationRow = {
-    [key in typeof VIEWObligationListHeadings[number]]: string
-}
-
-export type letterDataProps = {
-    First_Name: string;
-    Last_Name: string;
-    Company_Name: string | undefined;
-    Is_Company: boolean | undefined;
-    Address_1: string;
-    Town: string;
-    Town2: string;
-    State: string;
-    Post_Code: string | undefined;
-    Debtor_ID: string | undefined;
-    Challenge: string | undefined;
-    UserID: string;
-    OnlyNFDLapsed: boolean;
-    kind?: 'Agency' | 'Debtor';
-    enforcename?: string; // Agency Code/Name
-    selectedObValue?: string; // Selected obligation value
-    todayplus14?: string; // Date 14 days from now
-    todayplus21?: string; // Date 21 days from now
-    todayplus28?: string; // Date 14 days from now
-    MOU?: boolean; // Assuming this comes from merged agency data
-    today: string;
-    emailTo: string;
-    EmailAddress: undefined;
-    AgencyEmail: string;
-    tParty?: boolean; // Assuming this comes from merged agency data
-    legalCentre?: boolean; // Assuming this comes from merged agency data
-    applicantName?: string; // Assuming this comes from merged agency data
-    appOrganisation?: string; // Assuming this comes from merged agency data
-    appStreet?: string; // Assuming this comes from merged agency data
-    appTown?: string; // Assuming this comes from merged agency data
-    appState?: string; // Assuming this comes from merged agency data
-    appPost?: string; // Assuming this comes from merged agency data
-    recipient?: '3rd Party' | 'Debtor' | 'Alt 3rd Party' | 'Unknown'; // Assuming this comes from merged agency data
-    altApplicantName?: string; // Assuming this comes from merged agency data
-    altAppOrganisation?: string; // Assuming this comes from merged agency data
-    altAppStreet?: string; // Assuming this comes from merged agency data
-    altAppTown?: string; // Assuming this comes from merged agency data
-    altAppState?: string; // Assuming this comes from merged agency data
-    altAppPost?: string; // Assuming this comes from merged agency data
-    Person_unaware_1?: string; // Assuming this comes from merged agency data
-    Person_unaware_2?: string; // Assuming this comes from merged agency data
-    ECCV?: string; // Assuming this comes from merged agency data
-    No_Grounds?: string; // Assuming this comes from merged agency data
-    name?: string; // Assuming this comes from merged agency data
-} & (Record<'altname', string | undefined> & Record<"a", ObligationRowData[]>)
-
-export type Properties = {
-    VIEWObligationData: VIEWObligationRow[];
-    obligationRows?: ObligationRowData[]
-    VIEWEnvironment: string; // e.g., "finesvictoria"
-    IncludesAgencyCorrespondence: boolean; // Flag indicating if agency letters are needed
-    letters?: string[]; // Array of letter names, e.g., ['Enforcement Confirmed']
-    RequiresExtendedAttributes: boolean; // Flag for extended processing?
-    SharePoint: boolean; // Flag to load templates from SharePoint
-    // Properties added during processing
-    agencies?: AgencyInfo[];
-    obligationsCountFixed?: number;
-    obligationsCount?: number;
-    agenciesList?: Record<string, string>[]; // Promise for agency address list fetch
-    reviewList?: Promise<Response> | string | Response; // Changed Array<string> to string based on usage
-    templates?: Promise<TemplateMeta>[] | TemplateMeta[];
-    DebtorId?: string;
-    lastName?: string;
-    firstName?: string;
-    companyName?: string;
-    Is_Company?: boolean;
-    Address?: AddressInfo;
-    challengeType?: string; // Added from getDefaultChallenge group
-    letterData?: Partial<letterDataProps>[]; // Array of data objects for makeLetter
-    // Added properties based on usage in getAppData and letterTypes
-    tParty?: boolean;
-    legalCentre?: boolean;
-    applicantName?: string;
-    appOrganisation?: string;
-    appStreet?: string;
-    appTown?: string;
-    appState?: string;
-    appPost?: string;
-    recipient?: '3rd Party' | 'Debtor' | 'Alt 3rd Party' | 'Unknown';
-    altApplicantName?: string;
-    altAppOrganisation?: string;
-    altAppStreet?: string;
-    altAppTown?: string;
-    altAppState?: string;
-    altAppPost?: string;
-    OnlyNFDLapsed?: boolean;
-    UserID?: string;
-    selectedObValue?: string;
-    MOU?: boolean; // Assuming this comes from merged agency data
-    AgencyEmail?: string; // Assuming this comes from merged agency data
-    enforcename?: string; // Assuming this comes from merged agency data
-    portDisconnected?: boolean; // Assuming this comes from merged agency data
-}
-
-
-
-
-// Type for parsed table data (flexible key-value pairs)
-type ParsedTableRow = Record<string, string>;
-
-
-// Type for Chrome storage local data
-interface ChromeStorageData {
-    obligationsCount?: number;
-    obligationsCountFixed?: number;
-    value?: Record<string, unknown[]>; // Structure from getAppData
-    userName?: string;
-}
-
-// Type definition for the parameters passed to the afterAction function
-type AfterActionParams = {
-    document?: Document | null; // Make document optional as it might not always be present
-    properties?: Properties;
-};
-
-
-/**
- * By default a step must navigate to a new URL (via the step's url property). An optional afterAction function will be called after the URL is loaded.
- * The afterAction function can be used to perform additional actions after the URL is loaded, such as parsing the document or updating properties.
- * @param params - The parameters passed to the function, including the document and properties
- * @returns A Promise or void, depending on the implementation of the function.
-*/
-type afterAction = (params: AfterActionParams) => Promise<void> | void;
-
-export type urlParamsType = ({ that, iterationReference, properties }: { that?: Document, iterationReference?: paramArrayObject, properties?: Properties }) => Record<string, string> | void | Promise<Record<string, string>> | Promise<void>;
-
-// Type definition for a single step in the process configuration
-type step = {
-    url?: string
-    urlParams?: urlParamsType;
-    afterAction?: afterAction;
-    group?: string; // Identifier for stepGroup
-    clearVIEWFormData?: boolean;
-    optional?: (initialParsedDocument?: Document, properties?: Properties) => boolean; // Optional property to indicate if the step is optional
-    formDataTarget?: string; // Target for form data
-    clearWizardFormData?: boolean; // Flag to clear form data
-    method?: string; // HTTP method (GET, POST, etc.)
-    body?: string; // Request body for POST requests
-    sameorigin?: boolean; // Flag for same-origin policy
-    next?: boolean
-};
-
-type stepGroup = {
-    [key: string]: (properties: Properties) => paramArrayObject[] | Promise<paramArrayObject[]>; // Function returning an array of paramArrayObject
-};
-
-
-/**
- * A process has three main components:
- * @property stepGroup - Defines named groups. Steps associated with a group will be repeated for each item returned by the group function.
- * @property steps - Defines the steps to be executed in the process.
- * @property afterAction - A function to be executed after all steps are completed.
- */
-export type processConfig = {
-    stepGroup: stepGroup;
-    steps: step[];
-    afterAction: afterAction; // Use the defined afterAction type
-    next?: boolean; // Optional property to indicate if the process should continue to the next step
-};
-
-type paramArrayObject = {
-    txtNoticeNo?: string;
-}
-
-
 // --- Letter Generation Configuration ---
-export function letterGen(properties: Properties): processConfig {
+export function letterGen(properties: Properties): ProcessConfig {
     return {
         stepGroup: {
             obligationsGroup: () => {
@@ -255,7 +47,7 @@ export function letterGen(properties: Properties): processConfig {
                 }
             },
             getUserId: async () => {
-                const userId = await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'getStorage', data: { key: "UserId" } });
+                const userId = await chrome.runtime.sendMessage<Message>({ type: 'getStorage', data: { key: "UserId" } });
                 if (!userId) {
                     return [{}] as paramArrayObject[]; // Return empty array if UserId is not available
                 }
@@ -280,12 +72,11 @@ export function letterGen(properties: Properties): processConfig {
                 url: `https://${properties.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorAddresses.aspx`,
                 urlParams: async ({ properties }): Promise<void> => {
                     // Ensure chrome storage types are correct
-                    chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCount", value: 10 } });
-                    chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCountFixed", value: 10 } });
+                    chrome.runtime.sendMessage<Message>({ type: 'setStorage', data: { key: "obligationsCount", value: 10 } });
+                    chrome.runtime.sendMessage<Message>({ type: 'setStorage', data: { key: "obligationsCountFixed", value: 10 } });
                     if (!properties) {
                         throw new Error("Properties are undefined.");
                     }
-                    // Assuming fetchRetryTimeout matches the inferred type
                     properties.agenciesList = await (await workbook).fetchAndConvertXlsxToJson({
                         Sheet: "Agencies"
                     })
@@ -295,13 +86,27 @@ export function letterGen(properties: Properties): processConfig {
                         throw new Error(`Letters are undefined.`);
                     }
 
-                    properties.templates = properties.letters.map(async (letter): Promise<TemplateMeta> => {
-                        const letterURL = await (await workbook).fetchAndConvertXlsxToJson({
+                    /** Get templates and associated metadata */
+                    properties.templates = properties.letters.map(async (letter): Promise<Template> => {
+
+                        const getColumnData = (await workbook).fetchAndConvertXlsxToJson
+
+                        const templateURL = await getColumnData({
                             Sheet: "Templates",
                             Column: "Link"
                         })
-                        const urlKey = letter as keyof typeof letterURL; // Type assertion
-                        const downloadCode = letterURL[urlKey];
+
+                        const templateKind = await getColumnData<Record<string, Template["kind"]>, "Recipient">({
+                            Sheet: "Templates",
+                            Column: "Recipient"
+                        })
+
+                        const templateKindValue = Object.values(templateKind)[0];
+
+                        const urlKey = letter as keyof typeof templateURL; // Type assertion
+
+                        const downloadCode = templateURL[urlKey];
+
                         if (!downloadCode) {
                             console.error(`No URL found for letter type: ${letter}`);
                             // Handle error appropriately - maybe return a dummy template promise?
@@ -309,15 +114,9 @@ export function letterGen(properties: Properties): processConfig {
                         }
                         // if (downloadCode.includes("https://")) {
 
-                        console.log('downloadcode', downloadCode)
                         const letterTemplateURL = `https://vicgov.sharepoint.com/:w:/s/VG002447/${downloadCode}?download=1`;
                         return {
-                            "kind": letter === 'Agency Enforcement Cancelled' ||
-                                letter === 'Agency Fee Removal' ||
-                                letter === 'FVS Eligible Agency' ||
-                                letter === 'Agency FR Granted' ||
-                                letter === 'Agency Enforcement Cancelled Updated' ||
-                                letter === "Notice of Deregistration" ? 'Agency' : 'Debtor',
+                            "kind": templateKindValue,
                             "letter": letter,
                             "template": loadLetter(letterTemplateURL, letter)
                         };
@@ -431,7 +230,7 @@ export function letterGen(properties: Properties): processConfig {
                         throw new Error("Document is undefined.");
                     }
                     const UserId = createElementValueGetterById(document)("ctl00_mainContentPlaceHolder_taskListOwnerLabel");
-                    chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "UserId", value: UserId } });
+                    chrome.runtime.sendMessage<Message>({ type: 'setStorage', data: { key: "UserId", value: UserId } });
                 },
                 clearVIEWFormData: true
             }
@@ -507,7 +306,7 @@ export function letterGen(properties: Properties): processConfig {
             })
 
             //check if getData('userName') is a string after resolving. If it is not a string throw error:
-            const userName = await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'getStorage', data: { key: "userName" } }).then((res) => res.value);
+            const userName = await chrome.runtime.sendMessage<Message>({ type: 'getStorage', data: { key: "userName" } }).then((res) => res.value);
 
             if (typeof userName !== 'string') {
                 throw new Error("User name is not a string");
@@ -583,8 +382,8 @@ export function letterGen(properties: Properties): processConfig {
                 properties.letterData.push({ ...letterData, a: properties.obligationRows, kind: "Debtor" })
             }
 
-            await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCount", value: 0 } });
-            await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'setStorage', data: { key: "obligationsCountFixed", value: 10 } });
+            await chrome.runtime.sendMessage<Message>({ type: 'setStorage', data: { key: "obligationsCount", value: 0 } });
+            await chrome.runtime.sendMessage<Message>({ type: 'setStorage', data: { key: "obligationsCountFixed", value: 10 } });
             if (!properties.letterData) {
                 throw new Error("Letter data is undefined");
             }
@@ -738,7 +537,7 @@ export function letterGen(properties: Properties): processConfig {
 
 function getAppData(data: Partial<letterDataProps>): Promise<Record<string, string[]>> {
     return new Promise((resolve) => {
-        return chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'getStorage', data: { key: "value" } })
+        return chrome.runtime.sendMessage<Message>({ type: 'getStorage', data: { key: "value" } })
             .then((items) => {
                 let applicationData: DebtorData[] = [];
                 // Check if items.value is actually an array before assigning it
@@ -809,7 +608,7 @@ function getAppData(data: Partial<letterDataProps>): Promise<Record<string, stri
 }
 
 
-async function loadLetter(url: string, letterName: string): Promise<string | ArrayBuffer | null> {
+async function loadLetter(url: string, letterName: string): Promise<string | null> {
     return fetch(url)
         .then((response) => {
             if (!response.ok) {
@@ -824,7 +623,11 @@ async function loadLetter(url: string, letterName: string): Promise<string | Arr
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = function () {
-                    resolve(reader.result);
+                    if (typeof reader.result === 'string') {
+                        resolve(reader.result);
+                    } else {
+                        reject(new Error("Expected string result from FileReader"));
+                    }
                 }
                 reader.onerror = function () {
                     reject(new Error("Failed to read blob"));

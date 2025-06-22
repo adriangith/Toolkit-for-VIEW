@@ -1,4 +1,3 @@
-//Reference: https://containers.dev/guide/dockerfile#docker-compose-image
 {
 	"name": "Toolkit-for-VIEW",
 	"remoteUser": "vscode",
@@ -22,7 +21,12 @@
 				],
 				"editor.formatOnSave": true,
 				"files.eol": "\n"
-			}
+			},
+			"extensions": [
+				"dbaeumer.vscode-eslint",
+				"ms-vscode.vscode-typescript-next",
+				"bradlc.vscode-tailwindcss"
+			]
 		}
 	},
 	"features": {

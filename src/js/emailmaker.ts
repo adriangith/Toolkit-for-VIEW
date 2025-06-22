@@ -1,5 +1,5 @@
 import marked from 'marked';
-import { letterDataProps } from './letter-logic';
+import { letterDataProps } from "./types";
 
 const templateMap = {
 	'Report Needed': 'https://trimapi.justice.vic.gov.au/record/13724486/File/document2',

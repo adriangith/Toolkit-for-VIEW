@@ -1,26 +1,25 @@
-
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { saveAs } from 'file-saver';
-import ImageModule from 'open-docxtemplater-image-module';
 import expressionParser from "docxtemplater/expressions.js";
+import { Opts } from 'docxtemplater-image-module-pwndoc';
+import ImageModule from 'docxtemplater-image-module-pwndoc';
+import { Message } from "./types";
 
 
 window.addEventListener<"message">('message', async (event) => {
-    const { data, template, letterType } = event.data
-    console.log("geh", data, template, letterType)
-    const correspondence = await makeLetter(data, template, letterType, ImageModuleInstance);
-    window.parent.postMessage({ type: letterType, correspondence }, "*");
+    const { dataSet, base64Template, correspondenceDescription } = event.data
+    const correspondence = await makeLetter(dataSet, base64Template, correspondenceDescription, ImageModuleInstance);
+    window.parent.postMessage({ type: correspondenceDescription, correspondence }, "*");
 })
 
 
-const opts = {
-    getImage: async function (tagValue, tagName) {
-        return await chrome.runtime.sendMessage<Message<ChromeStorage>>({ type: 'fetch', data: { key: "getImage" } }).then((res) => {
+const opts: Opts = {
+    getImage: async function () {
+        return await chrome.runtime.sendMessage<Message>({ type: 'fetch', data: { key: "getImage" } }).then((res) => {
             return res;
         });
     },
-    getSize: function (img, tagValue, tagName) {
+    getSize: function () {
         return [150, 150];
     }
 }
@@ -93,61 +92,23 @@ export function downloadLetter(address, properties) {
  * 
  * Currently only used for the bankruptcy letter
  */
-async function backgroundLetterMaker(letterData, properties, letterTemplateURL) {
+async function backgroundLetterMaker(letterData: Record<string, unknown>, properties, letterTemplateURL) {
     const letterTemplate = await loadLetter(letterTemplateURL)
     /* Create a letter for each of the objects in letterData */
     const letter = makeLetter(letterData, letterTemplate, properties.filename)
 }
 
-function angularParser(tag) {
-
-    if (tag === '.') {
-        return {
-            get: function (s) { return s; }
-        }
-    }
-
-    /*  if (tag.includes('%')) {
-        return {
-            'get': function (scope) { return scope[tag] }
-        }
-    }*/
-
-    const expr = expressionParser.compile(tag.replace(/(’|“|”)/g, "'"));
-
-    return {
-        get: function (s) {
-            return expr(s);
-        }
-    }
-}
-
-export async function makeLetter(content, letterTemplate, filename, imageModule) {
+export async function makeLetter(content: Record<string, unknown>, letterTemplate: string, filename: string, imageModule: ImageModule) {
     const zip = new PizZip((await letterTemplate).split(',')[1], { base64: true });
     const doc = new Docxtemplater(zip,
         {
             modules: [imageModule],
-            parser: angularParser,
+            parser: expressionParser,
         })
 
-    console.log(content)
+    // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
+    doc.render(content);
 
-
-    try {
-        // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
-        doc.render(content);
-    }
-    catch (error) {
-        const e = {
-            message: error.message,
-            name: error.name,
-            stack: error.stack,
-            properties: error.properties,
-        }
-        // console.log(JSON.stringify({ error: e }));
-        // The error thrown here contains additional information when logged with JSON.stringify (it contains a property object).
-        throw error;
-    }
     const out = doc.getZip().generate({
         type: "blob",
         mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -157,10 +118,10 @@ export async function makeLetter(content, letterTemplate, filename, imageModule)
 
 const toDate = (dateStr = "2000-01-01") => {
     const [day, month, year] = dateStr.split("-").reverse()
-    return new Date(year, month - 1, day)
+    return new Date(Number(year), Number(month) - 1, Number(day))
 }
 
-function titleCase(string) {
+function titleCase(string: string) {
     const sentence = string.trim().toLowerCase().split(" ");
     for (let i = 0; i < sentence.length; i++) {
         sentence[i] = sentence[i][0].toUpperCase() + sentence[i].slice(1);

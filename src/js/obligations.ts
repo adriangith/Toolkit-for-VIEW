@@ -1,41 +1,11 @@
-import * as helpers from "./helper"
-import { VIEWObligationRow } from "./letter-logic";
-import { VIEWsubmitParams } from "./VIEWsubmit";
-import { initialiseWorkbookProcesser, OptionsResult } from './xlsxConverter'; // Adjust import path as needed
+//import * as helpers from "./helper"
+import { initialiseWorkbookProcesser, OptionsResult } from './xlsxConverter';
+import ReactDOM from "react-dom/client";
+import React from "react";
+import render from "./DebtorObligationsSummary";
+import { DropDownType, Message, backgroundData } from "./types";
 
-
-
-export type Message<T extends backgroundData | VIEWsubmitParams | ChromeStorage | fetchParams> = {
-	type: "VIEWsubmit" | "GenerateCorrespondence" | "getStorage" | "setStorage" | "fetch";
-	data: T
-}
-
-export type fetchParams = Parameters<typeof fetch>
-
-export type ChromeStorage = {
-	key: string;
-	value?: string | number;
-}
-
-
-export type backgroundData = {
-	obligationArray: string[];
-	selectedCorrespondenceAttributes: OptionsResult;
-	IsEmail: boolean;
-	VIEWEnvironment: string;
-	IncludesAgencyCorrespondence: boolean;
-	RequiresExtendedAttributes: boolean;
-	SharePoint: boolean;
-	letters: string[];
-	VIEWObligationData: VIEWObligationRow[];
-}
-
-
-type DropDownType = {
-	description: string;
-	letters: string[];
-	element?: HTMLOptionElement;
-};
+render();
 
 export const VIEWObligationListHeadings = [
 	"",
@@ -55,21 +25,9 @@ export const VIEWObligationListHeadings = [
 	"Enforcement Action Id(s)"
 ] as const satisfies string[];
 
-export type VIEWObligationRowData = {
-	Obligation: string,
-	Balance_Outstanding: string,
-	Infringement: string,
-	Offence: string,
-	OffenceDate: string
-	IssueDate: string,
-	altname: string,
-	NoticeStatus: string,
-	ProgressionDate: string
-}
-
 /////Script Launcher///////////////////////////////////////////////////////////////////////////////
 
-const addCheckboxes = () => {
+/* const addCheckboxes = () => {
 	const tableRows = document.querySelectorAll('#DebtorNoticesCtrl_DebtorNoticesTable_tblData tr');
 	if (!tableRows) {
 		throw new Error("tableRows is null");
@@ -83,7 +41,7 @@ const addCheckboxes = () => {
 		cell.appendChild(input)
 		row.insertBefore(cell, row.firstChild)
 	});
-}
+} */
 
 
 
@@ -92,7 +50,7 @@ const workbook = initialiseWorkbookProcesser(
 	"https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1"
 );
 
-addCheckboxes();
+/* addCheckboxes(); */
 addElements();
 
 function generateButton(
@@ -157,7 +115,7 @@ async function addElements() {
 	dropDown.style.width = "180px";
 	dropDown.style.marginLeft = "6px";
 	//Button properties
-	const buttons = [
+	/* const buttons = [
 		{ name: "tableButton", description: "Export obligations", text: "xlxs", attributes: { "style": "margin-left: 6px; cursor: hand" } },
 		//	{ name: "tableSettings", description: "Table settings" },
 		{ name: "letterButton", description: "Generate letter(s)", text: "Generate letter(s)", attributes: { "style": "margin-left: 37px; cursor: hand" } },
@@ -168,18 +126,14 @@ async function addElements() {
 		//,
 		//	{name: "FeeButton", description: "Bulk Fee Waive"}
 	];
-
-
-
-
-
+ */
 	const dropDownOptions = await (await workbook).fetchAndProcessOptions("Options")
 	const TemplateMeta = await (await workbook).fetchAndConvertXlsxToJson({ Sheet: "Templates", Column: "Recipient" })
 	dropDownOptions.map((option: OptionsResult) => {
 		const template = option.letters.some((letter: string) => TemplateMeta[letter] && TemplateMeta[letter] === "Agency")
 		option.recipient = template
 	});
-	buttons.map(button => generateButton(button, dropDown, dropDownOptions));
+	//buttons.map(button => generateButton(button, dropDown, dropDownOptions));
 	(await dropDownOptions).map(option => generateOption(option, dropDown));
 
 	const auditCheck = document.createElement('input')
@@ -431,6 +385,7 @@ function parseTable<T extends Record<K, string | boolean>, K extends string>(tab
 
 	return tableRowObjects;
 }
+// Interface for parameters passed to the main VIEWsubmit function
 
 
 

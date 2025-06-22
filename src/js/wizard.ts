@@ -1,13 +1,202 @@
-// @ts-nocheck
+import * as wizardLogic from './notes';
+import VIEWsubmit from './VIEWSubmit';
+import { Api } from 'datatables.net';
+import { VIEWsubmitParams } from './types.js';
 
-import { Spinner } from 'spin.js';
-import * as wizardLogic from './wizardLogic.js';
-import VIEWsubmit from './VIEWsubmit.js';
-import DataTable from 'datatables.net-dt';
-import { DotNav } from "/workspace/src/js/dotnav"
-import { parseTable } from './letter-logic'
+const __assign = (this && this.__assign) || function () {
+  __assign = Object.assign || function (t: { [x: string]: any; }) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+      for (const p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+        t[p] = s[p];
+    }
+    return t;
+  };
+  return __assign.apply(this, arguments);
+};
 
-var opts = {
+const defaults = {
+  lines: 12,
+  length: 7,
+  width: 5,
+  radius: 10,
+  scale: 1.0,
+  corners: 1,
+  color: '#000',
+  fadeColor: 'transparent',
+  animation: 'spinner-line-fade-default',
+  rotate: 0,
+  direction: 1,
+  speed: 1,
+  zIndex: 2e9,
+  className: 'spinner',
+  top: '50%',
+  left: '50%',
+  shadow: '0 0 1px transparent',
+  position: 'absolute',
+};
+const Spinner = /** @class */ (function () {
+  function Spinner(this: any, opts: {} | undefined) {
+    if (opts === void 0) { opts = {}; }
+    this.opts = __assign(__assign({}, defaults), opts);
+  }
+  /**
+   * Adds the spinner to the given target element. If this instance is already
+   * spinning, it is automatically removed from its previous target by calling
+   * stop() internally.
+   */
+  Spinner.prototype.spin = function (target: { insertBefore: (arg0: any, arg1: any) => void; firstChild: any; }) {
+    this.stop();
+    this.el = document.createElement('div');
+    this.el.className = this.opts.className;
+    this.el.setAttribute('role', 'progressbar');
+    css(this.el, {
+      position: this.opts.position,
+      width: 0,
+      zIndex: this.opts.zIndex,
+      left: this.opts.left,
+      top: this.opts.top,
+      transform: "scale(" + this.opts.scale + ")",
+    });
+    if (target) {
+      target.insertBefore(this.el, target.firstChild || null);
+    }
+    drawLines(this.el, this.opts);
+    return this;
+  };
+  /**
+   * Stops and removes the Spinner.
+   * Stopped spinners may be reused by calling spin() again.
+   */
+  Spinner.prototype.stop = function () {
+    if (this.el) {
+      if (typeof requestAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(this.animateId);
+      }
+      else {
+        clearTimeout(this.animateId);
+      }
+      if (this.el.parentNode) {
+        this.el.parentNode.removeChild(this.el);
+      }
+      this.el = undefined;
+    }
+    return this;
+  };
+  return Spinner;
+}());
+export { Spinner };
+/**
+ * Sets multiple style properties at once.
+ */
+function css(el: HTMLDivElement, props: { [x: string]: any; position?: any; width?: string | number; zIndex?: any; left?: any; top?: any; transform?: string; height?: string; background?: any; borderRadius?: string; transformOrigin?: string; boxShadow?: string; animation?: string; }) {
+  for (const prop in props) {
+    el.style[prop] = props[prop];
+  }
+  return el;
+}
+/**
+ * Returns the line color from the given string or array.
+ */
+function getColor(color: string | any[], idx: number) {
+  return typeof color == 'string' ? color : color[idx % color.length];
+}
+/**
+ * Internal method that draws the individual lines.
+ */
+function drawLines(el: { appendChild: (arg0: any) => void; }, opts: { corners: number; width: string | number; shadow: string | boolean; lines: number; rotate: number; length: any; fadeColor: any; radius: string; direction: number; speed: number; color: any; animation: string; }) {
+  const borderRadius = (Math.round(opts.corners * opts.width * 500) / 1000) + 'px';
+  let shadow = 'none';
+  if (opts.shadow === true) {
+    shadow = '0 2px 4px #000'; // default shadow
+  }
+  else if (typeof opts.shadow === 'string') {
+    shadow = opts.shadow;
+  }
+  const shadows = parseBoxShadow(shadow);
+  for (let i = 0; i < opts.lines; i++) {
+    const degrees = ~~(360 / opts.lines * i + opts.rotate);
+    const backgroundLine = css(document.createElement('div'), {
+      position: 'absolute',
+      top: -opts.width / 2 + "px",
+      width: (opts.length + opts.width) + 'px',
+      height: opts.width + 'px',
+      background: getColor(opts.fadeColor, i),
+      borderRadius: borderRadius,
+      transformOrigin: 'left',
+      transform: "rotate(" + degrees + "deg) translateX(" + opts.radius + "px)",
+    });
+    let delay = i * opts.direction / opts.lines / opts.speed;
+    delay -= 1 / opts.speed; // so initial animation state will include trail
+    const line = css(document.createElement('div'), {
+      width: '100%',
+      height: '100%',
+      background: getColor(opts.color, i),
+      borderRadius: borderRadius,
+      boxShadow: normalizeShadow(shadows, degrees),
+      animation: 1 / opts.speed + "s linear " + delay + "s infinite " + opts.animation,
+    });
+    backgroundLine.appendChild(line);
+    el.appendChild(backgroundLine);
+  }
+}
+function parseBoxShadow(boxShadow: string) {
+  const regex = /^\s*([a-zA-Z]+\s+)?(-?\d+(\.\d+)?)([a-zA-Z]*)\s+(-?\d+(\.\d+)?)([a-zA-Z]*)(.*)$/;
+  const shadows = [];
+  for (let _i = 0, _a = boxShadow.split(','); _i < _a.length; _i++) {
+    const shadow = _a[_i];
+    const matches = shadow.match(regex);
+    if (matches === null) {
+      continue; // invalid syntax
+    }
+    const x = +matches[2];
+    const y = +matches[5];
+    let xUnits = matches[4];
+    let yUnits = matches[7];
+    if (x === 0 && !xUnits) {
+      xUnits = yUnits;
+    }
+    if (y === 0 && !yUnits) {
+      yUnits = xUnits;
+    }
+    if (xUnits !== yUnits) {
+      continue; // units must match to use as coordinates
+    }
+    shadows.push({
+      prefix: matches[1] || '',
+      x: x,
+      y: y,
+      xUnits: xUnits,
+      yUnits: yUnits,
+      end: matches[8],
+    });
+  }
+  return shadows;
+}
+/**
+ * Modify box-shadow x/y offsets to counteract rotation
+ */
+function normalizeShadow(shadows: { prefix: any; x: number; y: number; xUnits: any; yUnits: any; end: any; }[], degrees: number) {
+  const normalized = [];
+  for (let _i = 0, shadows_1 = shadows; _i < shadows_1.length; _i++) {
+    const shadow = shadows_1[_i];
+    const xy = convertOffset(shadow.x, shadow.y, degrees);
+    normalized.push(shadow.prefix + xy[0] + shadow.xUnits + ' ' + xy[1] + shadow.yUnits + shadow.end);
+  }
+  return normalized.join(', ');
+}
+function convertOffset(x: number, y: number, degrees: number) {
+  const radians = degrees * Math.PI / 180;
+  const sin = Math.sin(radians);
+  const cos = Math.cos(radians);
+  return [
+    Math.round((x * cos + y * sin) * 1000) / 1000,
+    Math.round((-x * sin + y * cos) * 1000) / 1000,
+  ];
+}
+
+
+const opts = {
   lines: 13, // The number of lines to draw
   length: 38, // The length of each line
   width: 17, // The line thickness
@@ -28,122 +217,48 @@ var opts = {
   position: 'absolute' // Element positioning
 };
 
-interface Properties {
-  debtorid?: string;
-  taskId?: string;
-  allObligations?: DataTable<string>["Api"];
-  titleTxt?: string;
+let properties: {
+  debtorId?: any;
+  taskId?: any;
+  allObligations?: Api<any>;
+  titleTxt: string;
   pages: string[];
-  source: string;
-  dateOfBankruptcy: string;
-  courtFineData?: any[];
-}
-
-interface WizardStage {
-  name: string;
-  elements: WizardElement[];
-  progressButtons?: ProgressButton[];
-}
-
-interface WizardElement {
-  tag: string;
-  text?: string;
-  label?: string;
-  noLabel?: boolean;
-  parent?: string;
-  dataSource?: (doc?: Document) => Promise<any[]>;
-  prefill?: (doc: Document, field: HTMLElement, props: Properties) => void;
-  attributes?: Record<string, string>;
-  selectCriteria?: string;
-}
-
-interface ProgressButton {
-  text: string;
-  id: string;
-  float: string;
-}
-
-interface TableParseOptions {
-  data: any[];
-  matchColumn: string;
-}
-
-interface SpinnerOptions {
-  lines: number;
-  length: number;
-  width: number;
-  radius: number;
-  scale: number;
-  corners: number;
-  color: string;
-  fadeColor: string;
-  speed: number;
-  rotate: number;
-  animation: string;
-  direction: number;
-  zIndex: number;
-  className: string;
-  top: string;
-  left: string;
-  shadow: string;
-  position: string;
-}
-
-let properties: Properties;
+  courtFineData?: any;
+  dateOfBankruptcy?: any;
+  source?: any;
+};
 const shade = document.getElementById('shade');
 
-/**
- * Converts a File object to a base64 encoded string
- * @param file - The file to convert to base64
- * @returns A promise that resolves with the base64 string representation of the file
- */
-const toBase64 = (file: File): Promise<string> => new Promise<string>((resolve, reject) => {
+const toBase64 = (file: Blob) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.readAsDataURL(file);
-  reader.onload = () => resolve(reader.result as string);
-  reader.onerror = (error: ProgressEvent<FileReader>) => reject(error);
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = error => reject(error);
 });
 
-/**
- * Updates the description field with the value from the target element
- * @param target - The HTML element that triggered the event
- */
-function updateDescription(target: HTMLInputElement | HTMLSelectElement | EventTarget): void {
-  const editDescriptionElement = document.getElementById("editDescription") as HTMLInputElement;
-  editDescriptionElement.value = (target as HTMLInputElement).value;
+function updateDescription(target: EventTarget | null) {
+  document.getElementById("editDescription").value = target.value;
 }
 
-/**
- * Extracts form data from a parsed document and converts it to an object
- * @param parsedDocument - The parsed HTML document containing the form
- * @returns A promise that resolves to an object with form field names as keys and their values
- */
-async function getFormData(parsedDocument: Document): Promise<FormData> {
-  const formElement: HTMLFormElement | null = parsedDocument.querySelector("form");
-  return new FormData(formElement || document.createElement('form'));
+async function getFormData(parsedDocument: { querySelector: (arg0: string) => any; }) {
+  const formElement = parsedDocument.querySelector("form");
+  const formData = new FormData(formElement || document.createElement('form'));
+  const formDataObject = {};
+  formData.forEach((value, key) => { formDataObject[key] = value });
+  return formDataObject;
 }
 
-interface FetchResponse extends Response {
-  text(): Promise<string>;
-}
-
-interface FetchOptions extends RequestInit {
-  method?: string;
-  body?: FormData | string;
-  headers?: Record<string, string>;
-}
-
-async function parsePage(vDocument: FetchResponse, url?: string, fetchOptions?: FetchOptions): Promise<Document> {
-  let getbody = function (vDocument: FetchResponse): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
+async function parsePage(vDocument: Response, url: undefined, fetchOptions: undefined) {
+  const getbody = function (vDocument: { text: () => unknown; }) {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
         reject('timeout')
       }, 10000)
       resolve(vDocument.text());
     })
   }
-  const htmlText = await getbody(vDocument).catch(async (e: unknown): Promise<string> => {
-    vDocument = await fetch(url as string, fetchOptions)
+  const htmlText = await getbody(vDocument).catch(async (e) => {
+    vDocument = await fetchRetryTimeout(url, fetchOptions)
     return getbody(vDocument)
   })
   const parser = new DOMParser();
@@ -151,70 +266,23 @@ async function parsePage(vDocument: FetchResponse, url?: string, fetchOptions?: 
   return parsedDocument;
 }
 
-/**
- * Returns the result of calling the property if it's a function, otherwise returns the property value or 0
- * @param parent - The object containing the property
- * @param property - The property name to access
- * @returns The function result, property value, or 0 if undefined
- */
-function disambig<T, K extends keyof T>(parent: T, property: K): any {
-  return (typeof parent[property] === "function") && ((parent[property] as Function)()) || parent[property] || 0;
+function disambig(parent: { [x: string]: any; }, property: string | number) {
+  return (typeof parent[property] === "function") && (parent[property]()) || parent[property] || 0
 }
 
-interface DotNavOptions {
-  callback: (idx: number) => void;
-}
-
-interface WizardButtonData {
-  text: string;
-  id: string;
-  float: string;
-}
-
-interface TableData {
-  data: any[];
-  matchColumn: string;
-}
-
-interface DataTableConfig {
-  data: any[];
-  columns: Array<{ data: string, title: string }>;
-  columnDefs: Array<{ visible?: boolean, targets: number[] | number, className?: string }>;
-  order: [number, string][];
-  dom: string;
-  select: {
-    style: string;
-    selector: string;
-  };
-  language: {
-    select: {
-      rows: string;
-    };
-  };
-  oLanguage: {
-    sInfo: string;
-    sLengthMenu: string;
-    oPaginate: {
-      sNext: string;
-      sPrevious: string;
-    };
-  };
-  createdRow?: (row: HTMLElement) => void;
-}
-
-async function createPageElements(data: WizardStage[], incrementor: number, vDocument: Document): Promise<void> {
+async function createPageElements(data: { [x: string]: any; }, incrementor: string | number, vDocument: boolean | Document) {
   //Update banner text
-  document.getElementById("bannertext")!.innerHTML = `<span class="info">${properties.debtorid || ""}</span><span class="info">${properties.taskId || ""}</span>`
+  document.getElementById("bannertext").innerHTML = `<span class="info">${properties.debtorid || ""}</span><span class="info">${properties.taskId || ""}</span>`
 
-  let stage = data[incrementor]
-  const content = document.getElementById("content")!;
+  const stage = data[incrementor]
+  const content = document.getElementById("content");
   content.innerHTML = "";
-  let elementArray = stage.elements.map(async (element: WizardElement) => {
-    let field = document.createElement(element.tag);
+  const elementArray = stage.elements.map(async (element: { tag: string; text: any; label: string; attributes: { id: string; }; noLabel: boolean; dataSource: any; parent: string; prefill: (arg0: any, arg1: any, arg2: any) => any; }) => {
+    const field = document.createElement(element.tag);
     element.text && (field.innerHTML = element.text);
 
     if (element.label) {
-      let label = document.createElement("span");
+      const label = document.createElement("span");
       label.style = "grid-column-start: 1; grid-column-end: 1; justify-self: end; text-align:right";
       label.innerHTML = element.label;
       content.append(label);
@@ -233,36 +301,31 @@ async function createPageElements(data: WizardStage[], incrementor: number, vDoc
       properties.allObligations = await buildTable(element, field, vDocument);
     }
 
-    element.parent && (element.tag !== "table") && document.getElementById(element.parent)!.append(field);
+    element.parent && (element.tag !== "table") && document.getElementById(element.parent).append(field);
     element.prefill && (element.prefill(vDocument, field, properties));
     element.attributes && setAttributes(field, element.attributes);
     if (document.getElementById("descriptionChooser")) {
-      document.getElementById("descriptionChooser")!.addEventListener("click", event => updateDescription(event.target!));
+      document.getElementById("descriptionChooser").addEventListener("click", event => updateDescription(event.target));
     }
   })
-  Promise.all(elementArray).then(function () { shade!.style.display = "none"; })
+  Promise.all(elementArray).then(function () { shade.style.display = "none"; })
 }
 
-async function buildPage(data: WizardStage[], incrementor: number): Promise<void> {
-  let stage = data[incrementor] // Current page in the wizard
-  document.getElementById(stage.name)!.click();
+async function buildPage(data: VIEWsubmitParams, incrementor: number) {
+  const stage = data[incrementor] // Current page in the wizard
+  document.getElementById(stage.name).click();
   //Show spinner.
-  shade!.style.display = "block";
-  let vDocument = await VIEWsubmit(data, incrementor, undefined, { submit: [], ...stage });
-  if (vDocument instanceof Document) {
-    createPageElements(data, incrementor, vDocument);
-    createProgressButtons(data, incrementor, vDocument);
-  } else {
-    console.error("Expected Document but received:", vDocument);
-    shade!.style.display = "none";
-  }
+  shade.style.display = "block";
+  const vDocument = await VIEWsubmit(data, incrementor, undefined, stage);
+  createPageElements(data, incrementor, vDocument);
+  createProgressButtons(data, incrementor, vDocument);
 }
 
-async function createProgressButtons(data: WizardStage[], incrementor: number, parsedDocument: Document): Promise<void> {
-  let stage = data[incrementor];
-  const buttonBar = document.getElementById('buttonBar')!;
+async function createProgressButtons(data: VIEWsubmitParams, incrementor: number, parsedDocument: boolean | Document) {
+  const stage = data[incrementor];
+  const buttonBar = document.getElementById('buttonBar');
   buttonBar.innerHTML = ""; //Clear footer (submit buttons)
-  stage.progressButtons && stage.progressButtons.map((buttonData: ProgressButton) => {
+  stage.progressButtons && stage.progressButtons.map((buttonData: { text: string | null; id: string; float: string; }, formData: any) => {
     const button = document.createElement("span")
     button.textContent = buttonData.text;
     button.id = buttonData.id;
@@ -270,8 +333,8 @@ async function createProgressButtons(data: WizardStage[], incrementor: number, p
     button.style.float = buttonData.float;
     buttonBar.append(button);
     button.addEventListener("mouseup", async () => {
-      shade!.style.display = "block";
-      const next = await VIEWsubmit(data, incrementor, parsedDocument, { ...buttonData, submit: [] }, properties);
+      shade.style.display = "block";
+      const next = await VIEWsubmit(data, incrementor, parsedDocument, buttonData, properties);
       if (next) {
         incrementor++;
         buildPage(data, incrementor)
@@ -280,11 +343,12 @@ async function createProgressButtons(data: WizardStage[], incrementor: number, p
   });
 }
 
-async function startWizard(data: WizardStage[]): Promise<void> {
-  let spinner = new Spinner(opts).spin(shade || undefined);
-  const navDots = document.getElementById('navDots')!
+async function startWizard(data: any[]) {
 
-  data.map((stage, i) => {
+  const spinner = new Spinner(opts).spin(shade);
+  const navDots = document.getElementById('navDots')
+
+  data.map((stage: { name: string | null; }, i: number) => {
     const a = document.createElement('a');
     a.href = "#";
     a.id = stage.name;
@@ -295,38 +359,44 @@ async function startWizard(data: WizardStage[]): Promise<void> {
     li.addEventListener('mouseup', function () {
       buildPage(data, i)
     });
-    [].slice.call(document.querySelectorAll('.dotstyle > ul')).forEach(function (nav: HTMLElement) {
-      new (DotNav as any)(nav, {
-        callback: function (idx: number) {
+    [].slice.call(document.querySelectorAll('.dotstyle > ul')).forEach(function (nav) {
+      new DotNav(nav, {
+        callback: function (idx: any) {
         }
       });
-      document.getElementById('navigation')!.style.justifyContent = "center"
+      document.getElementById('navigation').style.justifyContent = "center"
     });
   });
 
-  let incrementor = 0;
+  const incrementor = 0;
   buildPage(data, incrementor);
 }
 
 /* Starts the wizard function */
-var onCreate = async function (message: { data: Properties }): Promise<void> {
+const onCreate = async function (message: {
+  data: {
+    titleTxt: string,
+    pages: string[];
+  }
+}) {
   // Ensure it is run only once, as we will try to message twice
   chrome.runtime.onMessage.removeListener(onCreate);
   properties = message.data;
-  properties.titleTxt && (document.getElementById('titletxt')!.innerText = properties.titleTxt)
-  // @ts-ignore
-  let stages = properties.pages.map(page => wizardLogic[page](properties, getDebtorObligations))
+  const title = document.getElementById('title');
+  if (!title) throw new Error("Title element not found");
+  if (properties.titleTxt && document.getElementById('titletxt')) title.innerText = properties.titleTxt;
+  const stages = properties.pages.map((page: string | number) => wizardLogic[page](properties, getDebtorObligations))
   startWizard(stages);
 }
 
 /* Called when the window is created and loaded */
 chrome.runtime.onMessage.addListener(onCreate);
 
-async function getDebtorObligations(source: string, parsedDocument?: Document): Promise<any[]> {
-  let warrantData: any[] | undefined;
+async function getDebtorObligations(source: any, parsedDocument: Document | undefined) {
+  let warrantData;
   if (parsedDocument !== undefined && parsedDocument.getElementById("WarrantGrid")) {
-    const WarrantGrid = parsedDocument.getElementById("WarrantGrid")! as HTMLTableElement;
-    const headerRow = WarrantGrid.firstElementChild!.firstElementChild!;
+    const WarrantGrid = parsedDocument.getElementById("WarrantGrid");
+    const headerRow = WarrantGrid.firstElementChild.firstElementChild;
     const thead = document.createElement('thead');
     WarrantGrid.insertAdjacentElement('afterbegin', thead);
     thead.append(headerRow);
@@ -335,61 +405,48 @@ async function getDebtorObligations(source: string, parsedDocument?: Document): 
   //Get stateless page
   let vDocument = await fetch(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`);
   parsedDocument = await parsePage(vDocument)
-  let formData = await getFormData(parsedDocument)
+  const formData = await getFormData(parsedDocument)
 
   //Get page with all obligations if more than 50
-  let obligationRowCount: number;
-  let warrantRowCount: number;
+  let obligationRowCount;
+  let warrantRowCount;
   try {
+
     if (!parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_NoRecordsCell")) {
-      obligationRowCount = Number(parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span")!.textContent!.trim().split(" ").slice(-1));
+      obligationRowCount = parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_PageChooserCell > span").textContent.trim().split(" ");
     } else {
       obligationRowCount = 0;
     }
 
     if (!parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_NoRecordsCell")) {
-      warrantRowCount = Number(parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_PageChooserCell > span")!.textContent!.trim().split(" ").slice(-1));
+      warrantRowCount = parsedDocument.querySelector("#DebtorWarrantsCtrl_DebtorWarrantsTable_PageChooserCell > span").textContent.trim().split(" ");
     } else {
       warrantRowCount = 0;
     }
 
   } catch (err) {
     alert("Unable to access obligations in VIEW");
-    obligationRowCount = 0;
-    warrantRowCount = 0;
   }
-
-
-  if (Number(obligationRowCount) > 50 ||
-    Number(warrantRowCount) > 10
+  if (Number(obligationRowCount[obligationRowCount.length - 1]) > 50 ||
+    Number(warrantRowCount[warrantRowCount.length - 1]) > 10
   ) {
-    if (
-      "DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage" in formData &&
-      "DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage" in formData &&
-      "DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage" in formData
-    ) {
-      formData["DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage"] = 0;
-      formData["DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage"] = 0;
-      formData["DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage"] = 0;
-
-      var form_data = new FormData();
-      for (var key in formData) { form_data.append(key, formData[key]); }
-      vDocument = await fetch(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`, {
-        method: "POST",
-        body: form_data
-      });
-    }
-    else {
-      throw new Error("Unable to find the page size element in the form data.");
-    }
+    formData["DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage"] = 0;
+    formData["DebtorCourtOrdersCtrl$DebtorCourtFinesTable$ddRecordsPerPage"] = 0;
+    formData["DebtorWarrantsCtrl$DebtorWarrantsTable$ddRecordsPerPage"] = 0;
+    const form_data = new FormData();
+    for (const key in formData) { form_data.append(key, formData[key]); }
+    vDocument = await fetch(`https://${source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx`, {
+      method: "POST",
+      body: form_data
+    });
     parsedDocument = await parsePage(vDocument)
   }
 
-  properties.courtFineData = parseTable(parsedDocument.getElementById("DebtorCourtOrdersCtrl_DebtorCourtFinesTable_tblData")!)
+  properties.courtFineData = parseTable(parsedDocument.getElementById("DebtorCourtOrdersCtrl_DebtorCourtFinesTable_tblData"))
 
-  let debtorData: any[];
+  let debtorData;
   if (!parsedDocument.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_NoRecordsCell")) {
-    debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData")!)
+    debtorData = parseTable(parsedDocument.getElementById("DebtorNoticesCtrl_DebtorNoticesTable_tblData"))
   } else {
     debtorData = [];
   }
@@ -401,12 +458,12 @@ async function getDebtorObligations(source: string, parsedDocument?: Document): 
     }, {
       data: debtorData,
       matchColumn: "Notice Number"
-    }).filter(item => Object.keys(item).length > 9)
+    }).filter((item: {}) => Object.keys(item).length > 9)
     debtorData = mergeById({
       data: debtorData,
       matchColumn: "Notice Number"
     }, {
-      data: parseTable(parsedDocument.getElementById('DebtorWarrantsCtrl_DebtorWarrantsTable_tblData')!),
+      data: parseTable(parsedDocument.getElementById('DebtorWarrantsCtrl_DebtorWarrantsTable_tblData')),
       matchColumn: "Obligation No."
     })
   }
@@ -414,10 +471,10 @@ async function getDebtorObligations(source: string, parsedDocument?: Document): 
   return debtorData;
 }
 
-async function buildTable(element: WizardElement, field: HTMLElement, parsedDocument: Document): Promise<DataTable<string>["Api"]> {
-  let tableData = await element.dataSource!(parsedDocument)
-  tableData = tableData.map(function (row: any) {
-    const newRow: Record<string, string> = {};
+async function buildTable(element: { dataSource: (arg0: any) => any; parent: string; selectCriteria: string; }, field: string | Node, parsedDocument: any) {
+  let tableData = await element.dataSource(parsedDocument)
+  tableData = tableData.map(function (row: { [x: string]: any; }) {
+    const newRow = {};
     newRow.checkbox = "";
     Object.keys(row).forEach(function (key) {
       newRow[key.replace(/\.|\-|\?|[(]|\//g, "").replace(/\)/g, "").replace(/ /g, "")] = row[key]
@@ -425,14 +482,14 @@ async function buildTable(element: WizardElement, field: HTMLElement, parsedDocu
     return newRow;
   });
 
-  ($.fn.dataTable as any).moment('DD/MM/YYYY');
+  $.fn.dataTable.moment('DD/MM/YYYY');
 
-  document.getElementById(element.parent!)!.append(field);
+  document.getElementById(element.parent).append(field);
   console.log(tableData);
-  const dataTableConfig: DataTableConfig = {
+  const dataTableConfig = {
     "data": tableData,
     "columns": [
-      { "data": "checkbox", "title": "" },
+      { "data": "checkbox" },
       { "data": "NoticeNumber", "title": "Notice Number" },
       { "data": "InfringementNo", "title": "Infringement No." },
       { "data": "InputType", "title": "Input Type" },
@@ -481,26 +538,26 @@ async function buildTable(element: WizardElement, field: HTMLElement, parsedDocu
     dataTableConfig.columns.push({ "data": "Status", "title": "Warrant Status" });
     dataTableConfig.columnDefs[0].targets = [2, 5, 7, 8, 10, 11, 12]
     dataTableConfig.columnDefs.push({ targets: 14, className: "truncate" })
-    dataTableConfig.createdRow = function (row: HTMLElement) {
-      var td = $(row).find(".truncate");
+    dataTableConfig.createdRow = function (row: any) {
+      const td = $(row).find(".truncate");
       td.attr("title", td.html());
     }
   }
 
-  let dataTable = $(field).DataTable(dataTableConfig);
+  const dataTable = $(field).DataTable(dataTableConfig);
   properties.allObligations = dataTable;
 
   if (element.selectCriteria === "WarrantProvable") {
     dataTable.columns(7).search("WARRNT").draw();
   }
 
-  dataTable.rows().every(function (rowIdx: number, tableLoop: number, rowLoop: number) {
-    let data = this.data();
-    let types = ["1A", "1B", "1C", "2A"];
+  dataTable.rows().every(function (rowIdx: any, tableLoop: any, rowLoop: any) {
+    const data = this.data();
+    const types = ["1A", "1B", "1C", "2A"];
     let statuses = ["WARRNT", "NFDP", "SELDEA"];
-    let bd = moment(properties.dateOfBankruptcy, "YYYY-MM-DD")
-    let td = moment(data.OffenceDate, "DD/MM/YYYY")
-    let balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
+    const bd = moment(properties.dateOfBankruptcy, "YYYY-MM-DD")
+    const td = moment(data.OffenceDate, "DD/MM/YYYY")
+    const balance = Number(data.BalanceOutstanding.replace(/[^0-9.-]+/g, ""));
 
     if (element.selectCriteria === "WarrantProvableLift") {
       /*Selects any obligations that are provable and
@@ -558,33 +615,35 @@ async function buildTable(element: WizardElement, field: HTMLElement, parsedDocu
   return dataTable
 }
 
-const toDate = (dateStr: string = "2000-01-01"): Date => {
+const toDate = (dateStr = "2000-01-01") => {
   const [day, month, year] = dateStr.split("-").reverse()
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+  return new Date(year, month - 1, day)
 }
 
-const mergeById = (a1: TableData, a2: TableData): any[] =>
-  a1.data.map(itm => ({
-    ...a2.data.find((item) => (item[a2.matchColumn] === itm[a1.matchColumn]) && item),
+
+
+const mergeById = (a1: { data: any; matchColumn: any; }, a2: { data: any; matchColumn: any; }) =>
+  a1.data.map((itm: { [x: string]: any; }) => ({
+    ...a2.data.find((item: { [x: string]: any; }) => (item[a2.matchColumn] === itm[a1.matchColumn]) && item),
     ...itm
   }));
 
-function setAttributes(el: HTMLElement, attrs: Record<string, string>): void {
-  for (var key in attrs) {
+function setAttributes(el: { setAttribute: (arg0: string, arg1: any) => void; }, attrs: { [x: string]: any; }) {
+  for (const key in attrs) {
     el.setAttribute(key, attrs[key]);
   }
 }
 
-export async function runFetchInContentScript(url: string | ((doc?: Document, set?: any, props?: Properties) => string | Promise<string>), fetchOptions?: RequestInit): Promise<any> {
-  const iframe = document.getElementById("CS") as HTMLIFrameElement | null;
+async function runFetchInContentScript(url: any, fetchOptions: any) {
+  const iframe = document.getElementById("CS");
   if (iframe) {
-    return await loadAgain(iframe, url, fetchOptions);
-  } else {
-    return await loadFirst(url, fetchOptions);
+    await loadAgain(iframe, url, fetchOptions);
+  } else if (!iframe) {
+    await loadFirst(url, fetchOptions);
   }
 }
 
-function loadFirst(url: string, fetchOptions?: RequestInit): Promise<any> {
+function loadFirst(url: any, fetchOptions: any) {
   const iframe = document.createElement('iframe');
   iframe.id = "CS"
   document.body.append(iframe);
@@ -593,7 +652,7 @@ function loadFirst(url: string, fetchOptions?: RequestInit): Promise<any> {
   return new Promise(function (resolve, reject) {
     iframe.onload = function () {
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id!, { url, fetchOptions }, function (response) {
+        chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {
           resolve(response);
         });
       });
@@ -601,11 +660,11 @@ function loadFirst(url: string, fetchOptions?: RequestInit): Promise<any> {
   });
 }
 
-function loadAgain(iframe: HTMLIFrameElement, url: string, fetchOptions?: RequestInit): Promise<any> {
+function loadAgain(iframe: HTMLElement, url: any, fetchOptions: any) {
   console.log(url);
   return new Promise(function (resolve, reject) {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      chrome.tabs.sendMessage(tabs[0].id!, { url, fetchOptions }, function (response) {
+      chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {
         resolve(response);
       });
     });

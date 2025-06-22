@@ -7,10 +7,13 @@
         "strict": true,
         "skipLibCheck": true,
         "outDir": "./dist",
-        "sourceMap": true
+        "sourceMap": true,
+        "jsx": "react"
     },
     "include": [
-        "src/**/*.ts"
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/__tests__/jest.test.js"
     ],
     "exclude": [
         "node_modules"

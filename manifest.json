@@ -1,12 +1,12 @@
 {
-    "name": "Toolkit for View",
-    "version": "0.0.1.54",
+    "name": "Toolkit for View (Testing)",
+    "version": "0.0.1.57",
     "description": "Provides a range of enhancements for the VIEW system",
     "short_name": "View Toolkit",
     "permissions": [
         "storage",
-        "cookies",
-        "offscreen"
+        "offscreen",
+        "downloads"
     ],
     "host_permissions": [
         "https://trimwebdrawer.justice.vic.gov.au/*",
@@ -91,21 +91,11 @@
         },
         {
             "matches": [
-                "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/*",
-                "https://*.view.civicacloud.com.au/Traffic/Notices/forms/*"
+                "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx",
+                "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx"
             ],
             "js": [
-                "js/External/editor.js",
-                "js/External/paragraph.js",
-                "js/External/table.js",
-                "js/External/react.development.js",
-                "js/External/react-dom.development.js",
-                "js/External/babel.min.js"
-            ],
-            "exclude_matches": [
-                "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/*",
-                "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/AccessError.aspx",
-                "https://*.view.civicacloud.com.au/Traffic/Notices/Forms/CatalogManagement"
+                "js/DebtorObligationsSummary.js"
             ]
         },
         {
@@ -113,23 +103,10 @@
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx",
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx"
             ],
-            "css": [
-                "css/External/spin.css"
-            ],
             "js": [
-                "js/obligations.js"
-            ]
-        },
-        {
-            "matches": [
-                "https://*.view.civicacloud.com.au/*"
+                "js/colour_overlay_remove.js"
             ],
-            "exclude_matches": [
-                "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
-            ],
-            "js": [
-                "js/External/jquery-3.4.1.js"
-            ]
+            "run_at": "document_start"
         },
         {
             "matches": [
@@ -145,50 +122,12 @@
         },
         {
             "matches": [
-                "https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx",
-                "https://*.view.civicacloud.com.au/Core/Forms/Default/Login.aspx?Status=1",
-                "https://*.view.civicacloud.com.au/core/forms/default/login.aspx",
-                "https://*.view.civicacloud.com.au/core/forms/default/login.aspx?Status=1"
-            ],
-            "js": [
-                "js/userNameCapture.js"
-            ]
-        },
-        {
-            "matches": [
-                "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx?mode=bankruptcy"
-            ],
-            "js": [
-                "js/External/spin.umd.js",
-                "js/External/jquery-3.4.1.js",
-                "js/External/jszip.js",
-                "js/External/datatables.js",
-                "js/External/dataTables.buttons.js",
-                "js/External/buttons.html5.js",
-                "js/External/moment.js",
-                "js/External/datetime-moment.js",
-                "js/bankruptcy.js"
-            ],
-            "css": [
-                "css/External/spin.css"
-            ]
-        },
-        {
-            "matches": [
                 "https://uat.wdp.vic.gov.au/*",
                 "https://uat2.wdp.vic.gov.au/*",
                 "https://wdp.vic.gov.au/*"
             ],
             "js": [
-                "js/External/jquery-3.4.1.js",
-                "js/External/jquery.livequery.js",
-                "js/External/datatables.js",
-                "js/External/bootstrap.bundle.min.js",
-                "js/External/waitingfor.js",
                 "js/WDPAutomator.js"
-            ],
-            "css": [
-                "css/External/select.dataTables.min.css"
             ]
         },
         {
@@ -204,8 +143,6 @@
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
             ],
             "js": [
-                "js/External/jquery-3.4.1.js",
-                "js/External/datatables.js",
                 "js/proceduralHoldEnhance.js"
             ]
         },
@@ -213,15 +150,13 @@
             "matches": [
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/*"
             ],
-            "css": [
-                "css/External/loading-bar.css"
-            ],
             "js": [
-                "js/External/loading-bar.js",
-                "js/debtorAdder.js"
+                "js/progress.js",
+                "js/party.js"
             ],
             "exclude_matches": [
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorMain.aspx/*",
+                "https://djr-uat1.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorSearch.aspx",
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx",
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx?mode=bankruptcy"
             ]
@@ -230,8 +165,7 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "js/External/*",
-                "css/External/*",
+                "css/*",
                 "js/helper.js",
                 "js/tablemaker.js",
                 "js/objects.js",
@@ -250,7 +184,7 @@
     },
     "sandbox": {
         "pages": [
-            "html/genLetter-module.html"
+            "html/doc-generator.html"
         ]
     }
 }

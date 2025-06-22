@@ -5,6 +5,10 @@ services:
       - ..:/workspace:cached
     environment:
       - NODE_ENV=development
+      - EXTENSION_ID=${EXTENSION_ID}
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - REFRESH_TOKEN=${REFRESH_TOKEN}
     command: sleep infinity
     network_mode: service:rclone
     depends_on:

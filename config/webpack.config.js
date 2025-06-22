@@ -7,22 +7,29 @@ module.exports = {
     background: './src/background.ts',
     popup: './src/popup/index.js',
     VIEWsubmit: './src/js/VIEWsubmit.ts',
+    offscreen: './src/js/offscreen.ts',
+    correspondence: './src/js/correspondence.ts',
+    showVIEWinWDP: './src/js/showVIEWInWDP.ts',
+    wizard: './src/js/wizard.ts',
+    scraper: './src/js/scraper.ts',
     "genLetter-module": './src/js/genLetter-module.ts',
+    "bulk-actions": './src/js/bulk-actions.ts',
 
     // Content scripts - each needs its own entry point
     contentScriptFetch: './src/js/contentScriptFetch.js',
     BulkMenu: './src/js/BulkMenu.js',
     TopMenu: './src/js/TopMenu.js',
     NoticeLHM: './src/js/noticeLHM.js',
-    obligations: './src/js/obligations.ts',
+    DebtorObligationsSummary: './src/js/DebtorObligationsSummary.tsx',
+    colour_overlay_remove: './src/js/colour_overlay_remove.ts',
     pasteBulk: './src/js/pasteBulk.js',
     bulkWriteoffEnhance: './src/js/bulkWriteoffEnhance.js',
-    userNameCapture: './src/js/userNameCapture.js',
     bankruptcy: './src/js/bankruptcy.js',
-    WDPAutomator: './src/js/WDPAutomator.js',
+    WDPAutomator: './src/js/WDPAutomator.ts',
     documentUpload: './src/js/documentUpload.js',
     proceduralHoldEnhance: './src/js/proceduralHoldEnhance.js',
-    debtorAdder: './src/js/debtorAdder.jsx'
+    party: './src/js/party.tsx',
+    progress: './src/js/progress.tsx',
   },
   // Add this devtool setting to avoid using eval
   devtool: 'source-map',
@@ -38,7 +45,7 @@ module.exports = {
   },
   // Add resolve extensions to handle both js and ts files
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: ['.ts', '.js', '.tsx', '.jsx']
   },
   module: {
     rules: [
@@ -49,7 +56,11 @@ module.exports = {
       },
       {
         test: /\.css$/i,
-        use: ['style-loader', 'css-loader'],
+        use: [
+          'style-loader',
+          'css-loader',
+          'postcss-loader'
+        ]
       },
       {
         test: /\.(png|svg|jpg|jpeg|gif)$/i,
@@ -76,11 +87,15 @@ module.exports = {
         { from: 'manifest.json', to: 'manifest.json' },
         { from: 'src/popup/index.html', to: 'popup/index.html' },
         { from: 'src/background.html', to: 'background.html' },
-        { from: 'src/html/VIEWsubmit.html', to: 'html/VIEWsubmit.html' },
-        { from: 'src/html/genLetter-module.html', to: 'html/genLetter-module.html' },
+        { from: 'src/html/offscreen.html', to: 'html/offscreen.html' },
+        { from: 'src/html/wizard.html', to: 'html/wizard.html' },
+        { from: 'src/html/bulk-actions.html', to: 'html/bulk-actions.html' },
+        { from: 'src/css/wizard.css', to: 'css/wizard.css' },
+        { from: 'src/css/loading-bar.css', to: 'css/loading-bar.css' },
+        { from: 'src/html/doc-generator.html', to: 'html/doc-generator.html' },
+        { from: 'src/js/loading-bar.js', to: 'js/loading-bar.js' },
         { from: 'src/Images', to: 'Images' },
         { from: 'src/js/External', to: 'js/External' },
-        { from: 'src/css', to: 'css' },
         { from: 'src/bankruptcy', to: 'bankruptcy', noErrorOnMissing: true }
       ],
     })

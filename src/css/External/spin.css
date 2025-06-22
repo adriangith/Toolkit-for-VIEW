@@ -1,8 +1,12 @@
+
 @-webkit-keyframes spinner-line-fade-default {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.22;
     /* minimum opacity */
   }
+
   1% {
     opacity: 1;
   }
@@ -16,7 +20,8 @@
   font-weight: bold;
 }
 
-.paginate_button.next.disabled, .paginate_button.previous.disabled {
+.paginate_button.next.disabled,
+.paginate_button.previous.disabled {
   border-style: none;
 }
 
@@ -58,7 +63,8 @@
   opacity: 0.5;
 }
 
-.odd, .even {
+.odd,
+.even {
   border-color: #cccccc;
   border-width: 1px;
   border-style: solid;
@@ -73,7 +79,8 @@
   vertical-align: middle;
 }
 
-.odd td, .even td {
+.odd td,
+.even td {
   padding: 8px;
 }
 
@@ -98,7 +105,8 @@
   padding: 2px;
 }
 
-.dataTables_paginate, .dataTables_info {
+.dataTables_paginate,
+.dataTables_info {
   padding-top: 3px;
 }
 
