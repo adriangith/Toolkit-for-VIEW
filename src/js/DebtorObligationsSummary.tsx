@@ -12,7 +12,9 @@ import {
     useReactTable,
     Table,
     ColumnSizingState, // Added for clarity
-    ColumnOrderState, // Added for clarity
+    ColumnOrderState,
+    RowSelectionState,
+    OnChangeFn, // Added for clarity
 } from '@tanstack/react-table';
 
 // Assuming these types are correctly defined in './types'
@@ -30,7 +32,7 @@ const buttons: Input[] = [
     { name: "writeoff", type: "button", description: "Bulk Writeoff Update", text: "Bulk Writeoff", onClick: handleBulkWriteoff },
 ];
 
-const selectionButtons: Input[] = [
+const selectionButtons: Button[] = [
     { name: "select_fvs_holds", type: "button", description: "Select all FVS Pending holds", text: "Select FVSPEND", onClick: handleSelectFVSHolds },
     { name: "select_p_a_holds", type: "button", description: "Select all PA Holds", text: "Select PA", onClick: handleSelectPAHolds },
     { name: "select_enforcement_review", type: "button", description: "Select all Enforcement Review", text: "Select Enf Review", onClick: handleSelectEnforcementReview },
@@ -761,17 +763,40 @@ const ObligationTable = ({
 
 
 function App({ data, HTMLTable, storageKey }: { data: VIEWDebtorSummaryObligation[], HTMLTable: string, storageKey: string }) {
-    // State for checkbox selections, initialized from localStorage using the dynamic storageKey
+    // Ref to differentiate between programmatic (button click) and manual selection
+    const isProgrammaticSelection = useRef(false);
+
+    // Unique localStorage key to track the last selection action button clicked
+    const lastActionStorageKey = `lastSelectionAction_${storageKey}`;
+
+    // The handler for when row selection changes, called by the table instance
+    const handleRowSelectionChange: OnChangeFn<RowSelectionState> = (updater) => {
+        // Update the row selection state using the function provided by the table
+        setRowSelection(updater);
+
+        if (isProgrammaticSelection.current) {
+            // If the change was from a button, reset the flag and keep the last action in localStorage.
+            isProgrammaticSelection.current = false;
+        } else {
+            // If it was a manual user click, remove the last action key.
+            // This prevents re-evaluation on the next load, preserving the user's manual changes.
+            localStorage.removeItem(lastActionStorageKey);
+        }
+    };
+
+    // State for checkbox selections, initialized from localStorage
     const [rowSelection, setRowSelection] = useState(() => {
         const saved = localStorage.getItem(storageKey);
         return saved ? JSON.parse(saved) : {};
     });
+    // --- END: Added logic for re-evaluation ---
 
     // Effect to save checkbox selection state to localStorage whenever it changes
     useEffect(() => {
         localStorage.setItem(storageKey, JSON.stringify(rowSelection));
-    }, [rowSelection, storageKey]); // dependency array includes storageKey
+    }, [rowSelection, storageKey]);
 
+    // Existing state for table columns
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() =>
         getInitialColumnSizing(defaultColumnOrder.map(id => ({ id })))
     );
@@ -782,30 +807,61 @@ function App({ data, HTMLTable, storageKey }: { data: VIEWDebtorSummaryObligatio
     const table = useReactTable({
         data,
         columns,
-        enableRowSelection: true, // Enable row selection feature
+        enableRowSelection: true,
         state: {
             columnSizing,
             columnVisibility,
             columnOrder,
-            rowSelection, // Pass the row selection state to the table
+            rowSelection,
         },
         onColumnSizingChange: setColumnSizing,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setColumnOrder,
-        onRowSelectionChange: setRowSelection, // Set the updater function for row selection
+        // --- MODIFICATION: Use the custom handler for selection changes ---
+        onRowSelectionChange: handleRowSelectionChange,
         getCoreRowModel: getCoreRowModel(),
-        getRowId: row => row.NoticeNumber, // Use a unique ID for each row to reliably track selections
+        getRowId: row => row.NoticeNumber,
         columnResizeMode: 'onChange',
         enableColumnResizing: true,
-        // debugTable: true,
     });
 
+    // --- NEW: useEffect to re-evaluate selection on page load ---
+    useEffect(() => {
+        const lastAction = localStorage.getItem(lastActionStorageKey);
+        if (lastAction) {
+            const actionButton = selectionButtons.find(btn => btn.name === lastAction);
+            if (actionButton && actionButton.onClick) {
+                console.log(`Re-evaluating selection for: ${lastAction}`);
+                // Flag the change as programmatic so our handler doesn't clear the stored action
+                isProgrammaticSelection.current = true;
+                actionButton.onClick(null, table);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty dependency array ensures this runs only once on mount
+
+    // --- MODIFICATION: Wrap selection button handlers to add tracking ---
+    const selectionButtonsWithTracking = selectionButtons.map(button => ({
+        ...button,
+        onClick: (_: string | null, table: Table<VIEWDebtorSummaryObligation>) => {
+            if (button.onClick) {
+                // 1. Flag the upcoming selection change as programmatic
+                isProgrammaticSelection.current = true;
+                // 2. Execute the original onClick logic (e.g., handleSelectActionable)
+                button.onClick(null, table);
+                // 3. Store the name of this action so it can be re-run on next load
+                localStorage.setItem(lastActionStorageKey, button.name);
+            }
+        }
+    }));
+
+    // Existing drag-and-drop handlers
     const handleDragStart = (columnId: string) => {
         setDraggedColumnId(columnId);
     };
 
     const handleDragOver = (event: React.DragEvent<HTMLElement>) => {
-        event.preventDefault(); // Necessary to allow dropping
+        event.preventDefault();
     };
 
     const handleDrop = (targetColumnId: string) => {
@@ -813,16 +869,14 @@ function App({ data, HTMLTable, storageKey }: { data: VIEWDebtorSummaryObligatio
             setDraggedColumnId(null);
             return;
         }
-
         const currentColumnOrder = table.getState().columnOrder;
         const draggedIndex = currentColumnOrder.indexOf(draggedColumnId);
         const targetIndex = currentColumnOrder.indexOf(targetColumnId);
-
         if (draggedIndex !== -1 && targetIndex !== -1) {
             const newColumnOrder = [...currentColumnOrder];
-            newColumnOrder.splice(draggedIndex, 1); // Remove
-            newColumnOrder.splice(targetIndex, 0, draggedColumnId); // Insert
-            table.setColumnOrder(newColumnOrder); // Update table state
+            newColumnOrder.splice(draggedIndex, 1);
+            newColumnOrder.splice(targetIndex, 0, draggedColumnId);
+            table.setColumnOrder(newColumnOrder);
         }
         setDraggedColumnId(null);
     };
@@ -832,8 +886,9 @@ function App({ data, HTMLTable, storageKey }: { data: VIEWDebtorSummaryObligatio
     };
 
     return (
-        <div className=""> {/* Added a container with padding */}
-            <ButtonGroup buttons={selectionButtons} table={table} />
+        <div className="">
+            {/* --- MODIFICATION: Pass the new wrapped buttons to the ButtonGroup --- */}
+            <ButtonGroup buttons={selectionButtonsWithTracking} table={table} />
             <ObligationTable
                 HTMLTable={HTMLTable}
                 table={table}
