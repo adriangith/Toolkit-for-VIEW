@@ -1,9 +1,10 @@
 import React, { HTMLProps, useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import parse, { Element, attributesToProps, HTMLReactParserOptions, domToReact } from 'html-react-parser';
-import '../css/External/initial.css'; // Assuming this path is correct for your webpack setup
-import { initialiseWorkbookProcesser } from './xlsxConverter'; // Assuming this path is correct
-import { Message, backgroundData } from './types'; // Assuming this path is correct
+import '../css/External/initial.css';
+import { initialiseWorkbookProcesser } from './xlsxConverter';
+import { DebtorSummaryObligationTable, Message, backgroundData } from './types';
+import { handleSelectActionable, handleSelectEnforcementReview, handleSelectFVSHolds, handleSelectPAHolds } from './select';
 import {
     createColumnHelper,
     flexRender,
@@ -16,15 +17,24 @@ import {
 
 // Assuming these types are correctly defined in './types'
 import { Input, VIEWDebtorSummaryObligation, TemplateSheetRecord, Button, RadioButton, DropDown } from './types';
+import { movePagerControl } from './utils';
 
 const buttons: Input[] = [
     { name: "export_table", type: "button", description: "Export obligations", text: "xlxs", onClick: handlexlxsExport },
-    { name: "export_table_settings", type: "button", description: "Table settings" },
+    //TODO: Implement column selector: https://github.com/adriangith/Toolkit-for-VIEW/issues/7 
+    // { name: "export_table_settings", type: "button", description: "Table settings" },
     { name: "select_correspondence", type: "dropdown", description: "Select correspondence", options: "getTemplateOptions", attributes: { "data-type": "dropdown" } },
     { name: "generate_letter", type: "button", description: "Generate letter(s)", text: "Generate letter(s)", onClick: handleGenerateLetter },
     { name: "insert_notes", type: "button", description: "Bulk Notes Update", text: "Bulk Notes", onClick: handleBulkNotes },
     { name: "place_holds", type: "button", description: "Bulk Hold Update", text: "Bulk Hold", onClick: handleBulkHold },
-    { name: "writeoff", type: "button", description: "Bulk Writeoff Update", text: "Bulk Writeoff", onClick: handleBulkWriteoff }
+    { name: "writeoff", type: "button", description: "Bulk Writeoff Update", text: "Bulk Writeoff", onClick: handleBulkWriteoff },
+];
+
+const selectionButtons: Input[] = [
+    { name: "select_fvs_holds", type: "button", description: "Select all FVS Pending holds", text: "Select FVSPEND", onClick: handleSelectFVSHolds },
+    { name: "select_p_a_holds", type: "button", description: "Select all PA Holds", text: "Select PA", onClick: handleSelectPAHolds },
+    { name: "select_enforcement_review", type: "button", description: "Select all Enforcement Review", text: "Select Enf Review", onClick: handleSelectEnforcementReview },
+    { name: "select_applicable", type: "button", description: "Select all Actionable", text: "Select Actionable", onClick: handleSelectActionable },
 ];
 
 /**
@@ -183,7 +193,7 @@ let workbook = initialiseWorkbookProcesser(
     "https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1"
 );
 
-async function handlexlxsExport(_: string | null, table: Table<VIEWDebtorSummaryObligation>) {
+async function handlexlxsExport(_: string | null, table: DebtorSummaryObligationTable) {
     if (table.getSelectedRowModel().rows.length === 0) {
         // Consider using a more user-friendly notification than alert in a browser extension
         console.warn('You need to select at least one obligation');
@@ -326,7 +336,9 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
             alert('Scraper is already active.');
         }
 
-
+        if (response.response.includes('File is not a Word template')) {
+            alert('Unable to access the selected template(s). Please check if you have access to the SharePoint site and the template(s) are configured correctly.');
+        }
     } catch (error) {
         console.error("Error generating letter:", error);
         alert("An error occurred while generating the letter. See console for details.");
@@ -429,13 +441,21 @@ if (typeof localStorage !== 'undefined') {
 const ButtonComponent = ({ button, selectedOption, table }: { button: Button, selectedOption: string | null, table: Table<VIEWDebtorSummaryObligation> }) => {
     return (
         <button
-            className="cursor-pointer shadow-inner shadow-purple-500/50 bg-purple-900 rounded border border-gray-800 text-white text-opacity-80 font-thin text-xs font-sans leading-none blur-[0.25px] no-underline select-none hover:opacity-50 px-2 py-1" // Added padding
-            type={button.type as "button" | "submit" | "reset" | undefined} // More specific type
+            className="!box-border h-[14px] cursor-pointer bg-purple-900 rounded-[0.15rem] border border-solid text-gray-200 text-opacity-90 font-verdana text-xs leading-none select-none no-underline blur-[0.30px]
+                     outline-1 outline-[#5f5867]
+                     border-t-[hsl(266_49%_45%)] border-l-[hsl(266_49%_45%)] border-b-purple-950 border-r-purple-950
+                     hover:bg-[#ac9ebe] hover:border-t-[#c5bfd4] hover:border-l-[#c5bfd4] hover:border-b-[#937fa8] hover:border-r-[#937fa8]
+                     active:bg-purple-900 active:shadow-inner active:border-t-purple-950 active:border-l-purple-950 active:border-b-purple-800 active:border-r-purple-800
+                     shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),inset_0_-1px_1px_rgba(0,0,0,0.2)]
+                     px-2 flex items-center justify-center transition-all duration-75 text-[10px]"
+            type={button.type as "button" | "submit" | "reset" | undefined}
             {...button.attributes}
             onClick={() => button.onClick && button.onClick(selectedOption, table)}
             disabled={button.name === "generate_letter" && !selectedOption}
         >
-            {button.text || button.name}
+            <span className="relative -top-[0px]">
+                {button.text || button.name}
+            </span>
         </button>
     );
 }
@@ -499,7 +519,7 @@ const DropDownComponent = ({ dropdown, onChange, initialSelectedOption }: { drop
             {...dropdown.attributes}
             value={currentValue}
             onChange={handleSelectionChange}
-            className="mr-2 p-1 border border-gray-300 rounded text-xs" // Basic styling
+            className="listitem" // Basic styling
         >
             {options.map((option, index) => (
                 <OptionComponent key={index} option={option} />
@@ -522,7 +542,7 @@ const ButtonGroup: React.FC<{
     };
 
     return (
-        <div className="flex flex-row justify-start items-center mt-4 space-x-2 p-2 bg-gray-100 rounded">
+        <div className="flex flex-row justify-start items-center space-x-2 p-2 bg-gray-100 rounded">
             {buttons.map((button, index) => {
                 if (button.type === "button") {
                     return (
@@ -813,6 +833,7 @@ function App({ data, HTMLTable, storageKey }: { data: VIEWDebtorSummaryObligatio
 
     return (
         <div className=""> {/* Added a container with padding */}
+            <ButtonGroup buttons={selectionButtons} table={table} />
             <ObligationTable
                 HTMLTable={HTMLTable}
                 table={table}
@@ -838,4 +859,5 @@ const storageKey = `tableRowSelection_${debtorId}`;
 const root = ReactDOM.createRoot(container);
 // Pass the unique storageKey as a prop to the App
 const render = () => root.render(<App data={records} HTMLTable={sourceTable?.outerHTML || ''} storageKey={storageKey} />);
+movePagerControl();
 render();

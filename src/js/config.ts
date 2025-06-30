@@ -966,6 +966,7 @@ export const StatusCodes = [
 export const allDataFields = [
     { name: "debtor_id", level: "Debtor" },
     { name: "NoticeStatus", level: "Obligation" },
+    { name: "Category", level: "Debtor" },
     { name: "ReviewType", level: "Obligation", isDerived: true, sourceFields: ["CurrentChallengeLogged"] },
     { name: "dt", level: "Debtor", isDerived: true },
     { name: "CurrentChallengeLogged", level: "Obligation" },
@@ -980,22 +981,9 @@ export const allDataFields = [
     { name: "First_Name", level: "Debtor", isDerived: true, sourceFields: ["first_name"] },
     { name: "last_name", level: "Debtor" },
     { name: "Last_Name", level: "Debtor", isDerived: true, sourceFields: ["last_name"] },
-    {
-        name: "fullName",
-        level: "Debtor",
-        isDerived: true,
-        sourceFields: ["first_name", "last_name"],
-        notes: "Derived from first_name and last_name"
-    },
+    { name: "fullName", level: "Debtor", isDerived: true, sourceFields: ["first_name", "last_name"], notes: "Derived from first_name and last_name" },
     { name: "last_name", level: "Debtor" },
-    {
-        name: "name",
-        level: "Debtor",
-        isDerived: true,
-        derivationKey: 'fullName',
-        sourceFields: ["first_name", "last_name", "company_name"],
-        notes: "Derived from first_name and last_name"
-    },
+    { name: "name", level: "Debtor", isDerived: true, derivationKey: 'fullName', sourceFields: ["first_name", "last_name", "company_name"], notes: "Derived from first_name and last_name" },
     { name: "Obligation", level: "Obligation", isDerived: true, sourceFields: ["NoticeNumber"] },
     { name: "Notice Number", level: "Obligation", isDerived: true, sourceFields: ["NoticeNumber"] },
     { name: "total_amount_outstanding", level: "Debtor" },
@@ -1030,7 +1018,7 @@ export const allDataFields = [
     { name: "todayplus14", level: "Debtor", isDerived: true },
     { name: "todayplus21", level: "Debtor", isDerived: true },
     { name: "todayplus28", level: "Debtor", isDerived: true },
-    { name: "is_company", level: "Debtor", isDerived: true, sourceFields: ["company_name"] },
+    { name: "is_company", level: "Debtor", isDerived: true, sourceFields: ["company_name", "Category"] },
     { name: "Is_Company", level: "Debtor", isDerived: true, sourceFields: ["is_company"] },
     { name: "open_obligations", level: "Debtor" },
     { name: "date_of_birth", level: "Debtor" },
@@ -1086,6 +1074,7 @@ export const allDataFields = [
     { name: "enforcement_fee", level: "Obligation" },
     { name: "warrant_issue_fee", level: "Obligation" },
     { name: "amount_waived", level: "Obligation" },
+    { name: "returns", level: "Obligation" },
     { name: "amount_paid", level: "Obligation" },
     { name: "court_costs", level: "Obligation" },
     { name: "court_fine", level: "Obligation" },
@@ -1095,7 +1084,16 @@ export const allDataFields = [
     { name: "InActivePaymentArrangement", level: "Obligation", isDerived: true, sourceFields: ["HoldCodeEndDate"] },
     { name: "Offence", level: "Obligation", isDerived: true, sourceFields: ["offence_description"] },
     { name: "NFDlapsed", level: "Obligation", isDerived: true, sourceFields: ["DueDate", "obligation_status"] },
-    { name: "OnlyNFDLapsed", level: "Obligation" }
+    { name: "OnlyNFDLapsed", level: "Obligation" },
+    { name: "pre-payments", level: "Obligation" },
+    { name: "refunds", level: "Obligation" },
+    { name: "reversed_fees", level: "Obligation" },
+    { name: "cancellations", level: "Obligation" },
+    { name: "writeoff", level: "Obligation" },
+    { name: "hearing_costs", level: "Obligation" },
+    { name: "transfer_in", level: "Obligation" },
+    { name: "transfer_out", level: "Obligation" },
+    { name: "court_courts_type_3", level: "Obligation" }
 ] as const satisfies MasterFieldDefinition[];
 
 export const pageDefinitions = [
@@ -1128,7 +1126,8 @@ export const pageDefinitions = [
             { name: "state", selector: { type: "css", value: "#DebtorAddressCtrl_stateTxt" } },
             { name: "postcode", selector: { type: "css", value: "#DebtorAddressCtrl_postcodeTxt" } },
             { name: "country", selector: { type: "css", value: "#DebtorAddressCtrl_countryTxt" } },
-            { name: "addressType", selector: { type: "css", value: "#DebtorAddressCtrl_typeTxt" } }
+            { name: "addressType", selector: { type: "css", value: "#DebtorAddressCtrl_typeTxt" } },
+            { name: "Category", selector: { type: "css", value: "#DebtorDetailsCtrl_categoryTxt" } }
         ],
         dependencies: [],
         level: "Debtor",
@@ -1291,7 +1290,17 @@ export const pageDefinitions = [
             { name: "amount_paid", selector: { type: "css", value: "#lblPayments" } },
             { name: "court_costs", selector: { type: "css", value: "#lbl2BCRTCs" } },
             { name: "court_fine", selector: { type: "css", value: "#lbl2BCRTs" } },
-            { name: "warrant_issue_fee", selector: { type: "css", value: "#lbl2BCRTs" } }
+            { name: "warrant_issue_fee", selector: { type: "css", value: "#lblWarrantIssueFee" } },
+            { name: "pre-payments", selector: { type: "css", value: "#lblPrePayments" } },
+            { name: "returns", selector: { type: "css", value: "#lblReturnChqs" } },
+            { name: "refunds", selector: { type: "css", value: "#lblRefunds" } },
+            { name: "reversed_fees", selector: { type: "css", value: "#lblReversedFees" } },
+            { name: "cancellations", selector: { type: "css", value: "#lblCancellations" } },
+            { name: "writeoff", selector: { type: "css", value: "#lblWritteoffs" } },
+            { name: "hearing_costs", selector: { type: "css", value: "#lblAppealCosts" } },
+            { name: "transfer_in", selector: { type: "css", value: "#lblTransferIns" } },
+            { name: "transfer_out", selector: { type: "css", value: "#lblTransferOuts" } },
+            { name: "court_courts_type_3", selector: { type: "css", value: "#lblCourtCosts" } }
         ],
         dependencies: [{
             id: "NoticeAudit",
@@ -1494,14 +1503,6 @@ export const derivationFunctionsRegistry: DerivationLogicRegistry = {
         if (!bestPostcode || typeof bestPostcode !== 'string') return undefined;
         return bestPostcode.trim();
     },
-    "altname": (sources) => {
-        const firstName = sources.first_name || '';
-        const lastName = sources.last_name || '';
-        if (firstName || lastName) {
-            return `${firstName} ${lastName}`.trim();
-        }
-        return undefined;
-    },
     "PRN Address": ({ prn_street_name, prn_suburb, prn_postcode, prn_country }) => {
         return `${prn_street_name} ${prn_suburb} ${prn_postcode} ${prn_country}`;
     },
@@ -1569,4 +1570,4 @@ function formatLocalityAndStreet(street: string | boolean | undefined = '', loca
     return `${expandedStreet}${street !== '' ? ' ' + expandedLocality : ''}`.trim();
 }
 
-export const defaultTargetFields: (DerivedFieldName | ExtractedFieldName)[] = ["obligation_status", "NFDlapsed", "todayplus14", "todayplus21", "todayplus28", "Challenge", "is_company", "Is_Company", "InActivePaymentArrangement", "VRM", "VRM State", "date_of_birth", "enforcementAgencyID", "warrant_fee_waived", "HoldCodeEndDate", "IssueDate", "Infringement", "dt", "NoticeType", "agency_code", "input_source", "name", "enforcename", "Town2", "altname", "Address_1", "Address2", "Address3", "Email", "EmailAddress", "enforcementAgencyCode", "MOU", "Debtor_ID", "ReviewType", "debtor_id", "fullName", "total_amount_outstanding", "DueDate", "BalanceOutstanding", "infringement_number", "reduced_charge", "penalty_reminder_fee", "registration_fee", "enforcement_fee", "warrant_issue_fee", "amount_waived", "amount_paid", "court_costs", "court_fine", "UserID", "Obligation", "Last_Name", "First_Name", "Offence_Description", "Balance_Outstanding", "Status", "Date_of_Offence", "Date of Issue", "Input Source", "PRN Issue Date", "NFD Issue Date", "Driver License No.", "Driver License State", "driver_licence_expiry", "PRN Address", "Post_Code", "State", "offence_location", "Town", "Company_Name", "Offence"]; 
+export const defaultTargetFields: (DerivedFieldName | ExtractedFieldName)[] = ["returns", "obligation_status", "NFDlapsed", "todayplus14", "todayplus21", "todayplus28", "Challenge", "is_company", "Is_Company", "InActivePaymentArrangement", "VRM", "VRM State", "date_of_birth", "enforcementAgencyID", "warrant_fee_waived", "HoldCodeEndDate", "IssueDate", "Infringement", "dt", "NoticeType", "agency_code", "input_source", "name", "enforcename", "Town2", "altname", "Address_1", "Address2", "Address3", "Email", "EmailAddress", "enforcementAgencyCode", "MOU", "Debtor_ID", "ReviewType", "debtor_id", "fullName", "total_amount_outstanding", "DueDate", "BalanceOutstanding", "infringement_number", "reduced_charge", "penalty_reminder_fee", "registration_fee", "enforcement_fee", "warrant_issue_fee", "amount_waived", "amount_paid", "court_costs", "court_fine", "UserID", "Obligation", "Last_Name", "First_Name", "Offence_Description", "Balance_Outstanding", "Status", "Date_of_Offence", "Date of Issue", "Input Source", "PRN Issue Date", "NFD Issue Date", "Driver License No.", "Driver License State", "driver_licence_expiry", "PRN Address", "Post_Code", "State", "offence_location", "Town", "Company_Name", "Offence", "pre-payments", "refunds", "reversed_fees", "cancellations", "writeoff", "hearing_costs", "transfer_in", "transfer_out", "court_courts_type_3", "Category"] as const; 

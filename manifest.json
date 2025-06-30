@@ -1,6 +1,6 @@
 {
-    "name": "Toolkit for View (Testing)",
-    "version": "0.0.1.57",
+    "name": "Toolkit for View 2",
+    "version": "0.0.1.63",
     "description": "Provides a range of enhancements for the VIEW system",
     "short_name": "View Toolkit",
     "permissions": [
@@ -95,7 +95,8 @@
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligationsSummary.aspx"
             ],
             "js": [
-                "js/DebtorObligationsSummary.js"
+                "js/DebtorObligationsSummary.js",
+                "js/party.js"
             ]
         },
         {
@@ -151,8 +152,7 @@
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/*"
             ],
             "js": [
-                "js/progress.js",
-                "js/party.js"
+                "js/progress.js"
             ],
             "exclude_matches": [
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorMain.aspx/*",

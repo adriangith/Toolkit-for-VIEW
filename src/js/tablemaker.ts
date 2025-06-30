@@ -1,23 +1,48 @@
 import * as XLSX from 'xlsx';
 import { ObligationArray, DerivedFieldName, ExtractedFieldName } from './types';
 
-function currencyFormat(column: string, workSheet: XLSX.WorkSheet) {
-	const C = XLSX.utils.decode_col(column); // 1
-	const fmt = '$0.00'; // or '"$"#,##0.00_);[Red]\\("$"#,##0.00\\)' or any Excel number format
-
-	/* get worksheet range */
-	if (!workSheet['!ref']) return;
-	const range = XLSX.utils.decode_range(workSheet['!ref']);
-	for (let i = range.s.r + 1; i <= range.e.r; ++i) {
-		/* find the data cell (range.s.r + 1 skips the header row of the worksheet) */
-		const ref = XLSX.utils.encode_cell({ r: i, c: C });
-		/* if the particular row did not contain data for the column, the cell will not be generated */
-		if (!workSheet[ref]) continue;
-		/* `.t == "n"` for number cells */
-		if (workSheet[ref].t != 'n') continue;
-		/* assign the `.z` number format */
-		workSheet[ref].z = fmt;
+/**
+ * Formats a column in a SheetJS worksheet as currency (USD with commas and 2 decimal places)
+ * @param {Object} worksheet - The SheetJS worksheet object
+ * @param {number} columnIndex - Zero-based column index (0 = A, 1 = B, 2 = C, etc.)
+ * @param {number} startRow - Starting row index (0-based, typically 1 to skip headers)
+ * @param {number} endRow - Ending row index (0-based, optional - will use worksheet range if not provided)
+ * @returns {Object} The modified worksheet object
+ */
+function currencyFormat(worksheet: XLSX.WorkSheet, columnIndex: number, startRow = 1, endRow: null | number = null) {
+	// Get the worksheet range if endRow is not provided
+	if (endRow === null) {
+		const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : { e: { r: 0 } };
+		endRow = range.e.r;
 	}
+
+	// Format each cell in the specified column range
+	for (let row = startRow; row <= endRow; row++) {
+		const cellAddress = XLSX.utils.encode_cell({ r: row, c: columnIndex });
+
+		if (worksheet[cellAddress]) {
+			const cell = worksheet[cellAddress];
+
+			// Handle currency strings like "$395.00" or "$ 395.00"
+			if (typeof cell.v === 'string') {
+				// Remove $ symbol, spaces, and commas, then parse as float
+				const cleanValue = cell.v.replace(/[$\s,]/g, '');
+				const numValue = parseFloat(cleanValue);
+
+				if (!isNaN(numValue)) {
+					cell.v = numValue;        // Set the actual numeric value
+					cell.t = 'n';            // Set cell type to number
+					cell.z = '$#,##0.00';    // Apply currency format
+				}
+			}
+			// Handle case where it's already a number
+			else if (typeof cell.v === 'number') {
+				cell.z = '$#,##0.00';
+			}
+		}
+	}
+
+	return worksheet;
 }
 
 function isKeyOf<T extends object>(obj: T, key: string | symbol): key is keyof T {
@@ -69,9 +94,9 @@ export function table(data: ObligationArray, name: string, columns: (DerivedFiel
 
 	workSheet['!cols'] = wscols;
 
-	const currencyColumns = ["E", "U", "V", "W", "X", "Y", "Z"]
+	const currencyColumns = ["E", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 
-	currencyColumns.map(column => currencyFormat(column, workSheet))
+	currencyColumns.map(column => currencyFormat(workSheet, XLSX.utils.decode_col(column)))
 
 	XLSX.utils.book_append_sheet(wb, workSheet, sheetName);
 	const b64 = XLSX.write(wb, { bookType: "xlsx", type: "base64" });

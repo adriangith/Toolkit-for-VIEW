@@ -1,23 +1,22 @@
-import { useLoadingBar, LoadingBarContainer } from "react-top-loading-bar";
-import React, { useEffect, useCallback } from 'react';
+import LoadingBar, { LoadingBarContainer } from "react-top-loading-bar";
+import React, { useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 
 const App = () => {
-    const { increase } = useLoadingBar({
-        color: "#420b90",
-        height: 3,
-    });
+    const [progress, setProgress] = useState(0);
 
     const handleStorageChange = useCallback((changes: {
         [key: string]: chrome.storage.StorageChange;
     }) => {
         if (changes.obligationsCount?.newValue !== undefined) {
-            chrome.storage.local.get(['obligationsCountFixed'], function (items) {
-                const increment = 100 / items.obligationsCountFixed;
-                increase(increment);
+            chrome.storage.local.get(['obligationsCount', 'obligationsCountFixed'], function (items) {
+                //const increment = 100 / items.obligationsCountFixed;
+                const obligationsCount = items.obligationsCountFixed - items.obligationsCount;
+                const newProgress = obligationsCount / items.obligationsCountFixed;
+                setProgress(newProgress * 100);
             });
         }
-    }, [increase]);
+    }, [setProgress]);
 
     useEffect(() => {
         chrome.storage.onChanged.addListener(handleStorageChange);
@@ -29,7 +28,14 @@ const App = () => {
     }, [handleStorageChange]); // Include handleStorageChange as dependency
 
     return (
-        <div></div>
+        <div>
+            <LoadingBar
+                color="#420b90"
+                height={3}
+                progress={progress}
+                onLoaderFinished={() => setProgress(0)}
+            />
+        </div>
     );
 };
 

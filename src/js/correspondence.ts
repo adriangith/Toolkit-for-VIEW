@@ -201,7 +201,6 @@ export async function getCorrespondence(
                 throw new Error("DataSet is missing the 'wordTemplateURL' property");
             }
             const wordTemplateDownloadURL = data.wordTemplateURL.split('?')[0] + '?download=1'
-
             const base64Template = await fetchTemplate(wordTemplateDownloadURL);
 
             return new Promise((resolve, reject) => {

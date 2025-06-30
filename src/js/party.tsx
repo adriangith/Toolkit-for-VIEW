@@ -134,7 +134,7 @@ const formConfig = {
 const initialFormData = {
     isThirdParty: false,
     isLegalCentre: false,
-    addressTo: 'Debtor',
+    addressTo: '3rd Party',
     altIsLegalCentre: false,
     mainAddress: { contactName: '', organisation: '', street: '', town: '', state: '', postcode: '' },
     altAddress: { contactName: '', organisation: '', street: '', town: '', state: '', postcode: '' },
@@ -147,6 +147,8 @@ const initialFormData = {
 
 function ApplicationForm() {
     const [debtorId, setDebtorId] = useState(null);
+    const [isPanelVisible, setIsPanelVisible] = useState(false);
+    const panelVisibleStorageKey = 'applicationOptionsPanelVisible';
     const [formData, setFormData] = useState(initialFormData);
 
     // Effect to get the Debtor ID from the DOM when the component mounts
@@ -197,6 +199,62 @@ function ApplicationForm() {
         }
     }, [formData, debtorId, debouncedSave]);
 
+    // --- NEW: Load panel visibility from localStorage on component mount ---
+    useEffect(() => {
+        const savedState = localStorage.getItem(panelVisibleStorageKey);
+        if (savedState !== null) {
+            setIsPanelVisible(JSON.parse(savedState));
+        }
+    }, []);
+
+    // --- NEW: Save panel visibility to localStorage whenever it changes ---
+    useEffect(() => {
+        localStorage.setItem(panelVisibleStorageKey, JSON.stringify(isPanelVisible));
+    }, [isPanelVisible]);
+
+    // --- NEW: Memoized functions to control panel visibility ---
+    const togglePanel = useCallback(() => {
+        setIsPanelVisible(prev => !prev);
+    }, []);
+
+    const hidePanel = useCallback(() => {
+        setIsPanelVisible(false);
+    }, []);
+
+    // --- NEW: Effect to create and inject the toggle button ---
+    useEffect(() => {
+        const targetElement = document.querySelector("#DebtorDetailsCtrl_editDetailsButton");
+        const buttonId = 'toggleApplicationOptionsBtn';
+        const existingButton = document.getElementById(buttonId);
+
+        if (targetElement && !existingButton) {
+            const button = document.createElement('button');
+            button.id = buttonId;
+            button.type = 'button';
+            button.textContent = 'Application Options';
+            // Copying class list from the close button and adding a right margin
+            button.className = `!box-border h-[14px] cursor-pointer bg-purple-900 rounded-[0.15rem] border border-solid text-gray-200 text-opacity-90 font-verdana text-xs leading-none select-none no-underline blur-[0.30px]
+        outline-1 outline-[#5f5867]
+        border-t-[hsl(266_49%_45%)] border-l-[hsl(266_49%_45%)] border-b-purple-950 border-r-purple-950
+        hover:bg-[#ac9ebe] hover:border-t-[#c5bfd4] hover:border-l-[#c5bfd4] hover:border-b-[#937fa8] hover:border-r-[#937fa8]
+        active:bg-purple-900 active:shadow-inner active:border-t-purple-950 active:border-l-purple-950 active:border-b-purple-800 active:border-r-purple-800
+        shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),inset_0_-1px_1px_rgba(0,0,0,0.2)]
+        px-2 items-center justify-center transition-all duration-75 text-[10px] mr-2
+        align-top mt-[1px]`; // Added mr-2 for spacing
+
+            button.addEventListener('click', togglePanel);
+            targetElement.parentNode.insertBefore(button, targetElement);
+
+            // Cleanup function to remove the button when the component unmounts
+            return () => {
+                button.removeEventListener('click', togglePanel);
+                if (button.parentNode) {
+                    button.parentNode.removeChild(button);
+                }
+            };
+        }
+    }, [togglePanel]); // Dependency array ensures the effect runs only when togglePanel function is created
+
     const handleStateChange = (id, value, type = 'value') => {
         setFormData(prev => ({
             ...prev,
@@ -217,7 +275,7 @@ function ApplicationForm() {
             <tbody>
                 <tr>
                     <td>
-                        <div id="DebtorAddressPanel" style={{ display: 'inline' }}>
+                        <div id="DebtorAddressPanel" style={{ display: isPanelVisible ? 'inline' : 'none' }}>
                             <table cellPadding="0" cellSpacing="0" width="100%">
                                 <tbody>
                                     <tr>
@@ -293,7 +351,13 @@ function ApplicationForm() {
                                     <tr><td className="tdRowspace" colSpan="4"></td></tr>
                                     <tr>
                                         <td className="tdButtons" colSpan="4">
-                                            <button type="button" className="btn cancel" id="sub">Close</button>
+                                            <button type="button" onClick={hidePanel} className="!box-border h-[14px] cursor-pointer bg-purple-900 rounded-[0.15rem] border border-solid text-gray-200 text-opacity-90 font-verdana text-xs leading-none select-none no-underline blur-[0.30px]
+                     outline-1 outline-[#5f5867]
+                     border-t-[hsl(266_49%_45%)] border-l-[hsl(266_49%_45%)] border-b-purple-950 border-r-purple-950
+                     hover:bg-[#ac9ebe] hover:border-t-[#c5bfd4] hover:border-l-[#c5bfd4] hover:border-b-[#937fa8] hover:border-r-[#937fa8]
+                     active:bg-purple-900 active:shadow-inner active:border-t-purple-950 active:border-l-purple-950 active:border-b-purple-800 active:border-r-purple-800
+                     shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),inset_0_-1px_1px_rgba(0,0,0,0.2)]
+                     px-2 items-center justify-center transition-all duration-75 text-[10px]" id="sub">Close</button>
                                         </td>
                                     </tr>
                                 </tbody>

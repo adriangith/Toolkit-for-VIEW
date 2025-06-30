@@ -463,4 +463,21 @@ export function createWindow(properties: BulkActionProperties): Promise<BulkActi
         });
     });
 }
+export const movePagerControl = function () {
+
+    // 1. Select the table you want to move
+    const pagerTable = document.getElementById('DebtorNoticesCtrl_DebtorNoticesTable_tblPager');
+
+    // 2. Select the reference element (the main table)
+    // We need to find the parent of the parent `<tr>` of the cell containing the pager table.
+    const mainTable = pagerTable!.closest('table')!.parentElement!.closest('table');
+
+    // 3. Check if both elements were found
+    if (pagerTable && mainTable && mainTable.parentNode) {
+        // 4. Move the pagerTable to be after the mainTable
+        mainTable.parentNode.insertBefore(pagerTable, mainTable.nextSibling);
+    } else {
+        console.error("Could not find one or both of the required table elements.");
+    }
+};
 

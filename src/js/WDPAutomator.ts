@@ -56,13 +56,6 @@ if (document.readyState === "interactive" || document.readyState === "complete")
 }
 
 
-
-
-
-
-
-
-
 addStyleString(`.lds-ring {
 	display: block;
 	position: relative;
@@ -90,6 +83,9 @@ addStyleString(`.lds-ring {
   .lds-ring div:nth-child(2) {
 	animation-delay: -0.3s;
   }
+  table#example tbody tr.selected td {
+    color: white !important;
+	}
   .lds-ring div:nth-child(3) {
 	animation-delay: -0.15s;
   }
@@ -103,6 +99,11 @@ addStyleString(`.lds-ring {
   }
   `);
 
+/**
+ * A simple helper function that pauses execution for a given number of milliseconds.
+ * @param ms The number of milliseconds to wait.
+ */
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 
 function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus: obligationStatusMap) {
@@ -153,10 +154,8 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 		debtorData: CollectedData,
 		obStatus: obligationStatusMap) {
 
-		const date = new Date();
-		const dateISO = date.toISOString();
-
 		const DateOfBirth = (function () {
+			const date = new Date();
 			if (debtorData["date_of_birth"] !== "") {
 				if (!debtorData["date_of_birth"]) {
 					throw new Error("date_of_birth is not defined in fulldata");
@@ -202,45 +201,80 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 		const sequence: WDPSequence = isVariationPresent ? 'obligation' : 'externalEnforcementAgenciesObligation'
 		const eventType = isVariationPresent ? 35 : 12
 
+		const dollarsToCents = (dollarString: string) => Math.round(parseFloat(dollarString.replace(/\$/g, '')) * 100);
 
-		const baseCharge = parseFloat(throwIfUndefined("reduced_charge", obdata).replace(/\$/g, ''))
-			+ parseFloat(throwIfUndefined("court_fine", obdata).replace(/\$/g, ''))
-			+ parseFloat(throwIfUndefined("court_costs", obdata).replace(/\$/g, ''))
+		const baseChargeCents = dollarsToCents(throwIfUndefined("reduced_charge", obdata))
+			+ dollarsToCents(throwIfUndefined("pre-payments", obdata))
+			+ dollarsToCents(throwIfUndefined("amount_paid", obdata))
+			+ dollarsToCents(throwIfUndefined("refunds", obdata))
+			+ dollarsToCents(throwIfUndefined("returns", obdata))
+			+ dollarsToCents(throwIfUndefined("court_fine", obdata))
+			+ dollarsToCents(throwIfUndefined("court_costs", obdata))
+			+ dollarsToCents(throwIfUndefined("cancellations", obdata))
+			+ dollarsToCents(throwIfUndefined("writeoff", obdata))
+			+ dollarsToCents(throwIfUndefined("amount_waived", obdata))
+			+ dollarsToCents(throwIfUndefined("transfer_in", obdata))
+			+ dollarsToCents(throwIfUndefined("transfer_out", obdata))
 
-		const amountFee = parseFloat(throwIfUndefined("penalty_reminder_fee", obdata).replace(/\$/g, ''))
-			+ parseFloat(throwIfUndefined("registration_fee", obdata).replace(/\$/g, ''))
-			+ parseFloat(throwIfUndefined("enforcement_fee", obdata).replace(/\$/g, ''))
-			+ parseFloat(throwIfUndefined("warrant_issue_fee", obdata).replace(/\$/g, ''))
-			+ parseFloat(throwIfUndefined("amount_waived", obdata).replace(/\$/g, ''))
+		const amountFeeCents = dollarsToCents(throwIfUndefined("penalty_reminder_fee", obdata))
+			+ dollarsToCents(throwIfUndefined("registration_fee", obdata))
+			+ dollarsToCents(throwIfUndefined("enforcement_fee", obdata))
+			+ dollarsToCents(throwIfUndefined("warrant_issue_fee", obdata))
+			+ dollarsToCents(throwIfUndefined("reversed_fees", obdata))
+
+		// Convert back to dollars
+		const baseCharge = baseChargeCents / 100;
+		const amountFee = amountFeeCents / 100;
 
 
 		const amountDueAndFee = (amountFee + baseCharge).toString()
 
+		const currentTimestamp = new Date().toISOString();
+
+		const WDPEligibility = ({ dataSet, valueIfTrue, valueIfFalse }:
+			{
+				dataSet: CollectedData,
+				valueIfTrue: string | number,
+				valueIfFalse: string | number
+			}) => {
+			const Obligation = throwIfUndefined("Obligation", obdata);
+			const conditions = [
+				parseInt(throwIfUndefined("Balance_Outstanding", obdata).replace(/\$/g, '')) <= 0,
+				obStatus[Obligation] === "CHLGLOG",
+				obStatus[Obligation] === "PAID",
+				obStatus[Obligation] === "CANCL",
+				dataSet["InActivePaymentArrangement"],
+				dataSet["input_source"] === "2B"
+			].some(condition => condition) ? valueIfTrue : valueIfFalse;
+			return conditions;
+		}
+
 		const body = {
-			"commandTimeStamp": dateISO,
+			"commandTimeStamp": currentTimestamp,
 			"eventType": eventType,
 			[commandType]: {
 				"aggregateId": aggregateId,
 				"commandEventType": eventType,
-				"commandTimeStamp": dateISO,
-				"latestTimeStamp": dateISO,
+				"commandTimeStamp": currentTimestamp,
+				"latestTimeStamp": currentTimestamp,
 				[sequence]: {
 					"debtorID": debtorData.Debtor_ID,
 					"debtorDateOfBirth": DateOfBirth,
 					"infringementNumber": obdata.Infringement,
 					"infringementNoticeIssueDate": dateOfIssue,
-					"issuingAgency": throwIfUndefined('enforcename', obdata),
+					"issuingAgency":
+						obdata["input_source"] === "2B" ? 'COURT' : throwIfUndefined('altname', obdata),
 					"infringementIndicator": getStatusCode(obStatus, obdata, Obligation),
-					"enforcementAgencyID": Number(throwIfUndefined("enforcementAgencyID", obdata)),
-					"enforcementAgencyCode": throwIfUndefined("enforcementAgencyCode", obdata),
+					"enforcementAgencyID": obdata["input_source"] === "2B" ? 118 : Number(throwIfUndefined("enforcementAgencyID", obdata)),
+					"enforcementAgencyCode": obdata["enforcementAgencyCode"] || '',
 					"offenceCode": throwIfUndefined("ContraventionCode", obdata),
 					"offenceCodeDescription": throwIfUndefined("Offence_Description", obdata),
-					"enforcementAgencyName": obdata["enforcename"] || '',
+					"enforcementAgencyName": obdata["altname"] || '',
 					"offenceStreetSuburb": obdata["offence_location"],
 					"offenceStreetandSuburb": obdata["offence_location"],
 					"offenceDateTime": DateOfOffence,
-					"registrationStatePlate": (obdata["VRM State"] || obdata["VRM Number"])
-						? (obdata["VRM State"] ? obdata["VRM State"] + ' ' : '') + (obdata["VRM Number"] ? obdata["VRM Number"] : '')
+					"registrationStatePlate": (obdata["VRM State"] || obdata["VRM Number"] || obdata["VRM"])
+						? (obdata["VRM State"] ? obdata["VRM State"] + ' ' : '') + (obdata["VRM Number"] || obdata["VRM"] || '')
 						: undefined,
 					"amountDueAndFee": String(amountDueAndFee),
 					"amountDue": baseCharge,
@@ -253,8 +287,8 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 					"debtorLicenceState": (obdata["Driver License State"] || obdata["Driver License No."])
 						? (obdata["Driver License State"] ? obdata["Driver License State"] + ' ' : '') + (obdata["Driver License No."] ? obdata["Driver License No."] : '')
 						: undefined,
-					"wdpHoldStatusID": parseInt(throwIfUndefined("Balance_Outstanding", obdata).replace(/\$/g, '')) <= 0 || obStatus[Obligation] === "CHLGLOG" || obStatus[Obligation] === "PAID" || obStatus[Obligation] === "CANCL" ? 97 : 96,
-					"eligibility": parseInt(throwIfUndefined("Balance_Outstanding", obdata).replace(/\$/g, '')) <= 0 || obStatus[Obligation] === "CHLGLOG" || obStatus[Obligation] === "PAID" || obStatus[Obligation] === "CANCL" ? "INELIGIBLE" : "ELIGIBLE",
+					"wdpHoldStatusID": WDPEligibility({ dataSet: obdata, valueIfTrue: 97, valueIfFalse: 96 }),
+					"eligibility": WDPEligibility({ dataSet: obdata, valueIfTrue: "INELIGIBLE", valueIfFalse: "ELIGIBLE" }),
 					"workedOffAmount": 0,
 					"manualAdjustmentAmount": Math.abs(parseFloat(throwIfUndefined('amount_paid', obdata).replace(/\$/g, ''))),
 					...(isVariationPresent && { "wdpVariationID": 6, "obligation": { "obligationNumber": obdata.Obligation } })
@@ -294,14 +328,33 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 
 	return new Promise(function (resolve, reject) {
 		const results: Response[][] = [];
-
 		let index = 0;
-		function next() {
+
+		// Use an async function to allow for 'await'
+		const next = async () => {
 			if (index < obdata.length) {
-				Promise.all(obdata[index++].map((ob: CollectedData) => { return WDPSubmitBatch(ob, fulldata, obStatus) })).then(function (data) {
-					results.push(data);
-					setTimeout(function () { next() }, 1000);
-				}, reject);
+				try {
+					const currentBatch = obdata[index++];
+					const batchResults: Response[] = [];
+
+					// Loop through the current batch and process one-by-one
+					for (const ob of currentBatch) {
+						// Wait for the single request to complete
+						const response = await WDPSubmitBatch(ob, fulldata, obStatus);
+						batchResults.push(response);
+
+						// The new 100ms delay before the next request in the batch
+						await delay(0);
+					}
+
+					results.push(batchResults);
+
+					// The original 1-second delay between batches
+					setTimeout(next, 0);
+
+				} catch (error) {
+					reject(error);
+				}
 			} else {
 				resolve(results);
 			}
@@ -310,7 +363,6 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 		next();
 	});
 }
-
 
 function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 	/**
@@ -378,13 +430,13 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 	const obStatus: obligationStatusMap = {};
 	for (let i = 0; i < obligationData.length; i++) {
 		obligations.push({
-			NoticeNumber: obligationData[i][0],
-			Issued: obligationData[i][1],
-			Balance_Outstanding: obligationData[i][2],
-			NoticeStatus: obligationData[i][3],
-			Offence: obligationData[i][4]
+			NoticeNumber: obligationData[i][1],
+			Issued: obligationData[i][2],
+			Balance_Outstanding: obligationData[i][3],
+			NoticeStatus: obligationData[i][4],
+			Offence: obligationData[i][5]
 		});
-		obStatus[obligationData[i][0]] = obligationData[i][3];
+		obStatus[obligationData[i][1]] = obligationData[i][4];
 	}
 
 	const message: ObligationNumberList = { "type": "WDPBatchProcess", "data": { obligations: obligations, VIEWEnvironment: 'djr' } };
@@ -438,11 +490,13 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 				}
 			);
 
-			// approvedButtonObserver
 			watchForElement(
-				"#content > app-root > div > app-approved-wdp > div:nth-child(2) > div > div > a",
-				function (elem: { click: () => void; }) {
-					elem.click();
+				"xpath://h4[contains(text(), 'WDP team dashboard')]",
+				function () {
+					window.history.pushState({}, '', '/wdp-applications/app-wdp-list');
+
+					// Then trigger the route change
+					window.dispatchEvent(new PopStateEvent('popstate'));
 				}, () => { },
 				{
 					disconnectOnAppear: true
@@ -451,11 +505,36 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 
 			// globalFilterObserver
 			watchForElement(
-				"#global_filter",
+				"#manageNewWDP_filter > label > input[type=search]",
 				function (elem: { click: () => void; }) {
 					if (elem instanceof HTMLInputElement) {
 						const selectedApplication = `WDP-${aggregateId}`;
 						elem.value = selectedApplication;
+						// Make field active
+						elem.focus();
+
+						// Simulate Enter key press
+						const events = ['keydown', 'keypress', 'keyup'];
+						events.forEach(eventType => {
+							const event = new KeyboardEvent(eventType, {
+								key: 'Enter',
+								code: 'Enter',
+								keyCode: 13,
+								which: 13,
+								bubbles: true,
+								cancelable: true
+							});
+							elem.dispatchEvent(event);
+							watchForElement(
+								`#${CSS.escape(String(aggregateId))}`,
+								function (elem: { click: () => void; }) {
+									elem.click();
+								}, () => { },
+								{
+									disconnectOnAppear: true
+								}
+							);
+						});
 					}
 					elem.click();
 				}, () => { }, {
@@ -478,98 +557,134 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 }
 
 
-
 /**
- * This function creates a modal and a button to view obligations from VIEW.
- * @param addExternalInfrigementsButton The button element that triggers the addition of external infringements.
- * @returns HTMLButtonElement - The button that allows viewing obligations from VIEW.
- * @throws Will throw an error if the parent node of the addExternalInfrigementsButton is not found.
+ * Attaches the "Show obligations from VIEW" button and manages the modal's lifecycle.
+ * This version completely destroys the DataTable when the modal is closed and recreates it
+ * when opened, ensuring a clean state and preventing display bugs.
+ * @param addExternalInfrigementsButton The "Add external infringements" button to anchor to.
  */
 function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
-	function buildDataTable(rows: CollectedData[]) {
+	// This will hold the reference to the initialized DataTable instance.
+	// It's reset to null when the modal closes.
+	let obligationPreviewTable: Api<CollectedData[]> | null = null;
+
+	/**
+	 * This event handler is the key to the solution. It fires when the modal has
+	 * finished being hidden from the user.
+	 */
+	$('#exampleModal').on('hidden.bs.modal', function () {
+		// If the DataTable instance exists, properly destroy it.
+		if (obligationPreviewTable) {
+			obligationPreviewTable.destroy();
+			obligationPreviewTable = null;
+		}
+		// It's also good practice to clear the table's container HTML.
+		$("#table").empty();
+	});
+
+
+	/**
+	 * Builds a new DataTable from scratch with the provided data.
+	 * This function is now called every time the modal is opened.
+	 * @param rows The data to populate the table with.
+	 */
+	function buildTable(rows: CollectedData[]) {
+		if (rows.length === 0) {
+			$("#table").html("No data received or data is empty.");
+			return;
+		}
+
+		// 1. Get headers from the first row of data to build the table structure dynamically.
+		const headers = Object.keys(rows[0]);
+
+		// 2. Build the table HTML shell.
 		let html = '<table id="example" class="table table-striped table-bordered" style="width:100%">';
 		html += '<thead><tr>';
-		for (const j in rows[0]) {
-			html += '<th>' + j + '</th>';
+		html += '<th></th>'; // Header for the selection checkbox column
+		for (const header of headers) {
+			html += `<th>${header}</th>`;
 		}
-		html += '</tr></thead>';
-		for (let i = 0; i < rows.length; i++) {
-			html += '<tr>';
-			for (const j in rows[i]) {
-				html += '<td>' + rows[i][j as keyof CollectedData] + '</td>';
-			}
-			html += '</tr>';
-		}
-		html += '</table>';
+		html += '</tr></thead><tbody></tbody></table>';
+
 		const tableParent = document.getElementById('table');
-		if (tableParent === undefined) {
-			throw new Error("Table element not found");
-		}
-		if (tableParent === null) {
-			throw new Error("Table element not found");
+		if (!tableParent) {
+			throw new Error("Table element with id 'table' not found");
 		}
 		tableParent.innerHTML = html;
-		const table = tableParent.firstElementChild;
-		if (table === null) {
-			throw new Error("Table element not found");
-		}
-		const obligationPreviewTable = new DataTable<CollectedData[]>(table, {
-			"dom": 'Blfrtip',
-			"ordering": true,
-			"paging": false,
-			"select": {
-				"style": "multi"
+		const table = tableParent.firstElementChild as HTMLTableElement;
+
+		// 3. Transform the array of objects into an array of arrays for DataTables.
+		const tableData = rows.map(row => {
+			// The first '' is a placeholder for the selection column.
+			const rowArray: (string | number)[] = [''];
+			Object.values(row).forEach(value => rowArray.push(value));
+			return rowArray;
+		});
+
+		// 4. Initialize the new DataTable instance.
+		obligationPreviewTable = new DataTable<CollectedData[]>(table, {
+			data: tableData, // Pass data directly on initialization
+			columnDefs: [{
+				orderable: false,
+				render: DataTable.render.select(),
+				targets: 0
+			}],
+			dom: 'Blfrtip', // Defines the layout of controls
+			ordering: true,
+			paging: false,
+			select: {
+				style: 'multi',
+				selector: 'td:first-child'
 			},
-			"buttons": [
-				"selectAll",
-				"selectNone"
-			],
-			"language": {
-				"buttons": {
-					"selectAll": "Select all items",
-					"selectNone": "Select none"
+			buttons: ["selectAll", "selectNone"],
+			language: {
+				buttons: {
+					selectAll: "Select all items",
+					selectNone: "Select none"
 				}
 			}
-		})
+		});
 
+		// 5. Attach the event listener to the submit button.
 		const submitButton = document.getElementById("submit");
 		if (!submitButton) {
 			throw new Error("Submit button not found");
 		}
-		submitButton.addEventListener("click", () => VIEWExtract(obligationPreviewTable))
+		// Using .off().on() is a robust way to prevent attaching duplicate listeners.
+		$(submitButton).off('click').on('click', () => {
+			if (obligationPreviewTable) {
+				VIEWExtract(obligationPreviewTable);
+			}
+		});
 	}
 
+
 	/**
-	* Gets obligation numbers from VIEW and populates the preview table.
-	* Uses the obligation number as a query from the input field if it exists, otherwise uses the value from the notes field.
-	* @throws Will throw an error if the element with id "obligationNumber1" is not an HTMLInputElement.
-	* @throws Will throw an error if the element with id "notes" is not an HTMLInputElement.
-	*/
+	 * Returns the event handler for the "Show obligations from VIEW" button click.
+	 * This function orchestrates fetching the data and triggering the table build.
+	 */
 	function handleObligationPreview() {
 		return function () {
 			const obligations: CollectedData[] = [];
 
-			// Check if the element with id "obligationNumber1" exists
 			const obligationNumber1 = document.getElementById("obligationNumber1");
-
 			if (!(obligationNumber1 instanceof HTMLInputElement)) {
 				throw new Error("obligationNumber1 is not an HTMLInputElement");
 			}
 
-			if (obligationNumber1) {
-				// If it exists, get its value
+			const notesValueElement = document.querySelector("#notes");
+
+			if (obligationNumber1 && obligationNumber1.value) {
 				obligations.push({ "Obligation": obligationNumber1.value });
-			} else {
-				// If it doesn't exist, get the value of the element with id "notes"
-				const notesValueElement = document.querySelector("#notes");
-				if (!(notesValueElement instanceof HTMLInputElement)) {
-					throw new Error("notesValueElement is not an HTMLInputElement");
-				}
+			} else if (notesValueElement && notesValueElement instanceof HTMLInputElement) {
 				const notesValue = notesValueElement.value;
 				if (notesValue.length !== 10 || !/^\d+$/.test(notesValue)) {
 					alert('Obligation number stored in note field must be exactly 10 characters long and contain only numbers.');
+					return; // Stop execution if validation fails
 				}
 				obligations.push({ "Obligation": notesValue });
+			} else {
+				obligations.push({ "Obligation": "" });
 			}
 
 			const message: ObligationNumberList = {
@@ -577,21 +692,27 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 				"data": { obligations: obligations, VIEWEnvironment: 'djr' }
 			};
 
+			// Display the loading ring while waiting for data.
 			$("#table").html(`<div class="lds-ring"><div></div><div></div><div></div><div></div></div>`);
+
+			// Fetch data and build the table in the callback.
 			chrome.runtime.sendMessage(message, function (response: WDPResponse) {
 				if (response.type === "success" && typeof response.data !== "boolean") {
-					buildDataTable(response.data);
+					// Call the function that builds a fresh table.
+					buildTable(response.data);
 				} else {
-					$("#table").html("Obligation not found. Please make sure that you are logged into VIEW and that you have you have typed a valid obligation number into the 'Obligation number 1' field");
+					$("#table").html("Obligation not found. Please make sure that you are logged into VIEW and that you have typed a valid obligation number into the 'Obligation number 1' field");
 				}
 			});
 		};
 	}
 
+	// --- The rest of your UI setup code remains the same ---
+
 	const modalAttribs = {
 		"data-toggle": "modal",
 		"data-target": "#exampleModal"
-	}
+	};
 
 	const viewButtonAttribs = {
 		"data-toggle": "tooltip",
@@ -599,10 +720,10 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 		"class": "btn btn-primary pull-left",
 		"id": "ViewButton",
 		"textContent": "Show obligations from VIEW",
-	}
+	};
 
 	function createElemAndSetAttributes<T extends keyof HTMLElementTagNameMap>(element: T, attributes: Record<string, string>) {
-		const newElement = document.createElement(element) as HTMLElementTagNameMap[T]
+		const newElement = document.createElement(element) as HTMLElementTagNameMap[T];
 		Object.entries(attributes).forEach(([key, value]) => {
 			if (value !== undefined && key !== "textContent") {
 				newElement.setAttribute(key, value.toString());
@@ -613,30 +734,29 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 		return newElement;
 	}
 
-	const modalWrap = createElemAndSetAttributes("span", modalAttribs)
-	const addInfringementsFromViewButton = createElemAndSetAttributes("button", viewButtonAttribs)
+	const modalWrap = createElemAndSetAttributes("span", modalAttribs);
+	const addInfringementsFromViewButton = createElemAndSetAttributes("button", viewButtonAttribs);
 
-	modalWrap.appendChild(addInfringementsFromViewButton)
+	modalWrap.appendChild(addInfringementsFromViewButton);
 
 	if (addExternalInfrigementsButton.parentNode === null) {
 		throw new Error("Parent node of addExternalInfrigementsButton not found");
 	}
 
 	addExternalInfrigementsButton.parentNode.insertBefore(modalWrap, addExternalInfrigementsButton.nextSibling);
-	const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-toggle="tooltip"]'))
+
+	const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-toggle="tooltip"]'));
 	tooltipTriggerList.map(function (tooltipTriggerEl) {
-		return new Tooltip(tooltipTriggerEl)
+		return new Tooltip(tooltipTriggerEl);
 	});
 
 	/**
-	 * Event handler for the "Show obligations from VIEW" button.
-	 * This function retrieves obligation numbers from the input fields and sends a message to the background script.
+	 * Attach the main event handler to the "Show obligations from VIEW" button.
 	 */
 	addInfringementsFromViewButton.addEventListener("click", handleObligationPreview());
 
-	return addInfringementsFromViewButton
+	return addInfringementsFromViewButton;
 }
-
 /**
  * WDP initialisation function
  * This function sets up the WDP automator by adding a modal and watching for the "Add external infringements" button.
@@ -646,11 +766,11 @@ function WDPButton() {
 	addModal()
 	watchForElement(
 		"xpath://button[contains(text(), 'Add external infringements')]",
-		function (element: HTMLElement) {
-			if (!(element instanceof HTMLButtonElement)) {
+		function (watchedElement: HTMLElement) {
+			if (!(watchedElement instanceof HTMLButtonElement)) {
 				throw new Error("Element is not a button");
 			}
-			VIEWPreview(element)
+			VIEWPreview(watchedElement)
 		},
 		function (element: HTMLElement, newElement?: HTMLElement | null) {
 			if (newElement !== null) {

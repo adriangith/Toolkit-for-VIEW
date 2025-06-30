@@ -4,6 +4,9 @@ import { table } from "./js/tablemaker";
 import { Message } from "./js/types";
 import { addMessageListeners, createWindow, customFetch, setupOffscreenDocument } from "./js/utils";
 
+fetch('https://vicgov.sharepoint.com/:w:/r/sites/msteams_d7b758/Shared%20Documents/TLs%20%26%20TROs/BOT%20New%20User%20Tray%20List.docx?d=w387c6390943d456183b0e65f5c42c47a&csf=1&web=1&e=3BVHAS')
+
+
 /**
  * Message listener to initiate the correspondence generation process.
  */

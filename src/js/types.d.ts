@@ -2,7 +2,7 @@ import { Table } from "@tanstack/react-table";
 import { VIEWObligationListHeadings } from "./obligations";
 import { OptionsResult } from "./xlsxConverter";
 import { allDataFields, pageDefinitions } from "./config";
-import { afterAction, BulkActionProperties, Properties, urlParamsType } from "./types";
+import { afterAction, BulkActionProperties, Properties, urlParamsType, VIEWDebtorSummaryObligation } from "./types";
 
 export type ObligationPreviewProcess = <T extends Message>(message: T, sender: chrome.runtime.MessageSender, sendResponse: (response?: WDPResponse) => void) => void | boolean;
 interface SuccessResponse {
@@ -815,4 +815,5 @@ export type paramArrayObject = {
     txtNoticeNo?: string;
     txtNoticeCheck?: string;
 };
+export type DebtorSummaryObligationTable = Table<VIEWDebtorSummaryObligation>;
 

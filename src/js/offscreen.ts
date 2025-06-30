@@ -3,7 +3,7 @@ import { getCorrespondence } from "./correspondence";
 import { showVIEWInWDP } from "./showVIEWInWDP";
 import { defaultTargetFields } from "./config";
 import { Message, ChromeMessageListenerCallback, ErrorResponse, ObligationPreviewProcess } from "./types";
-import { addMessageListeners } from "./utils";
+import { addMessageListeners, setStorage } from "./utils";
 import VIEWsubmit from "./VIEWSubmit";
 
 let scraperActive = false;
@@ -22,10 +22,16 @@ const handleScraper: ChromeMessageListenerCallback = ({ type, data }: Message, _
             sendResponse({ error: "Scraper is already active." });
             return;
         }
-        scraperActive = true;
-        const extractedDataSet = await getData(data.obligations, data.targetFields || defaultTargetFields, 'djr', customLogFn)
-        scraperActive = false;
-        sendResponse(extractedDataSet);
+        try {
+            scraperActive = true;
+            const extractedDataSet = await getData(data.obligations, data.targetFields || defaultTargetFields, 'djr', customLogFn)
+            scraperActive = false;
+            sendResponse(extractedDataSet);
+        } catch (error) {
+            scraperActive = false;
+            setStorage("obligationsCount", 0);
+            sendResponse({ error: error instanceof Error ? error.message : "An unknown error occurred" });
+        }
     })();
 
     return true;

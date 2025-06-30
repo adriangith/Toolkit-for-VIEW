@@ -1386,8 +1386,8 @@ export class Scraper {
         const obligationsCountFixed = initialObligations.length;
         setStorage("obligationsCountFixed", obligationsCountFixed);
         for (const /** Input obligation data. */  oblInput of initialObligations) {
-            setStorage("obligationsCount", obligationsCount);
             obligationsCount--;
+            setStorage("obligationsCount", obligationsCount);
             /** Obligation number of the current obligation from the initialObligations input array.*/
             const oblNum = oblInput[this.obligationIdentifierFieldName] as string;
             if (!oblNum) { this.log("Skipping obligation with no identifier."); continue; }
@@ -1534,10 +1534,9 @@ export class Scraper {
 // Example of how getData might be structured if it's outside a class
 // This is just for context, assuming your chrome.runtime parts are elsewhere or integrated.
 export async function getData(initialObligations: CollectedData[], targetFields: DataFieldName[] = defaultTargetFields, currentEnvironment: string, customLog: (message: string) => void) {
-    // const targetFields: DataField[] = ["fullName", ...]; // Defined by caller or config
-
-    // const currentEnvironment = 'djr'; // Passed as arg
-
+    const obligationsCountFixed = initialObligations.length;
+    setStorage("obligationsCountFixed", obligationsCountFixed);
+    setStorage("obligationsCount", obligationsCountFixed - 0.5);
     if (!Array.isArray(initialObligations)) {
         throw new Error("Initial Obligations must be a JSON array.");
     }
