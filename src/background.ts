@@ -21,7 +21,7 @@ const handleGenerateCorrespondence: ChromeMessageListenerCallback = ({ type, dat
             type: 'obligationScrapeInitialise',
             data: {
                 obligations: data.obligations || [],
-                VIEWEnvironment: 'djr' // Provide default value
+                VIEWEnvironment: data.VIEWEnvironment || 'djr'
             }
         };
         const scrapeResponse = await chrome.runtime.sendMessage(scrapeMessage);
@@ -188,6 +188,7 @@ function handleWDPProcess(): WDPPreviewProcess {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: Message, _, sendResponse) => {
     if (type !== "bulkAction") return;
+
     /**
  * Creates a dedicated message listener for a specific bulk action instance and ensures it's cleaned up
  * when the connection to the popup window is lost.
@@ -221,7 +222,7 @@ export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: 
         'Bulk Notes Update': `https://${data.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticeGenericBulkUpdate.aspx?Mode=N&Menu=3`,
         'Bulk Writeoff Update': `https://${data.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticeGenericBulkUpdate.aspx?Mode=W&Menu=3`,
         'Bulk Hold Update': `https://${data.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticeGenericBulkUpdate.aspx?Mode=H&Menu=3`,
-    }
+    } as const;
 
     let properties: BulkActionProperties = {
         popupWindow: null,
@@ -230,16 +231,17 @@ export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: 
         txtNoticeCheck: [],
         obligations: data.obligations,
         VIEWEnvironment: data.VIEWEnvironment,
-        page: urlMap[data.subType],
+        page: urlMap[data.subType || 'Bulk Notes Update'],
     };
 
     properties = await createWindow(properties);
     await setupOffscreenDocument('html/offscreen.html');
     const message: BulkAction = {
         type: 'processBulkAction',
-        subType: data.subType,
+        subType: data.subType || 'Bulk Notes Update',
         data: {
-            properties
+            properties,
+            VIEWEnvironment: data.VIEWEnvironment || 'djr',
         }
     };
     handleMessageForObligationCount(properties);

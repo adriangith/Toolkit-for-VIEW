@@ -9,6 +9,9 @@ import 'datatables.net-buttons';
 import 'datatables.net-select';
 import { getStoredAuthorisationToken, throwIfUndefined, watchForElement } from './utils';
 
+const hostname = location.hostname;
+const WDPEnvironment = hostname.substring(0, hostname.indexOf('.wdp.vic.gov.au'))
+const VIEWEnvironment = ['uat', 'uat2'].includes(WDPEnvironment) ? 'uat' : 'djr-uat1';
 
 let aggregateId: number;
 
@@ -296,13 +299,11 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 			}
 		} as WDPBatchPayloadType
 
-
 		/** Obligation data from VIEW to submit to WDP. */
 		const payload = JSON.stringify([body])
 
-		const hostname = location.hostname;
-
-		const apiUrl = hostname.substring(0, hostname.indexOf('.wdp.vic.gov.au')) + 'api';
+		/**  API URL for WDP based on the current environment. */
+		const apiUrl = WDPEnvironment + 'api';
 
 		/** Stored authorization token for WDP */
 		const authorization = getStoredAuthorisationToken(Object.entries<string>(localStorage));
@@ -439,7 +440,7 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 		obStatus[obligationData[i][1]] = obligationData[i][4];
 	}
 
-	const message: ObligationNumberList = { "type": "WDPBatchProcess", "data": { obligations: obligations, VIEWEnvironment: 'djr' } };
+	const message: ObligationNumberList = { "type": "WDPBatchProcess", "data": { obligations: obligations, VIEWEnvironment: VIEWEnvironment } };
 	const progressBar = document.createElement("div");
 	progressBar.className = "progress";
 	Object.assign(progressBar.style, {
@@ -689,7 +690,7 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 
 			const message: ObligationNumberList = {
 				"type": 'WDPPreviewInitialise',
-				"data": { obligations: obligations, VIEWEnvironment: 'djr' }
+				"data": { obligations: obligations, VIEWEnvironment: VIEWEnvironment }
 			};
 
 			// Display the loading ring while waiting for data.

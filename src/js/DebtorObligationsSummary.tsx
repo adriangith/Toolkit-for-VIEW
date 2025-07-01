@@ -17,6 +17,9 @@ import {
     OnChangeFn, // Added for clarity
 } from '@tanstack/react-table';
 
+/** Current environment, 'djr' for production. */
+const VIEWEnvironment = window.location.hostname.split('.')[0].toLowerCase();
+
 // Assuming these types are correctly defined in './types'
 import { Input, VIEWDebtorSummaryObligation, TemplateSheetRecord, Button, RadioButton, DropDown } from './types';
 import { movePagerControl } from './utils';
@@ -209,7 +212,7 @@ async function handlexlxsExport(_: string | null, table: DebtorSummaryObligation
             type: 'generateXLSX',
             data: {
                 obligations: selectedRows,
-                VIEWEnvironment: 'djr',
+                VIEWEnvironment: VIEWEnvironment || 'djr',
             }
         });
     } catch (error) {
@@ -232,7 +235,7 @@ function bulkAction({ subType, table }: { subType: string, table: Table<VIEWDebt
             type: 'bulkAction',
             data: {
                 obligations: selectedRows,
-                VIEWEnvironment: 'djr',
+                VIEWEnvironment: VIEWEnvironment || 'djr',
                 subType
             },
         });
@@ -315,15 +318,12 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
 
         console.log("Selected Templates:", selectedTemplates);
 
-        /** Current environment, 'djr' for production. */
-        const VIEWEnvironement = window.location.hostname.split('.')[0].toLowerCase();
-
         const selectedRows = table.getSelectedRowModel().rows.map(row => row.original);
         const response = await chrome.runtime.sendMessage<backgroundData>({
             type: 'generateCorrespondence',
             data: {
                 obligations: selectedRows,
-                VIEWEnvironment: VIEWEnvironement,
+                VIEWEnvironment: VIEWEnvironment || 'djr',
                 wordTemplateProperties: selectedTemplates,
             },
         });

@@ -51,7 +51,8 @@ interface ObligationNumberList {
     data: {
         obligations: CollectedData[];
         VIEWEnvironment: string;
-        targetFields: (DerivedFieldName | ExtractedFieldName)[];
+        targetFields?: (DerivedFieldName | ExtractedFieldName)[];
+        subType?: 'Bulk Notes Update' | 'Bulk Hold Update' | 'Bulk Writeoff Update';
         [key: string]: unknown; // Allowing for additional properties
     };
 }
@@ -75,15 +76,16 @@ interface BulkAction {
     type: "processBulkAction";
     data: {
         properties: BulkActionProperties;
+        VIEWEnvironment: string;
     };
-    subtype: "note" | "hold" | "writeoff";
+    subType: "Bulk Notes Update" | "Bulk Hold Update" | "Bulk Writeoff Update";
 }
 export interface fetchParams {
     type: "fetchJSON" | "fetchBase64";
     data: Parameters<typeof fetch>;
 }
 
-export type Message = bulkAction | VIEWsubmitMessage | ObligationNumberList | backgroundData | ChromeStorage | ObligationNumberList | fetchParams;
+export type Message = BulkAction | VIEWsubmitMessage | ObligationNumberList | backgroundData | ChromeStorage | ObligationNumberList | fetchParams;
 
 export type DropDownType = {
     description: string;

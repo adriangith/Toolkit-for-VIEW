@@ -65,7 +65,7 @@ const prepareCorrespondenceData: ChromeMessageListenerCallback = ({ type, data }
 
 const obligationPreviewProcess: ObligationPreviewProcess = ({ type, data }, _, sendResponse) => {
     if (type !== "WDPPreviewProcess") return;
-    showVIEWInWDP(data.obligations).then((res) => sendResponse({ type: "success", data: res }))
+    showVIEWInWDP(data.obligations, data.VIEWEnvironment).then((res) => sendResponse({ type: "success", data: res }))
         .catch((res) => {
             const errorResponse: ErrorResponse = {
                 "type": "error",

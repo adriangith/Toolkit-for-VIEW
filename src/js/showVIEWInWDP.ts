@@ -5,12 +5,12 @@ import { CollectedData } from "./types";
  * @param obligation The obligation to switch to
  * @returns response from fetch
  */
-async function switchObligationsR(obligation: CollectedData) {
+async function switchObligationsR(obligation: CollectedData, VIEWEnvironment: string = 'djr') {
 	if (!obligation || !obligation["Obligation"]) {
 		throw new Error("Invalid obligation data provided");
 	}
 	//Changes the active obligation
-	const res = fetch("https://djr.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=" + obligation["Obligation"], {
+	const res = fetch(`https://${VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/forms/NoticesManagement/SearchNotice.aspx?&NoticeNo=` + obligation["Obligation"], {
 		method: 'GET',
 		redirect: 'follow'
 	});
@@ -40,15 +40,15 @@ async function getPage(page: { url: string }, formData = new URLSearchParams()) 
 	return htmlText;
 }
 
-export async function showVIEWInWDP(ObligationList: CollectedData[]) {
+export async function showVIEWInWDP(ObligationList: CollectedData[], VIEWEnvironment: string = 'djr') {
 	/** Flag indicating whether at least one obligation was found. If no obligations are found, the function will return false. */
 	let hit = false;
 
 	/** Switches the active obligation in VIEW */
-	await switchObligationsR(ObligationList[0]);
+	await switchObligationsR(ObligationList[0], VIEWEnvironment);
 
 	/** Promise response containing the html text of the debtor obligations page. */
-	const res = await fetch("https://djr.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx");
+	const res = await fetch(`https://${VIEWEnvironment}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx`);
 
 	/** Html text of the debtor obligations page. */
 	let htmlText = await res.text();
@@ -68,7 +68,7 @@ export async function showVIEWInWDP(ObligationList: CollectedData[]) {
 	formData.set("DebtorNoticesCtrl$DebtorNoticesTable$ddRecordsPerPage", "0");
 
 	/** Html text of the debtor obligations page with all obligations listed. */
-	htmlText = await getPage({ "url": "https://djr.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx" }, formData);
+	htmlText = await getPage({ "url": `https://${VIEWEnvironment}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorObligations.aspx` }, formData);
 
 	/** Table of obligations from VIEW. */
 	const obligationTable = doc.querySelector("#DebtorNoticesCtrl_DebtorNoticesTable_tblData tbody");

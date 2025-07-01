@@ -331,28 +331,7 @@ export async function parsePage(vDocument: Response, url: string, fetchOptions: 
     const parsedDoc = parser.parseFromString(htmlText, "text/html");
     return parsedDoc;
 }
-/**
- * Function to add message listeners for various functionalities.
- */
-//export let source = "djr";
-/* chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-    if (message.URLHost) {
-        sendResponse(message.URLHost);
-        source = message.URLHost;
-        return true;
-    } else if (message.getURLHost) {
-        sendResponse(source);
-        return true;
-    }
-}); */
-/* chrome.runtime.onMessage.addListener(
-    function (request, _sender, sendResponse) {
-        if (request.function == "sameSiteCookieMaker") {
-            //    sameSiteCookieMaker();
-            sendResponse({ message: "received" });
-        }
-    });
- */
+
 /**
  * Function to add message listeners for various functionalities.
  */

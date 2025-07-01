@@ -1,5 +1,4 @@
 import { ProcessConfig, BulkActionProperties } from "./types";
-import { createWindow, postData } from "./utils";
 
 export const bulkAdd = (properties: BulkActionProperties): ProcessConfig => {
     return {
@@ -75,11 +74,9 @@ export const bulkAdd = (properties: BulkActionProperties): ProcessConfig => {
                     "NoticeSearchCtrl$btnSearch.x": 0,
                     "NoticeSearchCtrl$btnSearch.y": 0,
                 }
-                if (!properties?.firstName) {
-                    throw new Error("First name is not defined in properties.");
-                };
-                if (properties.firstName.trim() !== "") params['SearchNoticeCtrl$txtName'] = `${properties.firstName} ${properties.lastName}`;
-                if (properties.firstName.trim() === "") params['SearchNoticeCtrl$txtName'] = properties.companyName;
+
+                if (properties?.firstName?.trim() !== "") params['SearchNoticeCtrl$txtName'] = `${properties?.firstName} ${properties?.lastName}`;
+                if (properties?.firstName?.trim() === "") params['SearchNoticeCtrl$txtName'] = properties.companyName;
                 return params
             }
         }, {
