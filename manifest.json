@@ -141,6 +141,14 @@
         },
         {
             "matches": [
+                "https://*.view.civicacloud.com.au/Taskflow/Forms/Management/TaskList.aspx?ProcessMode=User"
+            ],
+            "js": [
+                "js/user.js"
+            ]
+        },
+        {
+            "matches": [
                 "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/Warrant/DebtorExecuteAction.aspx"
             ],
             "js": [
