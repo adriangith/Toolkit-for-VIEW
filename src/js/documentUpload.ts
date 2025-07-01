@@ -1,4 +1,39 @@
+import { captureUserName } from './user';
+
 const uploadControl = document.getElementById('ctl00_mainContentPlaceHolder_documentImportFileUpload') as HTMLInputElement;
+
+async function updateUserAndPopulateField({ obligations, outcome, type }: { obligations: string, outcome: string, type: string }) {
+	// 1. Get the username from storage, awaiting the result
+	let { userName } = await chrome.storage.local.get("userName");
+
+	// 2. If the username is missing, fetch and save it
+	if (!userName) {
+		console.log("Username not found, fetching...");
+		try {
+			const environment = window.location.hostname.split('.')[0].toLowerCase();
+			const response = await fetch(`https://${environment}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskList.aspx?ProcessMode=User`);
+			const html = await response.text();
+			const parsedHTML = new DOMParser().parseFromString(html, 'text/html');
+
+			// Await the capture and use its return value directly
+			userName = await captureUserName(parsedHTML);
+		} catch (error) {
+			console.error("Failed to fetch and capture username:", error);
+		}
+	}
+
+	// 3. Now, populate the textarea with the correct username
+	if (userName) {
+		const textArea = document.getElementById('ctl00_mainContentPlaceHolder_documentDescriptionText');
+		if (textArea instanceof HTMLTextAreaElement) {
+			// Assuming 'type', 'outcome', and 'obligations' are defined
+			textArea.value = `${type} ${outcome} ${obligations} - ${userName}`;
+		}
+	} else {
+		console.error("Could not retrieve or set a username.");
+	}
+}
+
 uploadControl.onchange = function () {
 	(document.getElementById('ctl00_mainContentPlaceHolder_lstApplicationModule') as HTMLSelectElement)!.value = "Debtors"
 	function Matches(value: string): boolean {
@@ -76,8 +111,5 @@ uploadControl.onchange = function () {
 	let obligations = uploadControl.value.match(/[0-9]+/)?.[0] || '';
 	obligations = obligations.length > 4 ? " OBL " + obligations : " x " + obligations;
 
-	chrome.storage.local.get(["userName"], function (items) {
-		const textArea = document.getElementById('ctl00_mainContentPlaceHolder_documentDescriptionText') as HTMLTextAreaElement;
-		textArea.value = type + outcome + obligations + " - " + items.userName
-	});
+	updateUserAndPopulateField({ obligations, outcome, type });
 }
