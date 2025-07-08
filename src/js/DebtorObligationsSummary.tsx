@@ -324,7 +324,7 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
             data: {
                 obligations: selectedRows,
                 VIEWEnvironment: VIEWEnvironment || 'djr',
-                wordTemplateProperties: selectedTemplates,
+                documentTemplateProperties: selectedTemplates,
             },
         });
         if (response.response === 'Failed to fetch') {
@@ -338,7 +338,7 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
             alert('Scraper is already active.');
         }
 
-        if (response.response.includes('File is not a Word template')) {
+        if (response.response.includes('File is not a Word or email template')) {
             alert('Unable to access the selected template(s). Please check if you have access to the SharePoint site and the template(s) are configured correctly.');
         }
     } catch (error) {
@@ -680,6 +680,8 @@ const ObligationTable = ({
                                             maxWidth: header.column.columnDef.maxSize, // Respect maxSize
                                             opacity: draggedColumnId === header.column.id ? 0.5 : 1,
                                             cursor: isDraggable ? 'grab' : (thBaseProps.style?.cursor || 'default'),
+                                            position: 'sticky',
+                                            top: 0
                                         }}
                                         className={`${thBaseProps.className || ''} ${isResizing ? 'bg-gray-200' : ''} ${draggedColumnId === header.column.id ? 'opacity-50' : ''}`}
                                     >
@@ -732,10 +734,7 @@ const ObligationTable = ({
                                             ...tdBaseProps.style,
                                             width: cell.column.getSize(), // Apply width from react-table
                                             minWidth: cell.column.columnDef.minSize,
-                                            maxWidth: cell.column.columnDef.maxSize,
-                                            // overflow: 'hidden', // Optional: if content overflows
-                                            // textOverflow: 'ellipsis', // Optional
-                                            // whiteSpace: 'nowrap', // Optional
+                                            maxWidth: cell.column.columnDef.maxSize
                                         }}
                                         className={`${tdBaseProps.className || ''} `} // Basic cell styling
                                     >

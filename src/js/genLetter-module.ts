@@ -3,11 +3,12 @@ import PizZip from 'pizzip';
 import expressionParser from "docxtemplater/expressions.js";
 import { Opts } from 'docxtemplater-image-module-pwndoc';
 import ImageModule from 'docxtemplater-image-module-pwndoc';
-import { Message } from "./types";
+import { GenerateDocumentMessage, Message } from "./types";
 
 
-window.addEventListener<"message">('message', async (event) => {
-    const { dataSet, base64Template, correspondenceDescription } = event.data
+window.addEventListener<"message">('message', async (event: { data: GenerateDocumentMessage }) => {
+    if (event.data.type !== 'generate-document') return;
+    const { dataSet, base64Template, correspondenceDescription } = event.data.data;
     const correspondence = await makeLetter(dataSet, base64Template, correspondenceDescription, ImageModuleInstance);
     window.parent.postMessage({ type: correspondenceDescription, correspondence }, "*");
 })
@@ -98,7 +99,7 @@ async function backgroundLetterMaker(letterData: Record<string, unknown>, proper
     const letter = makeLetter(letterData, letterTemplate, properties.filename)
 }
 
-export async function makeLetter(content: Record<string, unknown>, letterTemplate: string, filename: string, imageModule: ImageModule) {
+async function makeLetter(content: Record<string, unknown>, letterTemplate: string, filename: string, imageModule: ImageModule) {
     const zip = new PizZip((await letterTemplate).split(',')[1], { base64: true });
     const doc = new Docxtemplater(zip,
         {

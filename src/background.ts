@@ -1,11 +1,9 @@
 //import { emailMaker } from "./js/emailmaker";
-import { ObligationNumberList, WDPResponse, ObligationPreviewProcess as WDPPreviewProcess, ChromeMessageListenerCallback, CollectedData, DerivedFieldName, ExtractedFieldName, BulkActionProperties, BulkAction, ChromeOnUpdatedHandler } from "./js/types"
+import { BulkAction, BulkActionProperties, ChromeMessageListenerCallback, ChromeOnUpdatedHandler, CollectedData, DerivedFieldName, ExtractedFieldName, ObligationNumberList, ObligationPreviewProcess as WDPPreviewProcess, WDPResponse } from "./js/types"
 import { table } from "./js/tablemaker";
 import { Message } from "./js/types";
 import { addMessageListeners, createWindow, customFetch, setupOffscreenDocument } from "./js/utils";
-
-fetch('https://vicgov.sharepoint.com/:w:/r/sites/msteams_d7b758/Shared%20Documents/TLs%20%26%20TROs/BOT%20New%20User%20Tray%20List.docx?d=w387c6390943d456183b0e65f5c42c47a&csf=1&web=1&e=3BVHAS')
-
+import { fieldsForXLSXexport } from "./js/config";
 
 /**
  * Message listener to initiate the correspondence generation process.
@@ -33,7 +31,7 @@ const handleGenerateCorrespondence: ChromeMessageListenerCallback = ({ type, dat
             type: 'prepareCorrespondenceData',
             data: {
                 dataSet: scrapeResponse,
-                wordTemplateProperties: data.wordTemplateProperties,
+                documentTemplateProperties: data.documentTemplateProperties,
             }
         };
         const correspondenceResponse = await chrome.runtime.sendMessage(correspondenceMessage);
@@ -91,17 +89,23 @@ const handleBackgroundFetch: ChromeMessageListenerCallback = ({ type, data }: Me
     }
 }
 
-
 const handleGenerateXLSX: ChromeMessageListenerCallback = ({ type, data }: Message, sender, sendResponse) => {
     if (type !== "generateXLSX") return;
-    const fieldsForXLSXexport: (DerivedFieldName | ExtractedFieldName)[] = [
-        "Obligation", "Infringement", "name", "Agency", "Offence_Description", "Balance_Outstanding", "Status", "enforcename", "Date_of_Offence", "Date of Issue", "Input Source", "PRN Issue Date", "NFD Issue Date", "VRM Number", "Driver License State", "Driver License No.", "PRN Address", "offence_location", "offence_time", "HoldCodeEndDate", "Challenge", "reduced_charge", "registration_fee", "enforcement_fee", "warrant_issue_fee", "amount_waived", "amount_paid", "court_costs", "court_fine"
-    ];
+
+
+
+    const targetFields: (DerivedFieldName | ExtractedFieldName)[] = fieldsForXLSXexport.map(field => field.header);
+
+    targetFields.push('name');
+    targetFields.push('obligation_status');
+    targetFields.push('NoticeStatus');
+    targetFields.push('enforcename');
+
     (async () => {
         await setupOffscreenDocument('html/offscreen.html');
         const message: ObligationNumberList = {
             type: 'obligationScrapeInitialise',
-            data: { ...data, targetFields: fieldsForXLSXexport }
+            data: { ...data, targetFields: targetFields }
         };
         const response = await chrome.runtime.sendMessage<ObligationNumberList, CollectedData>(message);
         if (!response.a) {

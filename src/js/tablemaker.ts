@@ -1,115 +1,91 @@
 import * as XLSX from 'xlsx';
-import { ObligationArray, DerivedFieldName, ExtractedFieldName } from './types';
+import { ObligationArray } from './types'; // Assuming your types are defined here
 
 /**
- * Formats a column in a SheetJS worksheet as currency (USD with commas and 2 decimal places)
- * @param {Object} worksheet - The SheetJS worksheet object
- * @param {number} columnIndex - Zero-based column index (0 = A, 1 = B, 2 = C, etc.)
- * @param {number} startRow - Starting row index (0-based, typically 1 to skip headers)
- * @param {number} endRow - Ending row index (0-based, optional - will use worksheet range if not provided)
- * @returns {Object} The modified worksheet object
+ * Define the structure for a single column's configuration.
  */
+interface ColumnConfig {
+	header: string;
+	width: number;
+	isCurrency?: boolean;
+	isDate?: boolean; // Added to support your new config
+}
+
+// currencyFormat function remains the same...
 function currencyFormat(worksheet: XLSX.WorkSheet, columnIndex: number, startRow = 1, endRow: null | number = null) {
-	// Get the worksheet range if endRow is not provided
 	if (endRow === null) {
 		const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : { e: { r: 0 } };
 		endRow = range.e.r;
 	}
-
-	// Format each cell in the specified column range
 	for (let row = startRow; row <= endRow; row++) {
 		const cellAddress = XLSX.utils.encode_cell({ r: row, c: columnIndex });
-
 		if (worksheet[cellAddress]) {
 			const cell = worksheet[cellAddress];
-
-			// Handle currency strings like "$395.00" or "$ 395.00"
 			if (typeof cell.v === 'string') {
-				// Remove $ symbol, spaces, and commas, then parse as float
 				const cleanValue = cell.v.replace(/[$\s,]/g, '');
 				const numValue = parseFloat(cleanValue);
-
 				if (!isNaN(numValue)) {
-					cell.v = numValue;        // Set the actual numeric value
-					cell.t = 'n';            // Set cell type to number
-					cell.z = '$#,##0.00';    // Apply currency format
+					cell.v = numValue;
+					cell.t = 'n';
+					cell.z = '$#,##0.00';
 				}
-			}
-			// Handle case where it's already a number
-			else if (typeof cell.v === 'number') {
+			} else if (typeof cell.v === 'number') {
 				cell.z = '$#,##0.00';
 			}
 		}
 	}
-
 	return worksheet;
 }
 
-function isKeyOf<T extends object>(obj: T, key: string | symbol): key is keyof T {
-	return key in obj;
-}
 
-/** Exports a table of obligations to an Excel file.
-* @param data - The array of obligations to be exported.
-*/
-export function table(data: ObligationArray, name: string, columns: (DerivedFieldName | ExtractedFieldName)[]) {
-	/** Workbook object for exporting data.*/
+/**
+ * Exports a table of obligations to an Excel file using a detailed column configuration.
+ */
+export function table(data: ObligationArray, name: string, columns: ColumnConfig[]) {
 	const wb = XLSX.utils.book_new();
+	const sheetName = 'Obligations';
+	const dataToExport = JSON.parse(JSON.stringify(data));
+	const headers = columns.map(col => col.header);
 
-	/** Name of the worksheet to be created. */
-	const sheetName = 'Obligations'
-
-	data = JSON.parse(JSON.stringify(data, null, 2));
-
-	// remove any properties that are not in the columns array
-	data = data.map((item) => {
-		return Object.fromEntries(
-			Object.entries(item).filter(([key]) => columns.includes(key))
-		);
-	});
-
-	const sortedData = data.map(obj =>
-		Object.fromEntries(
-			columns
-				.filter(col => obj.hasOwnProperty(col))
-				.map(col => [col, obj[col]])
-		)
+	// --- ✅ EXPLICIT FILTERING STEP ---
+	// Manually create a new array containing objects with only the specified keys.
+	// This guarantees no extra fields will be included.
+	const filteredData = dataToExport.map(row =>
+		headers.reduce((acc, header) => {
+			// Check if the original row has this property before adding it
+			if (Object.prototype.hasOwnProperty.call(row, header)) {
+				acc[header] = row[header];
+			}
+			return acc;
+		}, {})
 	);
 
-	const workSheet = XLSX.utils.json_to_sheet(sortedData);
+	// --- WORKSHEET CREATION ---
+	// Pass the NEW filteredData to the function.
+	const workSheet = XLSX.utils.json_to_sheet(filteredData, { header: headers });
 
-	const wscols = [
-		{ wch: 10 },
-		{ wch: 10 },
-		{ wch: 20 },
-		{ wch: 45 },
-		{ wch: 8.5 },
-		{ wch: 8.5 },
-		{ wch: 9.5 },
-		{ wch: 9.5 },
-		{ wch: 2.5 },
-		{ wch: 9.5 },
-		{ wch: 9.5 }
-	];
+	// --- DYNAMIC FORMATTING & FEATURES ---
 
-	workSheet['!cols'] = wscols;
+	// 1. Set Column Widths
+	workSheet['!cols'] = columns.map(col => ({
+		wch: col.width
+	}));
 
-	const currencyColumns = ["E", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+	// ✅ 2. Add AutoFilter capabilities to the header row
+	workSheet['!autofilter'] = { ref: workSheet['!ref'] };
 
-	currencyColumns.map(column => currencyFormat(workSheet, XLSX.utils.decode_col(column)))
+	// 3. Apply cell-specific formatting
+	columns.forEach((col, index) => {
+		if (col.isCurrency) {
+			currencyFormat(workSheet, index);
+		}
+	});
 
+	// --- FILE GENERATION ---
 	XLSX.utils.book_append_sheet(wb, workSheet, sheetName);
 	const b64 = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
 	chrome.downloads.download({
 		url: `data:application/octet-stream;base64,${b64}`,
-		filename: name + ' Obligations.xlsx'
+		filename: `${name} Obligations.xlsx`
 	});
 }
-
-
-
-
-
-
-
-

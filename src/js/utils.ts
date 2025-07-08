@@ -460,3 +460,68 @@ export const movePagerControl = function () {
     }
 };
 
+export async function getAttachments(text: string): Promise<Map<string, string>> {
+    const urlMap = new Map<string, string>();
+
+    // Regex to match addAttachment tags and capture the name and url
+    const regex = /name: '(.*?)', url: '(.*?)'/g;
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        const name = match[1].trim();
+        const url = match[2].trim();
+        urlMap.set(name, url);
+    }
+
+    // Create an array of promises, each fetching a URL and converting the response to base64
+    const fetchPromises = Array.from(urlMap.entries()).map(async ([name, url]) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+        }
+
+        // 1. Get the response body as a binary Blob
+        const blob = await response.blob();
+
+        // 2. Convert the Blob to a base64 string
+        const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                // The result is a data URL (e.g., "data:image/png;base64,iVBORw...").
+                // We only want the base64 part, so we split and take the second element.
+                resolve(reader!.result!.toString().split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        // Return the name and the new base64 string
+        return [name, base64];
+    });
+
+    // Wait for all fetch and conversion operations to complete
+    const results = await Promise.all(fetchPromises);
+
+    // 3. Create a new map from the [name, base64] pairs
+    return new Map(results);
+}
+
+export function downloadEmail(
+    { emlContent, filename }: { emlContent: string; filename: string; }) {
+    let encodedUri = encodeURI(emlContent); //encode spaces etc like a url
+    encodedUri = encodedUri.replace(/#/g, '%23');
+    const a = document.createElement('a'); //make a link in document
+    const linkText = document.createTextNode("fileLink");
+    a.appendChild(linkText);
+    a.href = encodedUri;
+    a.id = 'fileLink';
+    a.download = filename + '.eml';
+    a.style = "display:none;"; //hidden link
+    document.body.appendChild(a);
+    const fileLink = document.getElementById('fileLink');
+    if (fileLink) {
+        fileLink.click(); //click the link
+    }
+    a.remove();
+}
+

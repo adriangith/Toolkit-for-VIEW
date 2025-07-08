@@ -1,6 +1,7 @@
-import { CollectedData, TemplateSheetRecord as TemplateSheetRecord, StoredRecipientDetails } from './types'
+import { CollectedData, TemplateSheetRecord as TemplateSheetRecord, StoredRecipientDetails, GenerateDocumentMessage } from './types'
 import { saveAs } from 'file-saver';
-import { getStorage, groupByArray, templateSubstitution } from './utils';
+import { getAttachments, getStorage, groupByArray, templateSubstitution } from './utils';
+import { downloadEmail } from './utils';
 
 /**
  * Merges specified properties from the source object into the target object.
@@ -15,6 +16,7 @@ const mergeProperties = <T extends CollectedData>(target: T, source: CollectedDa
             if (prop === 'a' || prop === 'recipient') {
                 throw new Error("Cannot merge 'a' property directly, it should be handled separately.");
             }
+            //@ts-expect-error TypeScript error suppression for dynamic property assignment
             target[prop] = source[prop];
         }
     });
@@ -22,10 +24,11 @@ const mergeProperties = <T extends CollectedData>(target: T, source: CollectedDa
 };
 
 
-const transformCorrespondenceDataSet = async (dataSet: CollectedData, wordTemplateProperties: TemplateSheetRecord[]) => {
+const transformCorrespondenceDataSet = async (dataSet: CollectedData, documentTemplateProperties: TemplateSheetRecord[]) => {
     dataSet.recipient = 'Debtor';
     dataSet.tParty = false;
-    dataSet.OnlyNFDLapsed = dataSet.a?.some(obligation => obligation.NFDlapsed);
+    dataSet.legalCentre = false;
+    dataSet.OnlyNFDLapsed = dataSet.a?.every(obligation => obligation.NFDlapsed);
     if (!dataSet.First_Name) {
         dataSet.First_Name = ''
     }
@@ -34,8 +37,13 @@ const transformCorrespondenceDataSet = async (dataSet: CollectedData, wordTempla
     }
     /** Id of the active debtor. */
     const debtorId = dataSet.debtor_id || dataSet.Debtor_ID;
+
+    if (typeof debtorId === 'boolean') {
+        throw new Error("Invalid debtor ID provided. It should be a string or number.");
+    }
+
     await getStorage<StoredRecipientDetails | undefined>(debtorId).then(async (result) => {
-        if (result) {
+        if (result && result.isThirdParty === true) {
             // Alias fields for clarity
             const {
                 isThirdParty: tParty,
@@ -93,9 +101,9 @@ const transformCorrespondenceDataSet = async (dataSet: CollectedData, wordTempla
         }
     });
 
-    return wordTemplateProperties.reduce<CollectedData[]>(function (templateRecords, templateRecord) {
+    return documentTemplateProperties.reduce<CollectedData[]>(function (templateRecords, templateRecord) {
         dataSet.correspondenceDescription = templateRecord.Filename
-        dataSet.wordTemplateURL = templateRecord.Link
+        dataSet.documentTemplateURL = templateRecord.Link
 
         if (!dataSet.a) {
             throw new Error("DataSet is missing the 'a' property");
@@ -121,6 +129,13 @@ const transformCorrespondenceDataSet = async (dataSet: CollectedData, wordTempla
                 const agencyTemplateRecord = { ...topLevelProperties, ...item, OBL, selectedObValue }
                 /** Agency template record updated with agency properties */
                 const agencyTemplateRecordsAgency = mergeProperties(agencyTemplateRecord, agencyTemplateRecord.a[0], ['enforcename', 'Address2', 'Address3', 'Address2', 'enforcementAgencyCode', 'MOU', 'Email', 'EmailAddress', 'Challenge'])
+
+                const documentType = agencyTemplateRecordsAgency?.documentTemplateURL?.toLowerCase().includes('.docx') ? 'document' : 'email';
+
+                if (agencyTemplateRecordsAgency.Email !== 'TRUE' && documentType === 'email') {
+                    return templateRecords;
+                }
+
                 /** Agency template record updated with a templated description. */
                 const agencyTemplateRecordTemplated = { ...agencyTemplateRecordsAgency, correspondenceDescription: templateSubstitution(templateRecord.Filename, agencyTemplateRecordsAgency) }
                 return agencyTemplateRecordTemplated;
@@ -149,15 +164,16 @@ const transformCorrespondenceDataSet = async (dataSet: CollectedData, wordTempla
     }, []);
 }
 
-const fetchTemplate = (url: string): Promise<string | null> => {
+const fetchTemplate = (url: string): Promise<string> => {
     return fetch(url)
         .then((response) => {
             if (!response.ok) {
                 // want to return a rejected promise if the response is not ok
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            if (response.headers.get('Content-Type') !== 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                throw new Error(`File is not a Word template. Please verify the URL is correct - ${url}`);
+            if (!(response.headers.get('Content-Type') === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                response.headers.get('Content-Type') === 'application/octet-stream')) {
+                throw new Error(`File is not a Word or email template. Please verify the URL is correct - ${url}`);
             }
             return response.blob(); // Get response body as a Blob
         })
@@ -180,28 +196,31 @@ const fetchTemplate = (url: string): Promise<string | null> => {
 }
 
 /**
- * Generates correspondence documents based on the provided data set and word template properties.
+ * Generates correspondence documents based on the provided data set and document template properties.
  * @param {Object} CorrespondenceParams - The parameters for generating correspondence.
  * @param {CollectedData} CorrespondenceParams.dataSet - The dataset containing correspondence data.
- * @param {TemplateSheetRecord[]} CorrespondenceParams.wordTemplateProperties - The properties of the word template.
+ * @param {TemplateSheetRecord[]} CorrespondenceParams.documentTemplateProperties - The properties of the document template.
  * @returns A promise that resolves to an array of correspondence data.
  */
 export async function getCorrespondence(
-    { dataSet, wordTemplateProperties }: { dataSet: CollectedData, wordTemplateProperties: TemplateSheetRecord[] }) {
-    const correspondenceDataSet = transformCorrespondenceDataSet(dataSet, wordTemplateProperties);
+    { dataSet, documentTemplateProperties }: { dataSet: CollectedData, documentTemplateProperties: TemplateSheetRecord[] }) {
+    const correspondenceDataSet = transformCorrespondenceDataSet(dataSet, documentTemplateProperties);
 
     return (await correspondenceDataSet).map(
         /**
-         * @param data - The correspondence data object containing properties like wordTemplateURL and correspondenceDescription.
+         * @param data - The correspondence data object containing properties like documentTemplateURL and correspondenceDescription.
          * @returns A promise that resolves to the generated correspondence document.
-         * @throws Error if the wordTemplateURL is missing or if the fetch operation fails.
+         * @throws Error if the documentTemplateURL is missing or if the fetch operation fails.
          */
         async data => {
-            if (!data.wordTemplateURL) {
-                throw new Error("DataSet is missing the 'wordTemplateURL' property");
+            if (!data.documentTemplateURL) {
+                throw new Error("DataSet is missing the 'documentTemplateURL' property");
             }
-            const wordTemplateDownloadURL = data.wordTemplateURL.split('?')[0] + '?download=1'
-            const base64Template = await fetchTemplate(wordTemplateDownloadURL);
+            const messageType = data.documentTemplateURL.toLowerCase().includes('.docx') ? 'generate-document' : 'generate-email';
+            const documentTemplateDownloadURL = data.documentTemplateURL.split('?')[0] + '?download=1'
+            const base64Template = await fetchTemplate(documentTemplateDownloadURL);
+            const emailAttachments = messageType === 'generate-email' ? await getAttachments(atob(base64Template.replace('data:application/octet-stream;base64,', ''))) : new Map<string, string>();
+
 
             return new Promise((resolve, reject) => {
                 // Create and append the iframe
@@ -237,7 +256,11 @@ export async function getCorrespondence(
                 }>) => {
                     if (event.data.type === data.correspondenceDescription) {
                         const correspondence = event.data.correspondence;
-                        saveAs(correspondence, data.correspondenceDescription + ".docx");
+                        if (messageType === 'generate-document') {
+                            saveAs(correspondence, data.correspondenceDescription + ".docx");
+                        } else if (messageType === 'generate-email') {
+                            downloadEmail({ emlContent: correspondence, filename: data.correspondenceDescription });
+                        }
 
                         // Clean up resources
                         cleanup();
@@ -252,9 +275,21 @@ export async function getCorrespondence(
 
                 // Set up the onload handler
                 sandbox.onload = () => {
-                    // Post your message
-                    sandbox.contentWindow?.postMessage({ dataSet: data, base64Template, correspondenceDescription: data.correspondenceDescription }, '*');
+                    const message: GenerateDocumentMessage = {
+                        type: messageType,
+                        data: {
+                            dataSet: data,
+                            base64Template: base64Template,
+                            correspondenceDescription: data.correspondenceDescription!,
+                            emailAttachments: Object.fromEntries(emailAttachments)
+                        }
+                    };
+
+                    // Post the data to the sandbox iframe
+                    sandbox.contentWindow?.postMessage(message, '*');
                 };
             });
         });
 }
+
+

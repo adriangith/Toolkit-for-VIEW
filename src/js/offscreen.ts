@@ -24,7 +24,7 @@ const handleScraper: ChromeMessageListenerCallback = ({ type, data }: Message, _
         }
         try {
             scraperActive = true;
-            const extractedDataSet = await getData(data.obligations, data.targetFields || defaultTargetFields, 'djr', customLogFn)
+            const extractedDataSet = await getData(data.obligations, data.targetFields || defaultTargetFields, data.VIEWEnvironment || 'djr', customLogFn)
             scraperActive = false;
             sendResponse(extractedDataSet);
         } catch (error) {
@@ -49,7 +49,7 @@ const prepareCorrespondenceData: ChromeMessageListenerCallback = ({ type, data }
         try {
             const arrayOfPromises = await getCorrespondence({
                 dataSet: data.dataSet,
-                wordTemplateProperties: data.wordTemplateProperties
+                documentTemplateProperties: data.documentTemplateProperties
             });
 
             const resolvedResults = await Promise.all(arrayOfPromises);

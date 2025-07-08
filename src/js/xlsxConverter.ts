@@ -90,7 +90,7 @@ async function fetchAndParseSheet(sheet: string, workbook: XLSX.WorkBook): Promi
 
             if (cell && cell.l && cell.l.Target) {
                 let linkTarget: string = cell.l.Target;
-                const sharePointPatternMatch = linkTarget.match(/(\.\.\/)*(:[wls]:)/);
+                const sharePointPatternMatch = linkTarget.match(/(\.\.\/)*(:[wlst]:)/);
                 if (sharePointPatternMatch) {
                     linkTarget = new URL(linkTarget, 'https://vicgov.sharepoint.com/').href;
                 }

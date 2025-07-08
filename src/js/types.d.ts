@@ -2,7 +2,7 @@ import { Table } from "@tanstack/react-table";
 import { VIEWObligationListHeadings } from "./obligations";
 import { OptionsResult } from "./xlsxConverter";
 import { allDataFields, pageDefinitions } from "./config";
-import { afterAction, BulkActionProperties, Properties, urlParamsType, VIEWDebtorSummaryObligation } from "./types";
+import { afterAction, BulkActionProperties, CollectedData, DerivedFieldName, ExtractedFieldName, Properties, urlParamsType, VIEWDebtorSummaryObligation } from "./types";
 
 export type ObligationPreviewProcess = <T extends Message>(message: T, sender: chrome.runtime.MessageSender, sendResponse: (response?: WDPResponse) => void) => void | boolean;
 interface SuccessResponse {
@@ -24,7 +24,7 @@ export interface backgroundData {
         selectedCorrespondenceAttributes?: OptionsResult;
         IsEmail?: boolean;
         dataSet?: CollectedData;
-        wordTemplateProperties: TemplateSheetRecord[];
+        documentTemplateProperties: TemplateSheetRecord[];
     };
 }
 interface VIEWsubmitMessage {
@@ -43,7 +43,7 @@ interface ChromeStorage {
     type: "getStorage" | "setStorage";
     data: {
         key: string | undefined;
-        value?: string | number;
+        value?: string | number | boolean;
     };
 }
 interface ObligationNumberList {
@@ -655,7 +655,7 @@ export type ObligationInput = { "NoticeNumber": string } & Partial<Record<DataFi
 export type CollectedData =
     Partial<Record<DataFieldName, string | boolean | undefined>>
     & {
-        wordTemplateURL?: string,
+        documentTemplateURL?: string,
     }
     & {
         a?: ObligationArray;
@@ -817,5 +817,22 @@ export type paramArrayObject = {
     txtNoticeNo?: string;
     txtNoticeCheck?: string;
 };
+
 export type DebtorSummaryObligationTable = Table<VIEWDebtorSummaryObligation>;
+
+export type GenerateDocumentMessage = {
+    type: 'generate-email' | 'generate-document';
+    data: {
+        dataSet: CollectedData;
+        base64Template: string;
+        correspondenceDescription: string;
+        emailAttachments?: Record<string, string>;
+    }
+};
+export type XlSXExportColumnDefinition = Array<{
+    header: DerivedFieldName | ExtractedFieldName;
+    width: number;
+    isCurrency?: boolean;
+    isDate?: boolean;
+}>;
 

@@ -13,6 +13,7 @@ module.exports = {
     wizard: './src/js/wizard.ts',
     scraper: './src/js/scraper.ts',
     "genLetter-module": './src/js/genLetter-module.ts',
+    "email": './src/js/email.tsx',
     "bulk-actions": './src/js/bulk-actions.ts',
 
     // Content scripts - each needs its own entry point

@@ -1,4 +1,4 @@
-import { DerivationLogicRegistry, MasterFieldDefinition, MasterPageDefinition, ExtractedFieldName, DerivedFieldName } from "./types";
+import { DerivationLogicRegistry, MasterFieldDefinition, MasterPageDefinition, ExtractedFieldName, DerivedFieldName, XlSXExportColumnDefinition } from "./types";
 import { formatDate, toTitleCase } from "./utils";
 import { initialiseWorkbookProcesser } from "./xlsxConverter";
 
@@ -991,7 +991,6 @@ export const allDataFields = [
     { name: "enforcementAgencyID", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
     { name: "Address3", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
     { name: "MOU", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
-    { name: "MOU", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
     { name: "Email", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
     { name: "EmailAddress", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
     { name: "enforcementAgencyCode", level: "Obligation", isDerived: true, sourceFields: ["altname"] },
@@ -1061,7 +1060,8 @@ export const allDataFields = [
     { name: "prn_suburb", level: "Obligation" },
     { name: "prn_postcode", level: "Obligation" },
     { name: "prn_country", level: "Obligation" },
-    { name: "PRN Address", level: "Obligation", isDerived: true, sourceFields: ["prn_street_name", "prn_suburb", "prn_postcode", "prn_country"] },
+    { name: "prn_state", level: "Obligation" },
+    { name: "PRN Address", level: "Obligation", isDerived: true, sourceFields: ["prn_street_name", "prn_suburb", "prn_postcode", "prn_country", "prn_state"] },
     { name: "outstanding_amount", level: "Obligation" },
     { name: "obligation_status", level: "Obligation", isDerived: true, sourceFields: ["NoticeStatus"] },
     { name: "DueDate", level: "Obligation" },
@@ -1093,7 +1093,8 @@ export const allDataFields = [
     { name: "hearing_costs", level: "Obligation" },
     { name: "transfer_in", level: "Obligation" },
     { name: "transfer_out", level: "Obligation" },
-    { name: "court_courts_type_3", level: "Obligation" }
+    { name: "court_courts_type_3", level: "Obligation" },
+    { name: "court_of_issue", level: "Obligation" }
 ] as const satisfies MasterFieldDefinition[];
 
 export const pageDefinitions = [
@@ -1253,6 +1254,7 @@ export const pageDefinitions = [
             { name: "prn_suburb", selector: { type: "css", value: "#lblTown" } },
             { name: "prn_postcode", selector: { type: "css", value: "#lblPostCode" } },
             { name: "prn_country", selector: { type: "css", value: "#lblCountry" } },
+            { name: "prn_state", selector: { type: "css", value: "#lblAdminArea" } }
         ]
     },
     {
@@ -1318,7 +1320,9 @@ export const pageDefinitions = [
         level: "Obligation",
         url: "https://${environment}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorCourtFines.aspx?CaseRef=${CaseRef}&NoticeNo=${NoticeNumber}&DebtorId=${debtor_id}",
         dependencies: [],
-        fields: []
+        fields: [
+            { name: "court_of_issue", selector: { type: "css", value: "#CourtResultCtrl_DebtorCourtResultsTable_Row0CellDataCourtLocation" } }
+        ]
     },
     {
         id: "DebtorCourtFines2",
@@ -1332,7 +1336,8 @@ export const pageDefinitions = [
             ]
         }],
         fields: [
-            { name: "altname", selector: { type: "xpath", value: "//table[@id='DebtComponentDisbursement_DebtorDisbursementTable_tblData']//td[contains(text(),'P')]/../td" } }
+            { name: "altname", selector: { type: "xpath", value: "//table[@id='DebtComponentDisbursement_DebtorDisbursementTable_tblData']//td[contains(text(),'P')]/../td" } },
+            { name: "offence_description", selector: { type: "css", value: "#OffenceDetailsTable_DebtorOffenceDetailsTable_Row0CellDataChargeDescription" } }
         ]
     }
 ] as const satisfies MasterPageDefinition[];
@@ -1467,6 +1472,18 @@ export const derivationFunctionsRegistry: DerivationLogicRegistry = {
         const agencyID = agencyData[sources.altname];
         return agencyID;
     },
+    "Email": async ({ altname }) => {
+        if (!workbook) workbook = await initialiseWorkbookProcesser('https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1');
+        const agencyData = await workbook.fetchAndConvertXlsxToJson({ Sheet: 'Agencies', Column: 'Email' });
+        const email = agencyData[altname];
+        return email;
+    },
+    "EmailAddress": async ({ altname }) => {
+        if (!workbook) workbook = await initialiseWorkbookProcesser('https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1');
+        const agencyData = await workbook.fetchAndConvertXlsxToJson({ Sheet: 'Agencies', Column: 'EmailAddress' });
+        const emailAddress = agencyData[altname];
+        return emailAddress;
+    },
     "Address_1": async ({ best_residential_address, best_postal_address, street, locality, addressType }) => {
         if (best_residential_address || best_postal_address) {
             const fullAddress = best_postal_address || best_residential_address;
@@ -1503,8 +1520,10 @@ export const derivationFunctionsRegistry: DerivationLogicRegistry = {
         if (!bestPostcode || typeof bestPostcode !== 'string') return undefined;
         return bestPostcode.trim();
     },
-    "PRN Address": ({ prn_street_name, prn_suburb, prn_postcode, prn_country }) => {
-        return `${prn_street_name} ${prn_suburb} ${prn_postcode} ${prn_country}`;
+    "PRN Address": ({ prn_street_name, prn_suburb, prn_postcode, prn_state, prn_country }) => {
+        return [prn_street_name, prn_suburb, prn_postcode, prn_state, prn_country]
+            .filter(value => value !== undefined)
+            .join(' ');
     },
     "InActivePaymentArrangement": ({ HoldCodeEndDate }) => {
         return HoldCodeEndDate === 'PAYARNGMNT' ? true : false;
@@ -1570,4 +1589,34 @@ function formatLocalityAndStreet(street: string | boolean | undefined = '', loca
     return `${expandedStreet}${street !== '' ? ' ' + expandedLocality : ''}`.trim();
 }
 
-export const defaultTargetFields: (DerivedFieldName | ExtractedFieldName)[] = ["returns", "obligation_status", "NFDlapsed", "todayplus14", "todayplus21", "todayplus28", "Challenge", "is_company", "Is_Company", "InActivePaymentArrangement", "VRM", "VRM State", "date_of_birth", "enforcementAgencyID", "warrant_fee_waived", "HoldCodeEndDate", "IssueDate", "Infringement", "dt", "NoticeType", "agency_code", "input_source", "name", "enforcename", "Town2", "altname", "Address_1", "Address2", "Address3", "Email", "EmailAddress", "enforcementAgencyCode", "MOU", "Debtor_ID", "ReviewType", "debtor_id", "fullName", "total_amount_outstanding", "DueDate", "BalanceOutstanding", "infringement_number", "reduced_charge", "penalty_reminder_fee", "registration_fee", "enforcement_fee", "warrant_issue_fee", "amount_waived", "amount_paid", "court_costs", "court_fine", "UserID", "Obligation", "Last_Name", "First_Name", "Offence_Description", "Balance_Outstanding", "Status", "Date_of_Offence", "Date of Issue", "Input Source", "PRN Issue Date", "NFD Issue Date", "Driver License No.", "Driver License State", "driver_licence_expiry", "PRN Address", "Post_Code", "State", "offence_location", "Town", "Company_Name", "Offence", "pre-payments", "refunds", "reversed_fees", "cancellations", "writeoff", "hearing_costs", "transfer_in", "transfer_out", "court_courts_type_3", "Category"] as const; 
+export const defaultTargetFields: (DerivedFieldName | ExtractedFieldName)[] = ["court_of_issue", "NoticeStatus", "returns", "obligation_status", "NFDlapsed", "todayplus14", "todayplus21", "todayplus28", "Challenge", "is_company", "Is_Company", "InActivePaymentArrangement", "VRM", "VRM State", "date_of_birth", "enforcementAgencyID", "warrant_fee_waived", "HoldCodeEndDate", "IssueDate", "Infringement", "dt", "NoticeType", "agency_code", "input_source", "name", "enforcename", "Town2", "altname", "Address_1", "Address2", "Address3", "Email", "EmailAddress", "enforcementAgencyCode", "MOU", "Debtor_ID", "ReviewType", "debtor_id", "fullName", "total_amount_outstanding", "DueDate", "BalanceOutstanding", "infringement_number", "reduced_charge", "penalty_reminder_fee", "registration_fee", "enforcement_fee", "warrant_issue_fee", "amount_waived", "amount_paid", "court_costs", "court_fine", "UserID", "Obligation", "Last_Name", "First_Name", "Offence_Description", "Balance_Outstanding", "Status", "Date_of_Offence", "Date of Issue", "Input Source", "PRN Issue Date", "NFD Issue Date", "Driver License No.", "Driver License State", "driver_licence_expiry", "PRN Address", "Post_Code", "State", "offence_location", "Town", "Company_Name", "Offence", "pre-payments", "refunds", "reversed_fees", "cancellations", "writeoff", "hearing_costs", "transfer_in", "transfer_out", "court_courts_type_3", "Category"] as const;
+
+export const fieldsForXLSXexport = [
+    { header: "Obligation", width: 10 },
+    { header: "Infringement", width: 12 },
+    { header: "Agency", width: 32 },
+    { header: "Offence_Description", width: 45 },
+    { header: "Balance_Outstanding", width: 10, isCurrency: true },
+    { header: "Status", width: 8 },
+    { header: "Date_of_Offence", width: 10, isDate: true },
+    { header: "Date of Issue", width: 10, isDate: true },
+    { header: "Input Source", width: 2.5 },
+    { header: "PRN Issue Date", width: 10, isDate: true },
+    { header: "NFD Issue Date", width: 10, isDate: true },
+    { header: "VRM Number", width: 8 },
+    { header: "Driver License State", width: 3 },
+    { header: "Driver License No.", width: 10 },
+    { header: "PRN Address", width: 42 },
+    { header: "offence_location", width: 70 },
+    { header: "offence_time", width: 8 },
+    { header: "HoldCodeEndDate", width: 20, isDate: true },
+    { header: "Challenge", width: 10 },
+    { header: "reduced_charge", width: 8, isCurrency: true },
+    { header: "registration_fee", width: 8, isCurrency: true },
+    { header: "enforcement_fee", width: 8, isCurrency: true },
+    { header: "warrant_issue_fee", width: 8, isCurrency: true },
+    { header: "amount_waived", width: 8, isCurrency: true },
+    { header: "amount_paid", width: 8, isCurrency: true },
+    { header: "court_costs", width: 8, isCurrency: true },
+    { header: "court_fine", width: 8, isCurrency: true }
+] as const satisfies XlSXExportColumnDefinition;
