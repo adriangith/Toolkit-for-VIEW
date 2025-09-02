@@ -2,3 +2,4 @@ node_modules/
 .devcontainer/rclone.conf
 dist/
 .devcontainer/.env
+node_modules
