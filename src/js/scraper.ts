@@ -267,6 +267,7 @@ export class VIEWDataExtractor implements IDataExtractor {
         if (config.lookup) {
             const { rowSelector, keySelector, valueSelector, valueFieldName } = config.lookup;
             this.log(`       (Extractor/TableMap) Building lookup for '${valueFieldName}'...`);
+            /** Collection of rows from the lookup table. */
             const lookupRows = doc.querySelectorAll(rowSelector);
 
             lookupRows.forEach(row => {
@@ -291,9 +292,11 @@ export class VIEWDataExtractor implements IDataExtractor {
             extractedData[fieldName as DataFieldName] = [];
         });
 
+        /** Column identifier for the primary key. */
         const primaryIdentifierField = "NoticeNumber"; // This should be the key field
 
         // 2. Iterate through main data rows
+        /** Collection of rows from the main data table. */
         const dataRows = doc.querySelectorAll(config.rowSelector);
         this.log(`       (Extractor/TableMap) Found ${dataRows.length} primary data rows to process.`);
 
@@ -393,7 +396,6 @@ export class VIEWDataExtractor implements IDataExtractor {
         for (const field of task.fields) {
             let value: string[] | string | undefined;
             try {
-                // -- START OF MODIFICATION --
                 if (typeof field.selector === 'object' && 'type' in field.selector && field.selector.type === 'row-mapped') {
                     this.log(`       (Extractor) Using Row-Mapped extraction for page ${task.id}`);
                     const mappedData = this._extractMappedTableData(field.selector, parsedFullDoc);
@@ -406,7 +408,6 @@ export class VIEWDataExtractor implements IDataExtractor {
                     // This is the original logic, now in the else block
                     value = this._extractSimpleField(field as { name: DataFieldName; selector: DomSelector; isList?: boolean; }, parsedFullDoc, value, extractedData);
                 }
-                // -- END OF MODIFICATION --
             } catch (e) {
                 this.log(`               ERROR (Extractor) selecting/evaluating for field '${field.name}': ${getErrorMessage(e)}`);
             }

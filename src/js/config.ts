@@ -1082,7 +1082,7 @@ export const allDataFields = [
     { name: "ContraventionCode", level: "Obligation" },
     { name: "CaseRef", level: "Obligation" },
     { name: "InActivePaymentArrangement", level: "Obligation", isDerived: true, sourceFields: ["HoldCodeEndDate"] },
-    { name: "Offence", level: "Obligation", isDerived: true, sourceFields: ["offence_description"] },
+    { name: "Offence", level: "Obligation", isDerived: true, sourceFields: ["offence_description", "NoticeType"] },
     { name: "NFDlapsed", level: "Obligation", isDerived: true, sourceFields: ["DueDate", "obligation_status"] },
     { name: "OnlyNFDLapsed", level: "Obligation" },
     { name: "pre-payments", level: "Obligation" },
@@ -1094,7 +1094,7 @@ export const allDataFields = [
     { name: "transfer_in", level: "Obligation" },
     { name: "transfer_out", level: "Obligation" },
     { name: "court_courts_type_3", level: "Obligation" },
-    { name: "court_of_issue", level: "Obligation" }
+    { name: "court_of_issue", level: "Obligation", isDerived: true, sourceFields: ["NoticeType"] }
 ] as const satisfies MasterFieldDefinition[];
 
 export const pageDefinitions = [
@@ -1211,6 +1211,7 @@ export const pageDefinitions = [
         id: "NoticeDetails",
         fields: [
             { name: "NoticeNumber", selector: { type: "css", value: "#NoticeInfo_txtNoticeNo" } },
+            { name: "NoticeType", selector: { type: "css", value: "#NoticeInfo_lblProgressionPathText" } },
             { name: "infringement_number", selector: { type: "css", value: "#NoticeInfo_lblInfringementNo" } },
             { name: "DueDate", selector: { type: "css", value: "#NoticeInfo_lblNextPaymentDueDateBoxInfo" } },
             { name: "altname", selector: { type: "css", value: "#NoticeInfo_lblAgencyCode" } },
@@ -1337,7 +1338,7 @@ export const pageDefinitions = [
         }],
         fields: [
             { name: "altname", selector: { type: "xpath", value: "//table[@id='DebtComponentDisbursement_DebtorDisbursementTable_tblData']//td[contains(text(),'P')]/../td" } },
-            { name: "offence_description", selector: { type: "css", value: "#OffenceDetailsTable_DebtorOffenceDetailsTable_Row0CellDataChargeDescription" } }
+            { name: "Offence", selector: { type: "css", value: "#OffenceDetailsTable_DebtorOffenceDetailsTable_Row0CellDataChargeDescription" } }
         ]
     }
 ] as const satisfies MasterPageDefinition[];
@@ -1348,6 +1349,18 @@ export const derivationFunctionsRegistry: DerivationLogicRegistry = {
         const lastName = toTitleCase(sources.last_name);
         const company_name = toTitleCase(sources.company_name);
         return company_name ? company_name : [firstName, lastName].filter(Boolean).join(' ');
+    },
+    "court_of_issue": ({ NoticeType }) => {
+        if (NoticeType !== '2B' && NoticeType !== undefined) {
+            return 'N/A'
+        }
+        return undefined;
+    },
+    "Offence": ({ offence_description, NoticeType }) => {
+        if (NoticeType === '2B' || NoticeType === undefined) {
+            return undefined;
+        }
+        return offence_description;
     },
     "First_Name": ({ first_name }) => {
         return toTitleCase(first_name || '');
@@ -1496,7 +1509,7 @@ export const derivationFunctionsRegistry: DerivationLogicRegistry = {
         return addressType === 'POSTAL' ? formatLocalityAndStreet(street, locality) : undefined;
     },
     "Town": ({ best_residential_address, best_postal_address, suburb, addressType }) => {
-        if (best_residential_address && best_postal_address) {
+        if (best_residential_address || best_postal_address) {
             const fullAddress = best_postal_address || best_residential_address;
             if (typeof fullAddress !== 'string') return undefined;
             const addressArray = fullAddress.split(',');
@@ -1531,7 +1544,6 @@ export const derivationFunctionsRegistry: DerivationLogicRegistry = {
     "is_company": ({ company_name }) => {
         return company_name ? true : false;
     },
-
     "Town2": ({ Town }) => {
         // Convert suburb to title case
         if (!Town || typeof Town !== 'string') return undefined;
