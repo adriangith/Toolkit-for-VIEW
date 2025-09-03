@@ -2,7 +2,7 @@ services:
   devcontainer:
     image: mcr.microsoft.com/devcontainers/base:bullseye
     volumes:
-      - ..:/workspace:cached
+      - ..:/workspace
     environment:
       - NODE_ENV=development
       - EXTENSION_ID=${EXTENSION_ID}

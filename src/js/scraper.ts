@@ -1,5 +1,5 @@
 import { allDataFields, defaultTargetFields, derivationFunctionsRegistry, pageDefinitions } from "./config"; // Assuming these are correctly defined elsewhere
-import { DerivedFieldDefinition, TargetFieldSet, AllPagesMap, PageId, OptimiserPageRepresentation, MasterPageDefinition, PathEntry, DataFieldName, DerivationLogicRegistry, ITransformer, TransformerInput, IDataExtractor, PageExtractionTask, ExtractionOutput, IOptimiser, OptimiserInput, OptimiserOutput, MasterFieldDefinition, ScraperConfig, CollectedData, Message, DomSelector, FieldDefinition, SourcedFieldName, DerivationFunction } from "./types"; // Assuming types.ts exists
+import { TargetFieldSet, AllPagesMap, PageId, OptimiserPageRepresentation, MasterPageDefinition, PathEntry, DataFieldName, DerivationLogicRegistry, ITransformer, TransformerInput, IDataExtractor, PageExtractionTask, ExtractionOutput, IOptimiser, OptimiserInput, OptimiserOutput, MasterFieldDefinition, ScraperConfig, CollectedData, DomSelector, DerivationFunction, RowMappingConfig, DataFieldSet } from "./types"; // Assuming types.ts exists
 import { expandPageDefinitionsForOptimiser, getErrorMessage, setStorage, templateSubstitution } from "./utils"; // Assuming utils.ts exists
 
 
@@ -17,7 +17,7 @@ export class Transformer implements ITransformer {
     public async deriveFields(input: TransformerInput): Promise<boolean> {
         const { level, log } = input;
         let derivedSomethingInAnyPass = false;
-        let derivedSomethingThisPass: boolean;
+        let derivedSomethingThisPass = false;
         const maxPasses = 5;
         let currentPass = 0;
 
@@ -66,14 +66,14 @@ export class Transformer implements ITransformer {
 
         for await (const fieldDef of masterFieldDefinitions) {
             /** Key to use for the derivation registry */
-            const keyForRegistry = fieldDef.derivationKey || fieldDef.name;
+            const keyForRegistry = (fieldDef.derivationKey || fieldDef.name) as DataFieldName;
 
             // Initial checks to see if we should attempt derivation for this field
             if (fieldDef.isDerived &&
                 keyForRegistry &&
                 fieldDef.name && // fieldDef.name is crucial for updating currentData and checking explicitlyTargetedFields
                 fieldDef.level === level &&
-                explicitlyTargetedFields.includes(fieldDef.name) &&
+                explicitlyTargetedFields.has(fieldDef.name as DataFieldName) &&
                 !Object.prototype.hasOwnProperty.call(currentData, fieldDef.name)) {
 
                 if (await this._tryDeriveSingleField(fieldDef, keyForRegistry, currentData, derivationRegistry, log)) {
@@ -94,14 +94,14 @@ export class Transformer implements ITransformer {
      * @return A boolean indicating if the field was successfully derived.  
      */
     private _tryDeriveSingleField(
-        fieldDef: DerivedFieldDefinition & { sourceFields?: SourcedFieldName[] },
-        keyForRegistry: typeof allDataFields[number]['name'],
+        fieldDef: MasterFieldDefinition, // DerivedFieldDefinition & { sourceFields?: SourcedFieldName[] },
+        keyForRegistry: DataFieldName,
         currentData: CollectedData,
         derivationRegistry: DerivationLogicRegistry,
         log: (message: string) => void,
     ): Promise<boolean> | boolean {
         /** Name of the field being derived. */
-        const fieldName = fieldDef.name;
+        const fieldName = fieldDef.name as DataFieldName;
         const derivationFn = derivationRegistry[keyForRegistry];
 
 
@@ -111,7 +111,7 @@ export class Transformer implements ITransformer {
         //if there is no derivationFn found but there is a single sourceField, default to attempting a copy of sourceField value to currentData[fieldName]
         if (sourcesAvailable && !derivationFn && fieldDef.sourceFields?.length === 1) {
             /** DataField from the field's sourceFields list. */
-            const sourceField = fieldDef.sourceFields[0];
+            const sourceField = fieldDef.sourceFields[0] as DataFieldName;
             currentData[fieldName] = currentData[sourceField];
             //  log(`              INFO (Transformer): No derivation function found for field '${fieldName}' (key: '${keyForRegistry}'). Defaulting to copying value from source field '${sourceField}'.`);
             return true;
@@ -153,7 +153,7 @@ export class Transformer implements ITransformer {
 
             /** If a value was derived, update the current data and log the result. */
             if (derivedValue !== undefined) {
-                currentData[fieldName] = derivedValue;
+                currentData[fieldName] = derivedValue as string | boolean | undefined;
                 log(`              Derived Field (Transformer) '${fieldName}' (key: '${keyForRegistry}'): ${JSON.stringify(derivedValue)}`);
                 return true;
             }
@@ -218,7 +218,7 @@ export class VIEWDataExtractor implements IDataExtractor {
                 if (dep.stateFields) {
                     for (const /** Field to use for dynamic value extraction */ stateFieldName of dep.stateFields) {
                         if (Object.prototype.hasOwnProperty.call(relevantDataSourceForStateFields, stateFieldName)) {
-                            const value = relevantDataSourceForStateFields[stateFieldName];
+                            const value = relevantDataSourceForStateFields[stateFieldName as DataFieldName];
                             if (value !== undefined && value !== null) {
                                 embeddedFormData.set(stateFieldName, String(value));
                                 this.log(`       (Extractor/getParsedContent) Appended stateField '${stateFieldName}=${String(value)}' to embeddedFormData for ${pageDef.id} (from its dependency ${dep.id})`);
@@ -331,7 +331,7 @@ export class VIEWDataExtractor implements IDataExtractor {
                 if (lookedUpValue) {
                     this.log(`       (Extractor/TableMap) Lookup successful for key '${primaryId}' for field '${config.lookup.valueFieldName}'.`);
                 }
-                (extractedData[config.lookup.valueFieldName] as string[]).push(lookedUpValue);
+                (extractedData[config.lookup.valueFieldName] as string[]).push(lookedUpValue || '');
             }
         });
 
@@ -511,19 +511,19 @@ export class VIEWDataExtractor implements IDataExtractor {
             const globalData = task.currentDataForStateFields as CollectedData;
             if (globalData?.a && task.currentObligationNumberForStateFields && task.obligationIdentifierFieldNameForStateFields) {
                 relevantDataSourceForStateFieldsLogic = globalData.a.find(
-                    (o: Partial<Record<DataFieldName, string | undefined | string[]>>) => o[task.obligationIdentifierFieldNameForStateFields!] === task.currentObligationNumberForStateFields
+                    (o: CollectedData) => String(o[task.obligationIdentifierFieldNameForStateFields!]) === String(task.currentObligationNumberForStateFields)
                 ) || {};
                 if (!relevantDataSourceForStateFieldsLogic) {
                     if (globalData && globalData[task.obligationIdentifierFieldNameForStateFields!] === task.currentObligationNumberForStateFields) {
                         relevantDataSourceForStateFieldsLogic = globalData;
                     } else {
-                        this.log(`       (Extractor/fetchAndExtract) WARN: Obligation object for ${task.currentObligationNumberForStateFields} not found in currentData.a for stateField sourcing for page ${task.pageId}.`);
+                        this.log(`       (Extractor/fetchAndExtract) WARN: Obligation object for ${task.currentObligationNumberForStateFields} not found in currentData.a for stateField sourcing for page ${task.id}.`);
                     }
                 }
             } else if (globalData && task.obligationIdentifierFieldNameForStateFields && globalData[task.obligationIdentifierFieldNameForStateFields] === task.currentObligationNumberForStateFields) {
                 relevantDataSourceForStateFieldsLogic = globalData;
             } else {
-                this.log(`       (Extractor/fetchAndExtract) WARN: Insufficient data to locate specific obligation for stateField sourcing for page ${task.pageId}. currentDataForStateFields might not be structured as expected or obligation identifiers missing.`);
+                this.log(`       (Extractor/fetchAndExtract) WARN: Insufficient data to locate specific obligation for stateField sourcing for page ${task.id}. currentDataForStateFields might not be structured as expected or obligation identifiers missing.`);
                 relevantDataSourceForStateFieldsLogic = task.currentDataForStateFields || {};
             }
         }
@@ -542,7 +542,7 @@ export class SimpleOptimiser implements IOptimiser {
         );
         return {
             pathsToVisit: optimiserResult.minimalTraversals,
-            unreachableFields: optimiserResult.unreachableFields
+            unreachableFields: Array.from(optimiserResult.unreachableFields)
         };
     }
 
@@ -678,7 +678,7 @@ export class SimpleOptimiser implements IOptimiser {
                         (currentCoveredFieldsCount === bestCandidate.coveredCount && numNewPages < bestCandidate.newPagesCount)) {
                         bestCandidate = { pageId, coveredCount: currentCoveredFieldsCount, newPagesCount: numNewPages };
                     }
-                } catch (e) {
+                } catch {
                     continue;
                 }
             }
@@ -751,7 +751,7 @@ export class SimpleOptimiser implements IOptimiser {
 
             allPages.set(def.id, {
                 id: def.id,
-                fields: new Set(def._optimiserFields || def.fields.map((f) => f.name).filter(fName => fName)),
+                fields: new Set((def._optimiserFields || def.fields.map((f) => f.name).filter(fName => fName)) as DataFieldName[]),
                 dependencies: processedDependencies,
             });
         }
@@ -807,7 +807,7 @@ export class SimpleOptimiser implements IOptimiser {
     private getOptimizedLoadDetails(
         rawPageDefinitions: MasterPageDefinition[],
         targetFieldStrings: DataFieldName[],
-        pagesToExclude: PageId[]
+        pagesToExclude: PageId[] | undefined
     ) {
         /** Map of pageId with their definitions, fields, and dependencies. */
         const allPagesInternal: AllPagesMap = new Map();
@@ -822,7 +822,7 @@ export class SimpleOptimiser implements IOptimiser {
 
                 allPagesInternal.set(def.id, {
                     id: def.id,
-                    fields: new Set(def._optimiserFields || def.fields.map(f => f.name).filter(fName => fName)),
+                    fields: new Set((def._optimiserFields || def.fields.map(f => f.name).filter(fName => fName)) as DataFieldName[]),
                     dependencies: processedDependencies
                 });
             });
@@ -838,7 +838,7 @@ export class SimpleOptimiser implements IOptimiser {
             return { minimalTraversals: [], pagesToLoad: new Set<PageId>(), numberOfLoads: 0, unreachableFields: new Set<DataFieldName>() };
         }
         if (allPagesInternal.size === 0) {
-            return { minimalTraversals: [], pagesToLoad: new Set<PageId>(), numberOfLoads: 0, unreachableFields: new Set<DataFieldName>(Array.from(targetFields).sort()) };
+            return { minimalTraversals: [], pagesToLoad: new Set<PageId>(), numberOfLoads: 0, unreachableFields: new Set<DataFieldName>(Array.from(targetFields).sort() as DataFieldName[]) };
         }
 
 
@@ -898,7 +898,7 @@ export class Scraper {
         this.allPageDefinitions = expandPageDefinitionsForOptimiser(config.allPageDefinitions);
         this.masterFieldDefinitions = config.masterFieldDefinitions;
         this.allPageDefsMap = new Map(this.allPageDefinitions.map(p => [p.id, p]));
-        this.masterFieldDefsMap = new Map(config.masterFieldDefinitions.map(f => [f.name, f]));
+        this.masterFieldDefsMap = new Map(config.masterFieldDefinitions.map(f => [f.name as DataFieldName, f]));
         this.environment = config.environment;
         this.obligationIdentifierFieldName = config.obligationIdentifierFieldName || "NoticeNumber";
         this.contextSwitchingPageId = config.contextSwitchingPageId;
@@ -942,10 +942,10 @@ export class Scraper {
                     if (fieldDef.isDerived && fieldDef.sourceFields) {
                         // If the target is derived, its non-derived source fields are candidates for the optimiser
                         for (const sourceFieldName of fieldDef.sourceFields) {
-                            const sourceFieldDef = this.masterFieldDefsMap.get(sourceFieldName);
+                            const sourceFieldDef = this.masterFieldDefsMap.get(sourceFieldName as DataFieldName);
                             // Add source field to optimiser if it's at the correct level and not derived itself
                             if (sourceFieldDef && sourceFieldDef.level === level && !sourceFieldDef.isDerived) {
-                                fieldsForOptimiser.add(sourceFieldName);
+                                fieldsForOptimiser.add(sourceFieldName as DataFieldName);
                             }
                         }
                     } else if (!fieldDef.isDerived) {
@@ -975,7 +975,7 @@ export class Scraper {
                 // If the *explicitly targeted field* is derived, always check its source fields.
                 // This is the core of your requested change.
                 for (const sourceFieldName of fieldDef.sourceFields) {
-                    const sourceFieldDef = this.masterFieldDefsMap.get(sourceFieldName);
+                    const sourceFieldDef = this.masterFieldDefsMap.get(sourceFieldName as DataFieldName);
                     // Add source field to optimiser if:
                     // 1. It has a definition and is for the correct level.
                     // 2. It's missing from currentDataObject.
@@ -984,7 +984,7 @@ export class Scraper {
                         sourceFieldDef.level === level &&
                         !Object.prototype.hasOwnProperty.call(currentDataObject, sourceFieldName) &&
                         !sourceFieldDef.isDerived) {
-                        fieldsForOptimiser.add(sourceFieldName);
+                        fieldsForOptimiser.add(sourceFieldName as DataFieldName);
                     }
                 }
             } else if (!fieldDef.isDerived) {
@@ -1022,7 +1022,7 @@ export class Scraper {
         pageLevel: "Debtor" | "Obligation",
         finalResult: CollectedData,
         currentObligationNumber: string | undefined,
-        explicitlyTargetedFields: string[],
+        explicitlyTargetedFields: Set<DataFieldName>,
         optimiserTargetedDirectFields?: string[]
     ): Promise<boolean> {
         /** Flag that shows that new data was added the accumulated data. */
@@ -1043,8 +1043,15 @@ export class Scraper {
 
             if (masterFieldDef.level === "Debtor") {
                 if (!Object.prototype.hasOwnProperty.call(finalResult, fieldName)) {
-                    finalResult[fieldName as DataFieldName] = value;
-                    if (explicitlyTargetedFields.includes(fieldName) || optimiserTargetedDirectFields?.includes(fieldName)) {
+                    // Narrow array values (list extractions) to first element or skip to satisfy scalar field type (string | boolean | undefined).
+                    if (Array.isArray(value)) {
+                        if (value.length > 0) {
+                            finalResult[fieldName as DataFieldName] = value[0] as unknown as string | boolean | undefined;
+                        }
+                    } else {
+                        finalResult[fieldName as DataFieldName] = value as string | boolean | undefined;
+                    }
+                    if (explicitlyTargetedFields.has(fieldName as DataFieldName) || optimiserTargetedDirectFields?.includes(fieldName)) {
                         dataActuallyAddedToTargets = true;
                     }
                 }
@@ -1056,9 +1063,11 @@ export class Scraper {
                         finalResult.a = [...(finalResult.a || []), oblObj];
                     }
                     if (!Object.prototype.hasOwnProperty.call(oblObj, fieldName)) {
-                        oblObj[fieldName as DataFieldName] = value;
-                        if (explicitlyTargetedFields.includes(fieldName) || optimiserTargetedDirectFields?.includes(fieldName)) {
-                            dataActuallyAddedToTargets = true;
+                        if (!Array.isArray(value)) {
+                            oblObj[fieldName as DataFieldName] = value as string | boolean | undefined;
+                            if (explicitlyTargetedFields.has(fieldName as DataFieldName) || optimiserTargetedDirectFields?.includes(fieldName)) {
+                                dataActuallyAddedToTargets = true;
+                            }
                         }
                     }
                 } else if (pageLevel === "Debtor" && Array.isArray(value) && Array.isArray(extractedData[this.obligationIdentifierFieldName as DataFieldName])) {
@@ -1078,10 +1087,10 @@ export class Scraper {
                             const valueForObligation = sourceArray[idx];
 
                             // Only assign the value if it is NOT null or undefined
-                            if (valueForObligation !== null && valueForObligation !== undefined) {
-                                targetObligation[fieldName as DataFieldName] = valueForObligation;
+                            if (valueForObligation !== null && valueForObligation !== undefined && !Array.isArray(valueForObligation)) {
+                                targetObligation[fieldName as DataFieldName] = valueForObligation as string | boolean | undefined;
                                 this.log(`                                Pre-collected Obligation Field '${fieldName}' for ${oblNum}: ${JSON.stringify(targetObligation[fieldName as DataFieldName])}`);
-                                if (explicitlyTargetedFields.includes(fieldName) || optimiserTargetedDirectFields?.includes(fieldName)) {
+                                if (explicitlyTargetedFields.has(fieldName as DataFieldName) || optimiserTargetedDirectFields?.includes(fieldName)) {
                                     dataActuallyAddedToTargets = true;
                                 }
                             }
@@ -1109,7 +1118,7 @@ export class Scraper {
         pageId: PageId,
         context: { NoticeNumber?: string },
         finalResult: CollectedData,
-        explicitlyTargetedFields: DataFieldName[],
+        explicitlyTargetedFields: Set<DataFieldName>,
         allRequiredFields: DataFieldName[],
         logContext: string,
         initialFormDataForRequest?: URLSearchParams
@@ -1189,62 +1198,31 @@ export class Scraper {
 
     /**
      * Scrapes data from the specified pages and extracts the relevant fields.
-     * @param initialObligations - Set of input obligation data.
+     * @param inputObligationData - Set of input obligation data.
      * @param explicitlyTargetedFields - The fields that are explicitly targeted for extraction.
      * @returns The final collected data after scraping.
      */
     public async scrape(
-        initialObligations: CollectedData[],
-        explicitlyTargetedFields: DataFieldName[]
+        inputObligationData: CollectedData[],
+        explicitlyTargetedFields: Set<DataFieldName>
     ): Promise<CollectedData> {
+        /** Mutable object to collect obligation data throughout the scraping process. */
         const finalResult: CollectedData = { a: [] };
         this.log(`--- Scraping Started (Env: ${this.environment}) ---`);
-        this.log(`Targeting fields: ${explicitlyTargetedFields.join(', ')}`);
+        this.log(`Targeting fields: ${Array.from(explicitlyTargetedFields).join(', ')}`);
         if (this.transformer) this.log("Derived fields processing is ENABLED.");
 
-        const allRequiredFields = new Set<DataFieldName>(explicitlyTargetedFields);
-        explicitlyTargetedFields.forEach(fieldName => {
-            const fieldDef = this.masterFieldDefsMap.get(fieldName);
-            if (fieldDef?.isDerived && fieldDef.sourceFields) {
-                fieldDef.sourceFields.forEach(source => {
-                    allRequiredFields.add(source);
-                });
-            }
-        });
-        this.log(`Expanded targets to include source fields: ${Array.from(allRequiredFields).join(', ')}`);
+
 
 
         let formDataForNextRequest: URLSearchParams | undefined = undefined;
 
-        if (this.contextSwitchingPageId && initialObligations.length > 0 && this.allPageDefsMap.has(this.contextSwitchingPageId)) {
-            const firstOblNum = initialObligations[0][this.obligationIdentifierFieldName] as string;
-            if (firstOblNum) {
-                const contextSwitchResult = await this.forceProcessPageInternal(
-                    this.contextSwitchingPageId,
-                    { NoticeNumber: firstOblNum },
-                    finalResult,
-                    explicitlyTargetedFields,
-                    Array.from(allRequiredFields),
-                    "Initial Debtor Context"
-                );
-                if (contextSwitchResult?.augmentedFormDataFromPage) {
-                    formDataForNextRequest = contextSwitchResult.augmentedFormDataFromPage;
-                    this.log(`    Context switch page ${this.contextSwitchingPageId} provided form data for next request.`);
-                }
-            }
-        }
+        /** Set of obligation-level fields that can be extracted from debtor-level pages. */
+        const allDebtorPageObligationFields: DataFieldSet = this.getDebtorLevelObligationFields();
 
-        const preCollectableObligationFields = new Set<DataFieldName>();
-        this.allPageDefinitions.forEach(pageDef => {
-            if (pageDef.level === 'Debtor') {
-                pageDef._optimiserFields?.forEach(fieldOnPage => {
-                    const masterFieldDef = this.masterFieldDefsMap.get(fieldOnPage);
-                    if (masterFieldDef && masterFieldDef.level === 'Obligation') {
-                        preCollectableObligationFields.add(masterFieldDef.name);
-                    }
-                });
-            }
-        });
+        //* Union of targeted fields to include source fields for any derived targets */
+        const expandedTargetFields = this.deriveDependentFields(explicitlyTargetedFields);
+        // formDataForNextRequest = await this.executeContextSwitchLogic(inputObligationData, finalResult, explicitlyTargetedFields, formDataForNextRequest);
 
 
         // Phase 1: Debtor
@@ -1254,17 +1232,16 @@ export class Scraper {
 
         while (true) {
             debtorIteration++;
-            const { fieldsForOptimiser: remainingDebtorFieldsForOptimiser, missingOverallTargets } = this.calculateRemainingFields(finalResult, "Debtor", explicitlyTargetedFields);
+            const { fieldsForOptimiser: remainingDebtorFieldsForOptimiser, missingOverallTargets } = this.calculateRemainingFields(finalResult, "Debtor", Array.from(explicitlyTargetedFields));
 
-            // Use the new `allRequiredFields` set to correctly identify needed fields.
-            const relevantPreCollectableFields = Array.from(preCollectableObligationFields)
-                .filter(fieldName => allRequiredFields.has(fieldName)) // Correctly checks against direct and derived source fields
+            /** Fields to collect, which are required and currently missing from at least one obligation. */
+            const relevantPreCollectableFields = Array.from(allDebtorPageObligationFields)
+                .filter(fieldName => expandedTargetFields.has(fieldName))
                 .filter(fieldName =>
-                    initialObligations.some(initialObl =>
+                    inputObligationData.some(initialObl =>
                         !finalResult.a?.find(fa => fa[this.obligationIdentifierFieldName] === initialObl[this.obligationIdentifierFieldName])?.[fieldName]
                     )
                 );
-
 
             const combinedDebtorPhaseTargets = Array.from(new Set([...remainingDebtorFieldsForOptimiser, ...relevantPreCollectableFields]));
 
@@ -1276,7 +1253,7 @@ export class Scraper {
                     this.log("No direct Debtor fields for optimiser, attempting final derivations.");
                     const initialMissingCount = missingOverallTargets.length;
                     await this.transformer.deriveFields({ currentData: finalResult, level: "Debtor", masterFieldDefinitions: this.masterFieldDefinitions, explicitlyTargetedFields, derivationRegistry: derivationFunctionsRegistry, log: this.log });
-                    const { missingOverallTargets: newMissingTargets } = this.calculateRemainingFields(finalResult, "Debtor", explicitlyTargetedFields);
+                    const { missingOverallTargets: newMissingTargets } = this.calculateRemainingFields(finalResult, "Debtor", Array.from(explicitlyTargetedFields));
                     if (newMissingTargets.length === initialMissingCount || newMissingTargets.length === 0) { this.log("Debtor derivation made no further progress or completed."); break; }
                 } else { this.log("No more direct Debtor or pre-collectable fields, and no transformer progress. Breaking Debtor phase."); break; }
             }
@@ -1334,7 +1311,7 @@ export class Scraper {
                     if (pageDef.level === "Debtor" && extractionResult[obligationIdentifier] && Array.isArray(extractionResult[obligationIdentifier])) {
                         this.log(`            Filtering results from ${pageId} to match target NoticeNumbers...`);
 
-                        const targetIds = new Set(initialObligations.map(o => o[obligationIdentifier]));
+                        const targetIds = new Set(inputObligationData.map(o => o[obligationIdentifier]));
                         const extractedIds = extractionResult[obligationIdentifier] as string[];
 
                         const indicesToKeep: number[] = [];
@@ -1356,7 +1333,7 @@ export class Scraper {
                                         filteredResult[key as DataFieldName] = indicesToKeep.map(i => value[i]);
                                     } else {
                                         // Copy non-array fields (like augmentedFormDataFromPage or single debtor fields) as-is
-                                        (filteredResult as any)[key] = value;
+                                        (filteredResult as ExtractionOutput & { augmentedFormDataFromPage?: URLSearchParams })[key as keyof typeof filteredResult] = value;
                                     }
                                 }
                             }
@@ -1383,10 +1360,10 @@ export class Scraper {
         // Phase 2: Obligations
         this.log("\n--- Phase 2: Obligation Data ---");
         // Loop through each obligation
-        let obligationsCount = initialObligations.length;
-        const obligationsCountFixed = initialObligations.length;
+        let obligationsCount = inputObligationData.length;
+        const obligationsCountFixed = inputObligationData.length;
         setStorage("obligationsCountFixed", obligationsCountFixed);
-        for (const /** Input obligation data. */  oblInput of initialObligations) {
+        for (const /** Input obligation data. */  oblInput of inputObligationData) {
             obligationsCount--;
             setStorage("obligationsCount", obligationsCount);
             /** Obligation number of the current obligation from the initialObligations input array.*/
@@ -1423,7 +1400,7 @@ export class Scraper {
                     { NoticeNumber: oblNum },
                     finalResult,
                     explicitlyTargetedFields,
-                    Array.from(allRequiredFields),
+                    Array.from(explicitlyTargetedFields),
                     `Obligation ${oblNum} Context`,
                     formDataForNextRequest
                 );
@@ -1442,7 +1419,7 @@ export class Scraper {
             // Loop until all explicitly specified fields for the obligation are collected or no more paths can be found.
             while (true) {
                 oblIteration++;
-                const { fieldsForOptimiser, missingOverallTargets } = this.calculateRemainingFields(oblData, "Obligation", explicitlyTargetedFields);
+                const { fieldsForOptimiser, missingOverallTargets } = this.calculateRemainingFields(oblData, "Obligation", Array.from(explicitlyTargetedFields));
                 // If all explicitly targeted fields are collected, break the loop and move to the next obligation.
                 if (missingOverallTargets.length === 0) { this.log(`        All targeted Obligation fields for ${oblNum} collected.`); break; }
                 this.log(`        Obligation ${oblNum} Iteration ${oblIteration}: Targeting direct: ${fieldsForOptimiser.join(', ') || 'None'}. Missing overall: ${missingOverallTargets.join(', ')}`);
@@ -1453,7 +1430,7 @@ export class Scraper {
                     if (this.transformer && missingOverallTargets.length > 0) {
                         const initialMissingCount = missingOverallTargets.length;
                         await this.transformer.deriveFields({ currentData: oblData, level: "Obligation", masterFieldDefinitions: this.masterFieldDefinitions, explicitlyTargetedFields, derivationRegistry: derivationFunctionsRegistry, log: this.log });
-                        const { missingOverallTargets: newMissingTargets } = this.calculateRemainingFields(oblData, "Obligation", explicitlyTargetedFields);
+                        const { missingOverallTargets: newMissingTargets } = this.calculateRemainingFields(oblData, "Obligation", Array.from(explicitlyTargetedFields));
                         if (newMissingTargets.length === initialMissingCount || newMissingTargets.length === 0) { this.log(`        Obligation ${oblNum} derivation made no further progress or completed.`); break; }
                     } else { this.log(`        No direct Obligation fields for ${oblNum} and no transformer, or no progress. Breaking.`); break; }
                 }
@@ -1530,11 +1507,68 @@ export class Scraper {
         this.log("\n--- Scraping Finished ---");
         return finalResult;
     }
+
+    /**
+     * Set of obligation-level fields that can be extracted from debtor-level pages.
+     */
+    private getDebtorLevelObligationFields() {
+        const debtorLevelObligationFields: DataFieldSet = new Set<DataFieldName>();
+
+        this.allPageDefinitions.forEach(pageDef => {
+            if (pageDef.level === 'Debtor') {
+                pageDef._optimiserFields?.forEach(fieldOnPage => {
+                    const masterFieldDef = this.masterFieldDefsMap.get(fieldOnPage as DataFieldName);
+                    if (masterFieldDef && masterFieldDef.level === 'Obligation') {
+                        debtorLevelObligationFields.add(masterFieldDef.name as DataFieldName);
+                    }
+                });
+            }
+        });
+        return debtorLevelObligationFields;
+    }
+
+    private async executeContextSwitchLogic(inputObligationData: CollectedData[], finalResult: CollectedData, explicitlyTargetedFields: Set<"debtor_id" | "Obligation" | "NoticeStatus" | "Category" | "ReviewType" | "CurrentChallengeLogged" | "dt" | "altname" | "NoticeType" | "warrant_fee_waived" | "enforcename" | "Agency" | "Debtor_ID" | "UserID" | "first_name" | "First_Name" | "last_name" | "Last_Name" | "fullName" | "name" | "company_name" | "NoticeNumber" | "Notice Number" | "total_amount_outstanding" | "Address2" | "enforcementAgencyID" | "Address3" | "MOU" | "Email" | "EmailAddress" | "enforcementAgencyCode" | "agency_code" | "Company_Name" | "best_residential_address" | "best_postal_address" | "best_postal_postcode" | "best_residential_postcode" | "street" | "locality" | "Address_1" | "addressType" | "address_2" | "suburb" | "Town" | "Town2" | "postcode" | "Post_Code" | "state" | "State" | "country" | "todayplus14" | "todayplus21" | "todayplus28" | "is_company" | "Is_Company" | "open_obligations" | "date_of_birth" | "HoldCodeEndDate" | "infringement_number" | "Infringement" | "offence_description" | "Offence_Description" | "offence_location" | "offence_time" | "BalanceOutstanding" | "Balance_Outstanding" | "Balance Outstanding" | "status" | "obligation_status" | "Status" | "Notice Status" | "OffenceDate" | "date_of_offence" | "Date_of_Offence" | "Issued" | "date_of_issue" | "Date of Issue" | "IssueDate" | "input_source" | "Input Source" | "PRN_issue_date" | "PRN Issue Date" | "NFD_issue_date" | "NFD Issue Date" | "VRM" | "VRM Number" | "VRM State" | "driver_licence_state" | "Driver License State" | "driver_licence_no" | "Driver License No." | "driver_licence_expiry" | "prn_street_name" | "prn_suburb" | "prn_postcode" | "prn_country" | "prn_state" | "PRN Address" | "outstanding_amount" | "DueDate" | "challenge_date" | "challenge_code" | "Challenge" | "reduced_charge" | "penalty_reminder_fee" | "registration_fee" | "enforcement_fee" | "warrant_issue_fee" | "amount_waived" | "returns" | "amount_paid" | "court_costs" | "court_fine" | "ContraventionCode" | "CaseRef" | "InActivePaymentArrangement" | "Offence" | "NFDlapsed" | "OnlyNFDLapsed" | "pre-payments" | "refunds" | "reversed_fees" | "cancellations" | "writeoff" | "hearing_costs" | "transfer_in" | "transfer_out" | "court_courts_type_3" | "court_of_issue">, formDataForNextRequest: URLSearchParams | undefined) {
+        if (this.contextSwitchingPageId && inputObligationData.length > 0 && this.allPageDefsMap.has(this.contextSwitchingPageId)) {
+            const firstOblNum = inputObligationData[0][this.obligationIdentifierFieldName] as string;
+            if (firstOblNum) {
+                const contextSwitchResult = await this.forceProcessPageInternal(
+                    this.contextSwitchingPageId,
+                    { NoticeNumber: firstOblNum },
+                    finalResult,
+                    explicitlyTargetedFields,
+                    Array.from(explicitlyTargetedFields),
+                    "Initial Debtor Context"
+                );
+                if (contextSwitchResult?.augmentedFormDataFromPage) {
+                    formDataForNextRequest = contextSwitchResult.augmentedFormDataFromPage;
+                    this.log(`    Context switch page ${this.contextSwitchingPageId} provided form data for next request.`);
+                }
+            }
+        }
+        return formDataForNextRequest;
+    }
+
+    /**
+     * Expands the input set of explicitly targeted fields to include source fields for any derived targets.
+     * NOTE: This method mutates the input set by adding additional field names.
+     */
+    private deriveDependentFields(explicitlyTargetedFields: Set<"debtor_id" | "Obligation" | "NoticeStatus" | "Category" | "ReviewType" | "CurrentChallengeLogged" | "dt" | "altname" | "NoticeType" | "warrant_fee_waived" | "enforcename" | "Agency" | "Debtor_ID" | "UserID" | "first_name" | "First_Name" | "last_name" | "Last_Name" | "fullName" | "name" | "company_name" | "NoticeNumber" | "Notice Number" | "total_amount_outstanding" | "Address2" | "enforcementAgencyID" | "Address3" | "MOU" | "Email" | "EmailAddress" | "enforcementAgencyCode" | "agency_code" | "Company_Name" | "best_residential_address" | "best_postal_address" | "best_postal_postcode" | "best_residential_postcode" | "street" | "locality" | "Address_1" | "addressType" | "address_2" | "suburb" | "Town" | "Town2" | "postcode" | "Post_Code" | "state" | "State" | "country" | "todayplus14" | "todayplus21" | "todayplus28" | "is_company" | "Is_Company" | "open_obligations" | "date_of_birth" | "HoldCodeEndDate" | "infringement_number" | "Infringement" | "offence_description" | "Offence_Description" | "offence_location" | "offence_time" | "BalanceOutstanding" | "Balance_Outstanding" | "Balance Outstanding" | "status" | "obligation_status" | "Status" | "Notice Status" | "OffenceDate" | "date_of_offence" | "Date_of_Offence" | "Issued" | "date_of_issue" | "Date of Issue" | "IssueDate" | "input_source" | "Input Source" | "PRN_issue_date" | "PRN Issue Date" | "NFD_issue_date" | "NFD Issue Date" | "VRM" | "VRM Number" | "VRM State" | "driver_licence_state" | "Driver License State" | "driver_licence_no" | "Driver License No." | "driver_licence_expiry" | "prn_street_name" | "prn_suburb" | "prn_postcode" | "prn_country" | "prn_state" | "PRN Address" | "outstanding_amount" | "DueDate" | "challenge_date" | "challenge_code" | "Challenge" | "reduced_charge" | "penalty_reminder_fee" | "registration_fee" | "enforcement_fee" | "warrant_issue_fee" | "amount_waived" | "returns" | "amount_paid" | "court_costs" | "court_fine" | "ContraventionCode" | "CaseRef" | "InActivePaymentArrangement" | "Offence" | "NFDlapsed" | "OnlyNFDLapsed" | "pre-payments" | "refunds" | "reversed_fees" | "cancellations" | "writeoff" | "hearing_costs" | "transfer_in" | "transfer_out" | "court_courts_type_3" | "court_of_issue">) {
+        explicitlyTargetedFields.forEach(fieldName => {
+            const fieldDef = this.masterFieldDefsMap.get(fieldName);
+            if (fieldDef?.isDerived && fieldDef.sourceFields) {
+                fieldDef.sourceFields.forEach(source => {
+                    explicitlyTargetedFields.add(source as DataFieldName);
+                });
+            }
+        });
+        this.log(`Expanded targets to include source fields: ${Array.from(explicitlyTargetedFields).join(', ')}`);
+        return explicitlyTargetedFields;
+    }
 }
 
 // Example of how getData might be structured if it's outside a class
 // This is just for context, assuming your chrome.runtime parts are elsewhere or integrated.
-export async function getData(initialObligations: CollectedData[], targetFields: DataFieldName[] = defaultTargetFields, currentEnvironment: string, customLog: (message: string) => void) {
+export async function getData(initialObligations: CollectedData[], targetFields: Set<DataFieldName> = defaultTargetFields, currentEnvironment: string, customLog: (message: string) => void) {
     const obligationsCountFixed = initialObligations.length;
     setStorage("obligationsCountFixed", obligationsCountFixed);
     setStorage("obligationsCount", obligationsCountFixed - 0.5);
@@ -1546,10 +1580,10 @@ export async function getData(initialObligations: CollectedData[], targetFields:
     if (initialObligations.some(obl => typeof obl[obligationIdKey] !== 'string')) {
         throw new Error(`Each object in Initial Obligations array must have an '${obligationIdKey}' string property.`);
     }
-    if (!Array.isArray(targetFields) || !targetFields.every(f => typeof f === 'string')) {
+    if (!(targetFields instanceof Set) || !Array.from(targetFields).every(f => typeof f === 'string')) {
         throw new Error(
-            `Target Fields for this Run must be a JSON array of strings.
-            The following fields were provided: ${JSON.stringify(targetFields)}`);
+            `Target Fields for this Run must be a Set of strings.
+            The following fields were provided: ${JSON.stringify(Array.from(targetFields))}`);
     }
 
     const optimiser = new SimpleOptimiser();

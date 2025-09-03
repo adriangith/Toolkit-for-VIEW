@@ -25,7 +25,8 @@
 			"extensions": [
 				"dbaeumer.vscode-eslint",
 				"ms-vscode.vscode-typescript-next",
-				"bradlc.vscode-tailwindcss"
+				"bradlc.vscode-tailwindcss",
+				"GitHub.vscode-pull-request-github"
 			]
 		}
 	},

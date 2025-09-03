@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import parse, { Element, attributesToProps, HTMLReactParserOptions, domToReact } from 'html-react-parser';
 import '../css/External/initial.css';
 import { initialiseWorkbookProcesser } from './xlsxConverter';
-import { DebtorSummaryObligationTable, Message, backgroundData } from './types';
+import { BulkAction, DataFieldArray, DebtorSummaryObligationTable, FieldSetSheetRecord, Message, backgroundData } from './types';
 import { handleSelectActionable, handleSelectEnforcementReview, handleSelectFVSHolds, handleSelectPAHolds } from './select';
 import {
     createColumnHelper,
@@ -221,7 +221,7 @@ async function handlexlxsExport(_: string | null, table: DebtorSummaryObligation
     }
 }
 
-function bulkAction({ subType, table }: { subType: string, table: Table<VIEWDebtorSummaryObligation> }) {
+function bulkAction({ subType, table }: { subType: BulkAction['subType'], table: Table<VIEWDebtorSummaryObligation> }) {
     if (table.getSelectedRowModel().rows.length === 0) {
         // Consider using a more user-friendly notification than alert in a browser extension
         console.warn('You need to select at least one obligation');
@@ -302,6 +302,9 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
         /** Fetches and converts the "Templates" sheet to JSON format. */
         const templateSheetData = await wb.fetchAndConvertXlsxToJson<TemplateSheetRecord>({ Sheet: "Templates" });
 
+        /** Fetches and converts the "FieldSet" sheet to JSON format. */
+        const fieldSetSheetData = await wb.fetchAndConvertXlsxToJson<FieldSetSheetRecord>({ Sheet: "FieldSets" });
+
         /** List of templates that match the selected option's letters. */
         const selectedTemplates = templateSheetData.filter(template => {
             return selectedOptionData.letters.includes(template.Correspondence);
@@ -316,6 +319,8 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
             return;
         }
 
+        const targetFields = getTemplateFields(selectedTemplates, fieldSetSheetData);
+
         console.log("Selected Templates:", selectedTemplates);
 
         const selectedRows = table.getSelectedRowModel().rows.map(row => row.original);
@@ -325,6 +330,7 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
                 obligations: selectedRows,
                 VIEWEnvironment: VIEWEnvironment || 'djr',
                 documentTemplateProperties: selectedTemplates,
+                targetFields: targetFields
             },
         });
         if (response.response === 'Failed to fetch') {
@@ -344,6 +350,40 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
     } catch (error) {
         console.error("Error generating letter:", error);
         alert("An error occurred while generating the letter. See console for details.");
+    }
+
+    /**
+ * Extracts the 'FieldSet' property from each selected template.
+ * If a 'FieldSet' is empty or "Default", it's mapped to "Default".
+ * This creates a list of all required FieldSet names.
+ */
+    function getTemplateFields(selectedTemplates: TemplateSheetRecord[], fieldSetSheetData: FieldSetSheetRecord[]): DataFieldArray {
+        const fieldSetNames = selectedTemplates.map(template => !template.FieldSet || template.FieldSet.trim() === '' || template.FieldSet.includes("Default")
+            ? "Default"
+            : template.FieldSet
+        );
+
+        /**
+         * Creates a unique set of FieldSet names to avoid redundant lookups.
+         */
+        const uniqueFieldSetNames = [...new Set(fieldSetNames)];
+
+        /**
+         * Finds the corresponding records in `fieldSetSheetData` for each unique FieldSet name
+         * and extracts the 'Fields' string from each.
+         */
+        const fieldStrings = uniqueFieldSetNames.map(name => {
+            const fieldSetRecord = fieldSetSheetData.find(fs => fs.FieldSet === name);
+            return fieldSetRecord ? fieldSetRecord.Fields : '';
+        });
+
+        /**
+         * Combines all 'Fields' strings into a single space-separated string,
+         * then splits it into an array of individual field names.
+         * A Set is used to ensure the final list contains only unique field names.
+         */
+        const targetFields: DataFieldArray = [...new Set(fieldStrings.join(' ').split(' ').filter(field => field))] as DataFieldArray;
+        return targetFields;
     }
 }
 

@@ -25,6 +25,7 @@ export interface backgroundData {
         IsEmail?: boolean;
         dataSet?: CollectedData;
         documentTemplateProperties: TemplateSheetRecord[];
+        targetFields?: DataFieldArray
     };
 }
 interface VIEWsubmitMessage {
@@ -395,11 +396,21 @@ export interface TemplateSheetRecord {
     [key: string]: string;
 }
 
+export interface FieldSetSheetRecord {
+    FieldSet: "Default" | "Standard" | "XLSXExport" | "WDP" | "FeeRemoval" | "EnforcementAction";
+    Fields: string;
+    [key: string]: string;
+}
+
 export type PageDefinition = typeof pageDefinitions[number]
 
 export type FieldDefinition = typeof allDataFields[number];
 
 export type DataFieldName = FieldDefinition['name'];
+
+export type DataFieldSet = Set<DataFieldName>
+
+export type DataFieldArray = DataFieldName[]
 
 
 export type DerivedFieldDefinition = {
@@ -625,7 +636,7 @@ export interface TransformerInput {
     currentData: CollectedData; // The data object to potentially add derived fields to (either finalResult or an obligation object)
     level: "Debtor" | "Obligation";
     masterFieldDefinitions: MasterFieldDefinition[];
-    explicitlyTargetedFields: DataFieldName[]; // Which derived fields are we actually trying to compute?
+    explicitlyTargetedFields: DataFieldSet; // Which derived fields are we actually trying to compute?
     derivationRegistry: DerivationLogicRegistry; // The registry of derivation functions
     log: (message: string) => void;
 }
