@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
     volumes:
       - ../dist:/data
-      - .:/config/rclone
+      - ./.devcontainer/rclone.conf:/config/rclone/rclone.conf:ro
     environment:
       - RCLONE_CONFIG=/config/rclone/rclone.conf
 
