@@ -10,7 +10,7 @@ services:
       - CLIENT_SECRET=${CLIENT_SECRET}
       - REFRESH_TOKEN=${REFRESH_TOKEN}
     command: sleep infinity
-    network_mode: service:rclone
+    network_mode: bridge
     depends_on:
       - rclone
   rclone:
