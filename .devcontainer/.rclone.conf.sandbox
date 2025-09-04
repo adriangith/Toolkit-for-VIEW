@@ -1,0 +1,6 @@
+[remote]
+type = local
+nounc = true
+# Maps to a local folder instead of OneDrive
+# So sync operations just copy files locally
+# No credentials required
