@@ -1,11 +1,10 @@
-import marked from 'marked';
+import { marked } from 'marked';
 import * as Sqrl from 'squirrelly';
 import { GenerateDocumentMessage } from "./types";
 
 const makeEmail = async (
     content: Record<string, unknown>,
     emlContent: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     filename: string,
     emailAttachments: Record<string, string> = {}
 ) => {
@@ -15,8 +14,7 @@ const makeEmail = async (
     });
     let result: string = await Sqrl.render(atob(emlContent.replace('data:application/octet-stream;base64,', '')), content, { async: true, asyncHelpers: ['addAttachment'] })
     const resultArray = result.split('----boundary_text_string');
-    marked.setOptions({ 'breaks': true, "gfm": true });
-    resultArray[1] = await marked.parse(resultArray[1]);
+    resultArray[1] = await marked.parse(resultArray[1], { breaks: true, gfm: true });
     result = resultArray.join('----boundary_text_string \n');
     result = result.replace('<p>Content-Type: text/html</p>', 'Content-Type: text/html \n');
     return result;

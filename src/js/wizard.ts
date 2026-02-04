@@ -467,7 +467,7 @@ async function getDebtorObligations(source: any, parsedDocument: Document | unde
       matchColumn: "Obligation No."
     })
   }
-  console.log(debtorData);
+  if (process.env.IS_DEV) console.log(debtorData);
   return debtorData;
 }
 
@@ -485,7 +485,7 @@ async function buildTable(element: { dataSource: (arg0: any) => any; parent: str
   $.fn.dataTable.moment('DD/MM/YYYY');
 
   document.getElementById(element.parent).append(field);
-  console.log(tableData);
+  if (process.env.IS_DEV) console.log(tableData);
   const dataTableConfig = {
     "data": tableData,
     "columns": [
@@ -661,7 +661,7 @@ function loadFirst(url: any, fetchOptions: any) {
 }
 
 function loadAgain(iframe: HTMLElement, url: any, fetchOptions: any) {
-  console.log(url);
+  if (process.env.IS_DEV) console.log(url);
   return new Promise(function (resolve, reject) {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       chrome.tabs.sendMessage(tabs[0].id, { url, fetchOptions }, function (response) {

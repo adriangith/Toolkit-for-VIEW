@@ -1,6 +1,6 @@
 {
   "name": "Toolkit-for-VIEW-2",
-  "version": "0.0.0.1",
+  "version": "1.0.1.72",
   "description": "My Chrome Extension",
   "private": true,
   "webExt": {
@@ -9,9 +9,11 @@
   "scripts": {
     "watch": "webpack --mode=development --watch --config config/webpack.config.js",
     "build": "webpack --mode=production --config config/webpack.config.js",
-    "upload": "npx chrome-webstore-upload upload",
-    "upload:publish": "npx chrome-webstore-upload",
-    "test": "jest"
+    "upload": "export $(grep -v '^#' .env | xargs) && npx chrome-webstore-upload upload",
+    "upload:publish": "export $(grep -v '^#' .env | xargs) && npx chrome-webstore-upload",
+    "test": "jest",
+    "bump": "node scripts/bump-version.js",
+    "deploy": "npm run bump && npm run build && npm run upload:publish"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",

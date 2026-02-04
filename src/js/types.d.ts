@@ -2,7 +2,7 @@ import { Table } from "@tanstack/react-table";
 import { VIEWObligationListHeadings } from "./obligations";
 import { OptionsResult } from "./xlsxConverter";
 import { allDataFields, pageDefinitions } from "./config";
-import { afterAction, BulkActionProperties, CollectedData, DerivedFieldName, ExtractedFieldName, Properties, urlParamsType, VIEWDebtorSummaryObligation } from "./types";
+import { afterAction, BulkActionProperties, CollectedData, DerivedFieldName, ExtractedFieldName, Properties, urlParamsType } from "./types";
 
 export type ObligationPreviewProcess = <T extends Message>(message: T, sender: chrome.runtime.MessageSender, sendResponse: (response?: WDPResponse) => void) => void | boolean;
 interface SuccessResponse {
@@ -26,7 +26,9 @@ export interface backgroundData {
         dataSet?: CollectedData;
         documentTemplateProperties: TemplateSheetRecord[];
         targetFields?: DataFieldArray
+        debtorId?: string;
     };
+    response?: string; // Added to handle the response check in UI
 }
 interface VIEWsubmitMessage {
     type: "VIEWsubmit";
@@ -35,10 +37,10 @@ interface VIEWsubmitMessage {
 
 export interface VIEWsubmitParams {
     properties: BulkActionProperties;
-    scraperStepsOption: 'ObligationSummaryScraperRuleSet' | 'Bulk Update'; // Or other keys from processRuleSet
-    incrementor?: number; // Optional incrementor (usage depends on context)
-    additionalData?: string; // Optional additional data string
-    initialParsedDocument?: Document; // Optional starting document
+    scraperStepsOption: 'ObligationSummaryScraperRuleSet' | 'Bulk Update';
+    incrementor?: number;
+    additionalData?: string;
+    initialParsedDocument?: Document;
 }
 interface ChromeStorage {
     type: "getStorage" | "setStorage";
@@ -54,10 +56,9 @@ interface ObligationNumberList {
         VIEWEnvironment: string;
         targetFields?: (DerivedFieldName | ExtractedFieldName)[];
         subType?: 'Bulk Notes Update' | 'Bulk Hold Update' | 'Bulk Writeoff Update';
-        [key: string]: unknown; // Allowing for additional properties
+        [key: string]: unknown;
     };
 }
-
 type BulkActionProperties = {
     popupWindow?: chrome.windows.Window | null;
     port?: chrome.runtime.Port | null;
@@ -339,6 +340,7 @@ export type ScraperPageConfig = {
     name: string;
 };
 export interface VIEWDebtorSummaryObligation {
+    [key: string]: string | undefined; // Added Index Signature to satisfy CollectedData
     NoticeNumber: string;
     InfringementNo: string;
     NoticeType: string;
@@ -356,6 +358,7 @@ export interface VIEWDebtorSummaryObligation {
     KeyActiveWarrantExecutionActions: string;
     RecentDEBTDVSANCholds: string;
 }
+
 export interface Button {
     name: string;
     type: "button";
@@ -378,13 +381,17 @@ export interface DropDown {
     options: string[] | string;
     attributes?: { [key: string]: string; };
 }
+export interface SplitButton {
+    type: "split_button";
+    buttons: Button[];
+}
 
 /**
  * Represents a user input element in the UI.
  * Can be a button, radio button, or dropdown.
  * @property name - The name of the input element, used for identification.
  */
-export type Input = Button | RadioButton | DropDown;
+export type Input = Button | RadioButton | DropDown | SplitButton;
 
 export interface TemplateSheetRecord {
     Correspondence: string;
@@ -440,7 +447,7 @@ type PageDefWithSelectorFields = Extract<typeof pageDefinitions[number],
     }
 >;
 
-export type PageId = 'NoticeVehicleDetails' | 'DebtorCourtFines' | 'DebtorCourtFines2' | 'NoticeAudit2' | 'NoticeKeeper' | 'DebtorDecisionReview' | 'DebtorDetails' | 'DebtorAddresses' | 'DebtorObligationsSummary' | 'NoticeDetails' | 'NoticeAudit' | 'FinancialSummary' | 'TaskList' | 'DebtorFurtherDetails'
+export type PageId = 'DebtorProfileSummary' | 'NoticeVehicleDetails' | 'DebtorCourtFines' | 'DebtorCourtFines2' | 'NoticeAudit2' | 'NoticeKeeper' | 'DebtorDecisionReview' | 'DebtorDetails' | 'DebtorAddresses' | 'DebtorObligationsSummary' | 'NoticeDetails' | 'NoticeAudit' | 'FinancialSummary' | 'TaskList' | 'DebtorFurtherDetails'
 
 export interface DomSelector {
     type: "css" | "xpath";
@@ -489,6 +496,16 @@ export type MasterFieldDefinition = {
     sourceFields?: string[]; // Names of fields this derived field depends on
     derivationKey?: string; // Key to look up function in a derivation registry
     notes?: string;
+    /**
+     * A predicate function to determine if this field should be skipped.
+     * 
+     * If this function returns `true`, the field is **excluded** from the scraping/derivation process for the current data context.
+     * Use this to conditionally target fields based on other data (e.g., only scrape 'CourtRef' if 'NoticeType' is '2B').
+     * 
+     * @param data The current data collected so far for the debtor or obligation.
+     * @returns `true` to SKIP this field, `false` (or undefined) to proceed with targeting it.
+     */
+    condition?: (data: CollectedData) => boolean; // If true, the field is removed from the optimiser targets
 }
 
 
@@ -522,6 +539,15 @@ export interface MasterPageDefinition {
     dependencies: PageDependency[];
     method?: 'GET' | 'POST';
     _optimiserFields?: string[]; // To hold the pre-processed list
+    /**
+     * A predicate function to determine if this page should be visited.
+     * 
+     * If this function returns `false`, the page is **skipped** during the scraping process.
+     * 
+     * @param data The current data collected so far.
+     * @returns `true` to visit this page, `false` to skip it.
+     */
+    condition?: (data: CollectedData) => boolean;
 }
 
 /** Represents a dependency on another page */
@@ -604,6 +630,7 @@ export interface RowMappingConfig {
         [fieldName in DataFieldName]?: {
             // Selector for the specific data point, relative to the row element
             selector: string;
+            node?: 'title' | 'text' | 'value' | 'href';
         }
     };
     // Defines a lookup table for data that exists outside the main rows
@@ -638,7 +665,7 @@ export interface TransformerInput {
     masterFieldDefinitions: MasterFieldDefinition[];
     explicitlyTargetedFields: DataFieldSet; // Which derived fields are we actually trying to compute?
     derivationRegistry: DerivationLogicRegistry; // The registry of derivation functions
-    log: (message: string) => void;
+    log: (message: string, ...args: unknown[]) => void;
 }
 // Contract for a Transformer module (optional)
 
@@ -646,7 +673,7 @@ export interface ITransformer {
     deriveFields(input: TransformerInput): Promise<boolean>; // Returns true if any new data was derived
 }
 // Registry for derivation functions
-export type DerivationFunction = (sources: CollectedData) => string | boolean | undefined | Promise<unknown>;
+export type DerivationFunction = (sources: CollectedData) => string | boolean | undefined | null | Promise<unknown>;
 
 export type DerivationLogicRegistry = Partial<Record<DataFieldName, DerivationFunction>>;
 
@@ -843,7 +870,7 @@ export type GenerateDocumentMessage = {
 export type XlSXExportColumnDefinition = Array<{
     header: DerivedFieldName | ExtractedFieldName;
     width: number;
+    name?: string;
     isCurrency?: boolean;
     isDate?: boolean;
 }>;
-

@@ -280,50 +280,10 @@ export async function parsePage(vDocument: Response, url: string, fetchOptions: 
     } catch (e) {
         console.warn(`Initial parsing failed or timed out for ${url}, retrying fetch...`, e);
         // Retry the fetch and parsing on error/timeout
-        const retryResponse = await fetch(url, fetchOptions); // Assuming fetch handles its own retries
-        htmlText = await getBodyWithTimeout(retryResponse); // Try getting body again
-    }
-
-    const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(htmlText, "text/html");
-    return parsedDoc;
-}
-/**
- * Parses the text content of a Response object into an HTML Document.
- * Includes a retry mechanism if reading the response body times out.
- * @param {Response} vDocument - The Response object from a fetch call.
- * @param {string} url - The original URL fetched (for retries).
- * @param {RequestInit} fetchOptions - The original fetch options (for retries).
- * @returns {Promise<Document>} - A promise resolving to the parsed Document.
- */
-export async function parsePage(vDocument: Response, url: string, fetchOptions: RequestInit): Promise<Document> {
-    // Helper to get response body with timeout
-    const getBodyWithTimeout = (response: Response, timeout = 10000): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => {
-                reject(new Error(`getBodyWithTimeout timed out after ${timeout}ms for URL: ${url}`));
-            }, timeout);
-
-            response.text().then(
-                (text) => {
-                    clearTimeout(timer);
-                    resolve(text);
-                },
-                (err) => {
-                    clearTimeout(timer);
-                    reject(err); // Propagate fetch error
-                }
-            );
-        });
-    };
-
-    let htmlText: string;
-    try {
-        htmlText = await getBodyWithTimeout(vDocument);
-    } catch (e) {
-        console.warn(`Initial parsing failed or timed out for ${url}, retrying fetch...`, e);
-        // Retry the fetch and parsing on error/timeout
-        const retryResponse = await fetch(url, fetchOptions); // Assuming fetch handles its own retries
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 15000); // 15s timeout for retry
+        const retryResponse = await fetch(url, { ...fetchOptions, signal: controller.signal });
+        clearTimeout(id);
         htmlText = await getBodyWithTimeout(retryResponse); // Try getting body again
     }
 
@@ -366,9 +326,9 @@ export async function customFetch(url: Parameters<typeof fetch>[0], responseHand
         return await responseHandler(response);
 
     } catch (error) {
-        if (error.message.includes('CORS') ||
-            error.name === 'TypeError' && error.message.includes('fetch')) {
-            throw new Error(`CORS`);
+        if (error instanceof Error && (error.message.includes('CORS') ||
+            error.name === 'TypeError' && error.message.includes('fetch'))) {
+            throw new Error('CORS');
         }
 
         throw error;
@@ -474,7 +434,7 @@ export async function getAttachments(text: string): Promise<Map<string, string>>
     }
 
     // Create an array of promises, each fetching a URL and converting the response to base64
-    const fetchPromises = Array.from(urlMap.entries()).map(async ([name, url]) => {
+    const fetchPromises = Array.from(urlMap.entries()).map(async ([name, url]): Promise<[string, string]> => {
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
@@ -524,4 +484,3 @@ export function downloadEmail(
     }
     a.remove();
 }
-

@@ -37,11 +37,11 @@ async function fetchWorkbook(url: string): Promise<XLSX.WorkBook> {
         throw new Error('Invalid response format: Expected data URL with base64 content.');
     }
 
-    console.log("Spreadsheet data fetched.");
+    if (process.env.IS_DEV) console.log("Spreadsheet data fetched.");
 
     try {
         const workbook = XLSX.read(response.substring(commaIndex + 1), { type: 'base64' });
-        console.log("Workbook parsed.");
+        if (process.env.IS_DEV) console.log("Workbook parsed.");
         return workbook;
     } catch (error) {
         throw new Error(`Failed to parse workbook: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -62,7 +62,6 @@ async function fetchAndParseSheet(sheet: string, workbook: XLSX.WorkBook): Promi
     if (!firstSheetName) {
         throw new Error("Workbook contains no sheets.");
     }
-    console.log(`Processing sheet: ${sheet || firstSheetName}`);
     const worksheet = workbook.Sheets[sheet || firstSheetName];
 
     if (!worksheet || !worksheet['!ref']) { // Handle case of empty or undefined sheet/range
@@ -171,7 +170,6 @@ export async function initialiseWorkbookProcesser(
 
             result.push({ description, letters });
         }
-        console.log(`Options processing complete. Processed: ${result.length} valid rows.`);
         return result;
     }
 
@@ -231,7 +229,6 @@ export async function initialiseWorkbookProcesser(
                 }
             }
 
-            console.log(`Object array conversion complete. Processed: ${rowsProcessed}, Skipped: ${rowsSkipped}`);
             return result as R;
         }
 
@@ -270,7 +267,6 @@ export async function initialiseWorkbookProcesser(
             }
         }
 
-        console.log(`Key/Value conversion complete. Processed: ${rowsProcessed}, Skipped: ${rowsSkipped}`);
         return resultObject as R;
     }
 
@@ -283,4 +279,3 @@ export interface OptionsResult {
     letters: string[];
     recipient?: boolean;
 }
-

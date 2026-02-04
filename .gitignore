@@ -3,3 +3,4 @@ node_modules/
 dist/
 .devcontainer/.env
 node_modules
+.env

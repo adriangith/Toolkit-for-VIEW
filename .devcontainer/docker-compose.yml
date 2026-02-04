@@ -2,7 +2,7 @@ services:
   devcontainer:
     image: mcr.microsoft.com/devcontainers/base:bullseye
     volumes:
-      - ..:/workspace
+      - workspace-data:/workspaces
     environment:
       - NODE_ENV=development
       - EXTENSION_ID=${EXTENSION_ID}
@@ -20,8 +20,16 @@ services:
     container_name: rclone
     restart: unless-stopped
     volumes:
-      - ../dist:/data
-      - ./.devcontainer/rclone.conf:/config/rclone/rclone.conf:ro
+      - type: volume
+        source: workspace-data
+        target: /data
+        volume:
+          subpath: "Toolkit-for-VIEW/dist"
+      - type: volume
+        source: workspace-data
+        target: /config/rclone
+        volume:
+          subpath: "Toolkit-for-VIEW/.devcontainer"
     environment:
       - RCLONE_CONFIG=/config/rclone/rclone.conf
 
@@ -50,3 +58,6 @@ services:
         kill $$RCD_PID && \
         wait $$RCD_PID
       '
+volumes:
+  workspace-data:
+    name: workspace-data

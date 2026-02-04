@@ -3,7 +3,7 @@ import 'bootstrap-waitingfor';
 import 'bootstrap';
 //mport 'bootstrap/dist/css/bootstrap.min.css';
 import { Tooltip } from 'bootstrap';
-import { WDPResponse, obligationStatusMap, WDPBatchPayloadType, WDPCommands, WDPSequence, CollectedData, ObligationNumberList } from "./types";
+import { WDPResponse, obligationStatusMap, WDPBatchPayloadType, WDPCommands, WDPSequence, CollectedData, ObligationNumberList, Message } from "./types";
 import DataTable, { Api } from 'datatables.net-dt';
 import 'datatables.net-buttons';
 import 'datatables.net-select';
@@ -11,9 +11,7 @@ import { getStoredAuthorisationToken, throwIfUndefined, watchForElement } from '
 
 const hostname = location.hostname;
 const WDPEnvironment = hostname.substring(0, hostname.indexOf('.wdp.vic.gov.au'))
-const VIEWEnvironment = ['uat', 'uat2'].includes(WDPEnvironment) ? 'uat' : 'djr-uat1';
-
-let aggregateId: number;
+const VIEWEnvironment = ['uat', 'uat2'].includes(WDPEnvironment) ? 'djr-uat1' : 'djr';
 
 function addStyleString(str: string) {
 	const node = document.createElement('style');
@@ -102,14 +100,82 @@ addStyleString(`.lds-ring {
   }
   `);
 
+addStyleString(`
+	.rpl-btn {
+		--rpl-clr-primary: #0052C2;
+		--rpl-clr-primary-alt: #003174;
+		--rpl-clr-type-primary-contrast: #FFFFFF;
+		--rpl-border-radius-2: 4px;
+		--rpl-border-2: 2px;
+		--rpl-sp-2: 8px;
+		--rpl-sp-4: 14px;
+		--rpl-sp-5: 20px;
+		--local-border-width: var(--rpl-border-2);
+		--local-filled-bg-clr: var(--rpl-clr-primary);
+		--local-filled-bg-clr-hover: var(--rpl-clr-primary-alt);
+		--local-filled-type-clr: var(--rpl-clr-type-primary-contrast);
+
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--rpl-sp-2);
+		box-sizing: border-box;
+		border-radius: var(--rpl-border-radius-2);
+		border-style: solid;
+		border-width: var(--local-border-width);
+		padding: calc(var(--rpl-sp-4) - var(--local-border-width)) calc(var(--rpl-sp-5) - var(--local-border-width));
+		appearance: none;
+		width: auto;
+		color: var(--local-filled-type-clr);
+		cursor: pointer;
+		text-decoration: none;
+		background-color: var(--local-filled-bg-clr);
+		border-color: var(--local-filled-bg-clr);
+		font-family: VIC, Arial, Helvetica, sans-serif;
+		font-weight: 700;
+		line-height: normal;
+		-webkit-font-smoothing: inherit;
+		text-transform: none;
+		margin-right: 10px;
+	}
+	.rpl-btn:hover {
+		background-color: var(--local-filled-bg-clr-hover);
+		border-color: var(--local-filled-bg-clr-hover);
+		color: var(--local-filled-type-clr);
+		text-decoration: underline;
+	}
+`);
+
 /**
  * A simple helper function that pauses execution for a given number of milliseconds.
  * @param ms The number of milliseconds to wait.
  */
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+/**
+ * Utility to send chrome messages with error handling.
+ * Prevents silent fails when extension context is invalidated.
+ */
+function sendExtensionMessage<T = unknown>(message: Message | unknown): Promise<T> {
+	return new Promise((resolve, reject) => {
+		try {
+			if (!chrome.runtime?.id) {
+				return reject(new Error("Extension context invalidated. Please refresh the page."));
+			}
+			chrome.runtime.sendMessage(message, (response) => {
+				if (chrome.runtime.lastError) {
+					return reject(new Error(chrome.runtime.lastError.message));
+				}
+				resolve(response);
+			});
+		} catch (err) {
+			reject(err);
+		}
+	});
+}
 
-function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus: obligationStatusMap) {
+async function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus: obligationStatusMap, aggregateId: number) {
 	function getStatusCode(obligationStatus: obligationStatusMap, obligationData: CollectedData, Obligation: string) {
 		// Extract the status for this obligation
 		const status = obligationStatus[Obligation];
@@ -163,7 +229,7 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 				if (!debtorData["date_of_birth"]) {
 					throw new Error("date_of_birth is not defined in fulldata");
 				}
-				const DateParts = debtorData["date_of_birth"].split("/")
+				const DateParts = (debtorData["date_of_birth"] as string).split("/")
 				return new Date(Number(DateParts[2]), Number(DateParts[1]) - 1, Number(DateParts[0])).toISOString();
 			}
 
@@ -175,10 +241,10 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 				throw new Error("Date_of_Offence is not defined in obdata");
 			}
 			if (obdata["Date_of_Offence"] !== "" && obdata["offence_time"] === "") {
-				const DateParts = obdata["Date_of_Offence"].split("/").concat(obdata["offence_time"].split(":"))
+				const DateParts = (obdata["Date_of_Offence"] as string).split("/").concat((obdata["offence_time"] as string).split(":"))
 				return new Date(Number(DateParts[2]), Number(DateParts[1]) - 1, Number(DateParts[0]), Number(DateParts[3]), Number(DateParts[4]), Number(DateParts[5])).toISOString();
 			} else {
-				const DateParts = obdata["Date_of_Offence"].split("/")
+				const DateParts = (obdata["Date_of_Offence"] as string).split("/")
 				return new Date(Number(DateParts[2]), Number(DateParts[1]) - 1, Number(DateParts[0])).toISOString();
 			}
 		})();
@@ -188,7 +254,7 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 				throw new Error("Date of Issue is not defined in obdata");
 			}
 			if (obdata["Date of Issue"] !== "") {
-				const DateParts = obdata["Date of Issue"].split("/")
+				const DateParts = (obdata["Date of Issue"] as string).split("/")
 				return new Date(Number(DateParts[2]), Number(DateParts[1]) - 1, Number(DateParts[0])).toISOString();
 			}
 			const date = new Date()
@@ -327,42 +393,21 @@ function WDPSubmit(obdata: CollectedData[][], fulldata: CollectedData, obStatus:
 		return data;
 	}
 
-	return new Promise(function (resolve, reject) {
-		const results: Response[][] = [];
-		let index = 0;
+	const results: Response[][] = [];
 
-		// Use an async function to allow for 'await'
-		const next = async () => {
-			if (index < obdata.length) {
-				try {
-					const currentBatch = obdata[index++];
-					const batchResults: Response[] = [];
-
-					// Loop through the current batch and process one-by-one
-					for (const ob of currentBatch) {
-						// Wait for the single request to complete
-						const response = await WDPSubmitBatch(ob, fulldata, obStatus);
-						batchResults.push(response);
-
-						// The new 100ms delay before the next request in the batch
-						await delay(0);
-					}
-
-					results.push(batchResults);
-
-					// The original 1-second delay between batches
-					setTimeout(next, 0);
-
-				} catch (error) {
-					reject(error);
-				}
-			} else {
-				resolve(results);
-			}
+	for (const currentBatch of obdata) {
+		const batchResults: Response[] = [];
+		// Loop through the current batch and process one-by-one
+		for (const ob of currentBatch) {
+			// Wait for the single request to complete
+			const response = await WDPSubmitBatch(ob, fulldata, obStatus);
+			batchResults.push(response);
+			await delay(0); // Delay between individual requests
 		}
-		// start first iteration
-		next();
-	});
+		results.push(batchResults);
+		await delay(0); // Delay between batches
+	}
+	return results;
 }
 
 function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
@@ -418,9 +463,9 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 		throw new Error("WDPApplicationId not found");
 	}
 
-	aggregateId = parseInt(WDPApplicationId);
+	const aggregateId = parseInt(WDPApplicationId);
 
-	const currentWDPInfringementsPromise = getCurrentWDPInfringements(aggregateId);
+	const currentWDPInfringementsPromise = getCurrentWDPInfringements(aggregateId as unknown as number);
 	const data = obligationPreviewTable.rows({ selected: true }).data();
 	if (data.length === 0) {
 		alert("You must select at least one obligation");
@@ -435,12 +480,26 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 			Issued: obligationData[i][2],
 			Balance_Outstanding: obligationData[i][3],
 			NoticeStatus: obligationData[i][4],
-			Offence: obligationData[i][5]
+			Offence: obligationData[i][5],
+			ContraventionCode: obligationData[i][5],
+			offence_description: obligationData[i][6]
 		});
 		obStatus[obligationData[i][1]] = obligationData[i][4];
 	}
 
-	const message: ObligationNumberList = { "type": "WDPBatchProcess", "data": { obligations: obligations, VIEWEnvironment: VIEWEnvironment } };
+	const targetFields = [
+		"date_of_birth", "Date_of_Offence", "offence_time", "Date of Issue", "Obligation",
+		"reduced_charge", "pre-payments", "amount_paid", "refunds", "returns", "court_fine",
+		"court_costs", "cancellations", "writeoff", "amount_waived", "transfer_in", "transfer_out",
+		"penalty_reminder_fee", "registration_fee", "enforcement_fee", "warrant_issue_fee",
+		"reversed_fees", "Balance_Outstanding", "input_source", "Debtor_ID", "Infringement",
+		"altname", "enforcementAgencyID", "enforcementAgencyCode", "ContraventionCode",
+		"Offence_Description", "offence_location", "VRM State", "VRM Number", "VRM",
+		"First_Name", "Last_Name", "Address_1", "suburb", "State", "Post_Code",
+		"Driver License State", "Driver License No."
+	];
+
+	const message: ObligationNumberList = { "type": "WDPBatchProcess", "data": { obligations: obligations, VIEWEnvironment: VIEWEnvironment, targetFields: targetFields as any } };
 	const progressBar = document.createElement("div");
 	progressBar.className = "progress";
 	Object.assign(progressBar.style, {
@@ -479,10 +538,10 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 			slicedArray.push(array.slice(i, i + chunk));
 		}
 
-		WDPSubmit(slicedArray, obligationData, obStatus).then(() => {
+		WDPSubmit(slicedArray, obligationData, obStatus, aggregateId).then(() => {
 			// saveButtonObserver
 			watchForElement(
-				"xpath://button[contains(text(), 'Save')]",
+				"xpath://button[contains(., 'Save')]",
 				function (elem: { click: () => void; }) {
 					elem.click();
 				}, () => { },
@@ -492,7 +551,7 @@ function VIEWExtract(obligationPreviewTable: Api<CollectedData[]>) {
 			);
 
 			watchForElement(
-				"xpath://h4[contains(text(), 'WDP team dashboard')]",
+				"xpath://h4[contains(., 'WDP team dashboard')]",
 				function () {
 					window.history.pushState({}, '', '/wdp-applications/app-wdp-list');
 
@@ -618,7 +677,15 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 		const tableData = rows.map(row => {
 			// The first '' is a placeholder for the selection column.
 			const rowArray: (string | number)[] = [''];
-			Object.values(row).forEach(value => rowArray.push(value));
+			Object.values(row).forEach(value => {
+				if (typeof value === 'string' || typeof value === 'number') {
+					rowArray.push(value);
+				} else if (typeof value === 'boolean') {
+					rowArray.push(value.toString());
+				} else if (value === null || value === undefined) {
+					rowArray.push('');
+				}
+			});
 			return rowArray;
 		});
 
@@ -668,7 +735,7 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 		return function () {
 			const obligations: CollectedData[] = [];
 
-			const obligationNumber1 = document.getElementById("obligationNumber1");
+			const obligationNumber1 = document.querySelector('input#obligationNumber1');
 			if (!(obligationNumber1 instanceof HTMLInputElement)) {
 				throw new Error("obligationNumber1 is not an HTMLInputElement");
 			}
@@ -697,14 +764,18 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 			$("#table").html(`<div class="lds-ring"><div></div><div></div><div></div><div></div></div>`);
 
 			// Fetch data and build the table in the callback.
-			chrome.runtime.sendMessage(message, function (response: WDPResponse) {
-				if (response.type === "success" && typeof response.data !== "boolean") {
-					// Call the function that builds a fresh table.
-					buildTable(response.data);
-				} else {
-					$("#table").html("Obligation not found. Please make sure that you are logged into VIEW and that you have typed a valid obligation number into the 'Obligation number 1' field");
-				}
-			});
+			sendExtensionMessage<WDPResponse>(message)
+				.then((response) => {
+					if (response && response.type === "success" && typeof response.data !== "boolean") {
+						// Call the function that builds a fresh table.
+						buildTable(response.data);
+					} else {
+						$("#table").html("Obligation not found. Please make sure that you are logged into VIEW and that you have typed a valid obligation number into the 'Obligation number 1' field");
+					}
+				})
+				.catch((error) => {
+					$("#table").html(`Error: ${error.message}`);
+				});
 		};
 	}
 
@@ -718,7 +789,7 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 	const viewButtonAttribs = {
 		"data-toggle": "tooltip",
 		"title": "Caution: Using this feature may change your active debtor and obligation in VIEW",
-		"class": "btn btn-primary pull-left",
+		"class": "rpl-btn pull-left",
 		"id": "ViewButton",
 		"textContent": "Show obligations from VIEW",
 	};
@@ -766,7 +837,7 @@ function VIEWPreview(addExternalInfrigementsButton: HTMLButtonElement) {
 function WDPButton() {
 	addModal()
 	watchForElement(
-		"xpath://button[contains(text(), 'Add external infringements')]",
+		"xpath://button[contains(., 'Add external infringements')]",
 		function (watchedElement: HTMLElement) {
 			if (!(watchedElement instanceof HTMLButtonElement)) {
 				throw new Error("Element is not a button");

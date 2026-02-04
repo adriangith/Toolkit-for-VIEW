@@ -9,6 +9,7 @@ interface ColumnConfig {
 	width: number;
 	isCurrency?: boolean;
 	isDate?: boolean; // Added to support your new config
+	name?: string;
 }
 
 // currencyFormat function remains the same...
@@ -50,15 +51,17 @@ export function table(data: ObligationArray, name: string, columns: ColumnConfig
 	// --- ✅ EXPLICIT FILTERING STEP ---
 	// Manually create a new array containing objects with only the specified keys.
 	// This guarantees no extra fields will be included.
-	const filteredData = dataToExport.map(row =>
-		headers.reduce((acc, header) => {
-			// Check if the original row has this property before adding it
-			if (Object.prototype.hasOwnProperty.call(row, header)) {
-				acc[header] = row[header];
+	const filteredData = dataToExport.map((row: Record<string, unknown>) => {
+		const filteredRow: Record<string, unknown> = {};
+		columns.forEach(col => {
+			const sourceKey = col.name || col.header;
+			const value = row[sourceKey];
+			if (value !== undefined) {
+				filteredRow[col.header] = value;
 			}
-			return acc;
-		}, {})
-	);
+		});
+		return filteredRow;
+	});
 
 	// --- WORKSHEET CREATION ---
 	// Pass the NEW filteredData to the function.
@@ -72,7 +75,9 @@ export function table(data: ObligationArray, name: string, columns: ColumnConfig
 	}));
 
 	// ✅ 2. Add AutoFilter capabilities to the header row
-	workSheet['!autofilter'] = { ref: workSheet['!ref'] };
+	if (workSheet['!ref']) {
+		workSheet['!autofilter'] = { ref: workSheet['!ref'] };
+	}
 
 	// 3. Apply cell-specific formatting
 	columns.forEach((col, index) => {

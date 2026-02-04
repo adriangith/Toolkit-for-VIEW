@@ -9,7 +9,7 @@ export const captureUserName = async function (doc: Document = window.document):
             try {
                 // 'await' the storage operation to complete
                 await chrome.storage.local.set({ userName: taskListOwnerName });
-                console.log('User name saved:', taskListOwnerName);
+                if (process.env.IS_DEV) console.log('User name saved:', taskListOwnerName);
 
                 // Return the captured name on success
                 return taskListOwnerName;
@@ -21,7 +21,7 @@ export const captureUserName = async function (doc: Document = window.document):
         }
     }
 
-    console.log('User name element not found or has no content.');
+    if (process.env.IS_DEV) console.log('User name element not found or has no content.');
     // Return null if the element isn't found
     return null;
 };

@@ -7,13 +7,14 @@ import { addMessageListeners, setStorage } from "./utils";
 import VIEWsubmit from "./VIEWSubmit";
 
 let scraperActive = false;
+
 const handleScraper: ChromeMessageListenerCallback = ({ type, data }: Message, _, sendResponse) => {
     if (type !== "obligationScrapeInitialise") return;
 
     const consoleLogs: string[] = [];
 
-    const customLogFn = (message: string) => {
-        //  console.log(message);
+    const customLogFn = (message: string, ...args: unknown[]) => {
+        if (process.env.IS_DEV) console.log(message, ...args);
         consoleLogs.push(message);
     };
 
@@ -76,7 +77,6 @@ const obligationPreviewProcess: ObligationPreviewProcess = ({ type, data }, _, s
     return true;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const offscreenBulkAction: ChromeMessageListenerCallback = ({ type, data }: Message, _, sendResponse) => {
     if (type !== "processBulkAction") return;
     VIEWsubmit({

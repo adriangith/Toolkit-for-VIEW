@@ -1,5 +1,5 @@
 //import { emailMaker } from "./js/emailmaker";
-import { BulkAction, BulkActionProperties, ChromeMessageListenerCallback, ChromeOnUpdatedHandler, CollectedData, DerivedFieldName, ExtractedFieldName, ObligationNumberList, ObligationPreviewProcess as WDPPreviewProcess, WDPResponse } from "./js/types"
+import { backgroundData, BulkAction, BulkActionProperties, ChromeMessageListenerCallback, ChromeOnUpdatedHandler, CollectedData, DerivedFieldName, ExtractedFieldName, ObligationNumberList, ObligationPreviewProcess as WDPPreviewProcess, StoredRecipientDetails, WDPResponse, XlSXExportColumnDefinition } from "./js/types"
 import { table } from "./js/tablemaker";
 import { Message } from "./js/types";
 import { addMessageListeners, createWindow, customFetch, setupOffscreenDocument } from "./js/utils";
@@ -14,28 +14,48 @@ const handleGenerateCorrespondence: ChromeMessageListenerCallback = ({ type, dat
 ) => {
     if (type !== 'generateCorrespondence') return;
     (async () => {
-        await setupOffscreenDocument('html/offscreen.html');
-        const scrapeMessage: ObligationNumberList = {
-            type: 'obligationScrapeInitialise',
-            data: {
-                obligations: data.obligations || [],
-                VIEWEnvironment: data.VIEWEnvironment || 'djr'
+        try {
+            const correspondenceData = data as backgroundData['data'];
+            if (correspondenceData.debtorId) {
+                const storageResult = await chrome.storage.local.get(correspondenceData.debtorId);
+                const recipientDetails = storageResult[correspondenceData.debtorId] as StoredRecipientDetails | undefined;
+
+                if (recipientDetails && recipientDetails.isThirdParty === true) {
+                    const hasMainAddress = recipientDetails.mainAddress && Object.values(recipientDetails.mainAddress).some(val => val && val.trim().length > 0);
+                    if (!hasMainAddress) {
+                        sendResponse({ response: "3rd Party Application is selected but 3rd party details are empty. Please check Application Options." });
+                        return;
+                    }
+                }
             }
-        };
-        const scrapeResponse = await chrome.runtime.sendMessage(scrapeMessage);
-        if (scrapeResponse.error) {
-            sendResponse({ response: scrapeResponse.error });
-            return;
-        };
-        const correspondenceMessage: Message = {
-            type: 'prepareCorrespondenceData',
-            data: {
-                dataSet: scrapeResponse,
-                documentTemplateProperties: data.documentTemplateProperties,
-            }
-        };
-        const correspondenceResponse = await chrome.runtime.sendMessage(correspondenceMessage);
-        sendResponse({ response: correspondenceResponse });
+
+            await setupOffscreenDocument('html/offscreen.html');
+            const scrapeMessage: ObligationNumberList = {
+                type: 'obligationScrapeInitialise',
+                data: {
+                    obligations: data.obligations || [],
+                    VIEWEnvironment: data.VIEWEnvironment || 'djr',
+                    targetFields: data.targetFields as (DerivedFieldName | ExtractedFieldName)[]
+                }
+            };
+            const scrapeResponse = await chrome.runtime.sendMessage(scrapeMessage);
+            if (scrapeResponse.error) {
+                sendResponse({ response: scrapeResponse.error });
+                return;
+            };
+            const correspondenceMessage: Message = {
+                type: 'prepareCorrespondenceData',
+                data: {
+                    dataSet: scrapeResponse,
+                    documentTemplateProperties: data.documentTemplateProperties,
+                }
+            };
+            const correspondenceResponse = await chrome.runtime.sendMessage(correspondenceMessage);
+            sendResponse({ response: correspondenceResponse });
+        } catch (error) {
+            console.error("Background script error:", error);
+            sendResponse({ response: `Fatal Error: ${error instanceof Error ? error.message : String(error)}` });
+        }
     })();
     return true; // keep the messaging channel open for sendResponse
 }
@@ -46,15 +66,19 @@ const handleGenerateCorrespondence: ChromeMessageListenerCallback = ({ type, dat
 /** Initialise Chrome Storage  */
 const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Message, sender, sendResponse) => {
     if (type === 'getStorage') {
-        chrome.storage.local.get([data.key])
-            .then((result) => {
-                sendResponse({ success: true, value: result[data.key] });
-            });
+        if (data.key) {
+            chrome.storage.local.get([data.key])
+                .then((result) => {
+                    sendResponse({ success: true, value: result[data.key!] });
+                });
+        }
     }
     if (type === 'setStorage') {
-        chrome.storage.local.set({ [data.key]: data.value }).then(() => {
-            sendResponse({ success: true });
-        });
+        if (data.key) {
+            chrome.storage.local.set({ [data.key]: data.value }).then(() => {
+                sendResponse({ success: true });
+            });
+        }
     }
     return true;
 }
@@ -92,30 +116,35 @@ const handleBackgroundFetch: ChromeMessageListenerCallback = ({ type, data }: Me
 const handleGenerateXLSX: ChromeMessageListenerCallback = ({ type, data }: Message, sender, sendResponse) => {
     if (type !== "generateXLSX") return;
 
-
-
-    const targetFields: (DerivedFieldName | ExtractedFieldName)[] = fieldsForXLSXexport.map(field => field.header);
+    // Use provided exportColumns or fall back to default
+    const exportColumns = (data as { exportColumns?: XlSXExportColumnDefinition }).exportColumns || fieldsForXLSXexport;
+    const targetFields: string[] = exportColumns.map((field) => field.name || field.header);
 
     targetFields.push('name');
-    targetFields.push('obligation_status');
-    targetFields.push('NoticeStatus');
-    targetFields.push('enforcename');
 
     (async () => {
         await setupOffscreenDocument('html/offscreen.html');
         const message: ObligationNumberList = {
             type: 'obligationScrapeInitialise',
-            data: { ...data, targetFields: targetFields }
+            data: { ...data, targetFields: targetFields as (DerivedFieldName | ExtractedFieldName)[] }
         };
         const response = await chrome.runtime.sendMessage<ObligationNumberList, CollectedData>(message);
         if (!response.a) {
             sendResponse({ type: "error", error: "No data received from the scrape process." });
             return;
         }
+
+        // Flatten the data structure so Debtor-level fields are available on every row
+        const { a, ...debtorData } = response;
+        const flattenedData = a.map(obligation => ({ ...debtorData, ...obligation }));
+
+        if (process.env.IS_DEV) {
+            console.log("XLSX Export Data Structure:", flattenedData);
+        }
         if (response.name === undefined || typeof response.name !== 'string') {
             throw new Error("No name provided for the XLSX file.");
         }
-        table(response.a, response.name, fieldsForXLSXexport);
+        table(flattenedData, response.name, exportColumns);
         sendResponse({ response });
     })();
     return true;
@@ -177,6 +206,9 @@ function handleWDPProcess(): WDPPreviewProcess {
                     }
                 );
             } else {
+                if (process.env.IS_DEV) {
+                    console.log("WDP Scrape Data Structure:", response);
+                }
                 sendResponse(
                     {
                         type: "success",
@@ -189,7 +221,6 @@ function handleWDPProcess(): WDPPreviewProcess {
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: Message, _, sendResponse) => {
     if (type !== "bulkAction") return;
 
@@ -214,7 +245,7 @@ export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: 
         chrome.runtime.onMessage.addListener(updateObligationCount);
 
         properties.port?.onDisconnect.addListener(() => {
-            console.log("Port disconnected. Removing the 'updateObligationCount' listener.");
+            if (process.env.IS_DEV) console.log("Port disconnected. Removing the 'updateObligationCount' listener.");
             // 4. When the port disconnects, remove the exact same listener function.
             chrome.runtime.onMessage.removeListener(updateObligationCount);
             // You can also set properties.port to null to prevent any lingering attempts to use it.
@@ -262,7 +293,7 @@ export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: 
 };
 
 function postData(url: string, parsedDocument: string, properties: BulkActionProperties) {
-    if (!properties.port || !properties.popupWindow || properties.popupWindow === null || !properties.popupWindow.tabs || !properties.popupWindow.tabs[0] || properties.popupWindow.tabs.length === 0) {
+    if (!properties.port || !properties.popupWindow?.tabs?.[0]) {
         console.error("Popup window or tab not found.");
         return;
     }
@@ -271,8 +302,8 @@ function postData(url: string, parsedDocument: string, properties: BulkActionPro
         return;
     }
     const handler: ChromeOnUpdatedHandler = function (tabId, changeInfo) {
-        if (properties.popupWindow.tabs[0].id === tabId && changeInfo.status === "complete") {
-            properties.port.disconnect();
+        if (properties.popupWindow?.tabs?.[0].id === tabId && changeInfo.status === "complete") {
+            properties.port?.disconnect();
             chrome.tabs.sendMessage(tabId, { url: url, data: parsedDocument, type: 'loadPage' });
             chrome.tabs.onUpdated.removeListener(handler);
         }
@@ -280,7 +311,7 @@ function postData(url: string, parsedDocument: string, properties: BulkActionPro
 
 
     chrome.tabs.onUpdated.addListener(handler); // in case we're faster than page load (usually)
-    chrome.tabs.sendMessage(properties.popupWindow.tabs[0].id, { url: url, data: parsedDocument, type: 'loadPage' }); // just in case we're too late with the listener
+    chrome.tabs.sendMessage(properties.popupWindow.tabs[0].id!, { url: url, data: parsedDocument, type: 'loadPage' }); // just in case we're too late with the listener
 }
 
 

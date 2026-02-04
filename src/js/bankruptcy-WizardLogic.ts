@@ -154,7 +154,7 @@ export function removeHolds(properties, getDebtorObligations) {
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
             }, {
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticesBulkGenericUpdate.aspx?Mode=HR&Menu=3`,
-                optional: (parsedDocument, properties) => { console.log(properties); return properties.allObligations.rows({ selected: true }).data().length > 10 },
+                optional: (parsedDocument, properties) => { if (process.env.IS_DEV) console.log(properties); return properties.allObligations.rows({ selected: true }).data().length > 10 },
                 urlParams: {
                     "btnNoticesSearch.x": 0,
                     "btnNoticesSearch.y": 0
@@ -970,7 +970,7 @@ export function letter(properties, getDebtorObligations) {
                     const paramArray = [];
                     properties.allObligations.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
                         const data = this.data();
-                        console.log(data);
+                        if (process.env.IS_DEV) console.log(data);
                         const params = {};
                         if (data.InputType.includes('1A')) {
                             properties.agencies.push({ key: data.NoticeNumber, value: "TRAFFIC CAMERA OFFICE" });
@@ -1024,7 +1024,7 @@ export function letter(properties, getDebtorObligations) {
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Notices/Forms/NoticesManagement/NoticesSearch.aspx`,
                 clearVIEWFormData: true,
                 urlParams: (parsedDocument, repeatDynamicParams, groupDynamicParams = {}) => {
-                    console.log(parsedDocument.getElementById("NoticeInfo_txtNoticeNo").value);
+                    if (process.env.IS_DEV) console.log(parsedDocument.getElementById("NoticeInfo_txtNoticeNo").value);
                     properties.agencies.push({ key: parsedDocument.getElementById("NoticeInfo_txtNoticeNo").value, value: parsedDocument.getElementById("NoticeInfo_lblAgencyCode").textContent });
                     return {}
                 }

@@ -18,7 +18,7 @@ const fetchTimeout = (url: string, options: { timeout?: number } = {}) => {
 };
 
 const fetchRetry = (url, options, n = 3) => fetchTimeout(url, options).catch(function (error) {
-  console.log(error);
+  if (process.env.IS_DEV) console.log(error);
   if (n === 1) throw error;
   return fetchRetry(url, options, n - 1);
 });

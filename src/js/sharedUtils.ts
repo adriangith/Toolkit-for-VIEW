@@ -71,8 +71,7 @@ export function saveIT(): void {
             }
 
             chrome.storage.local.set({ 'value': existingValues });
-            console.log('Data saved for debtor:', debtorId);
+            if (process.env.IS_DEV) console.log('Data saved for debtor:', debtorId);
         });
     }
 }
-

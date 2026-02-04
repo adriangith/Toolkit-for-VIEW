@@ -8,7 +8,7 @@ async function updateUserAndPopulateField({ obligations, outcome, type }: { obli
 
 	// 2. If the username is missing, fetch and save it
 	if (!userName) {
-		console.log("Username not found, fetching...");
+		if (process.env.IS_DEV) console.log("Username not found, fetching...");
 		try {
 			const environment = window.location.hostname.split('.')[0].toLowerCase();
 			const response = await fetch(`https://${environment}.view.civicacloud.com.au/Taskflow/Forms/Management/TaskList.aspx?ProcessMode=User`);

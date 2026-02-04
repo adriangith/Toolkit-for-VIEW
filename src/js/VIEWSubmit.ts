@@ -2,12 +2,12 @@ import { groupByObject, letterGen } from "./letter-logic"
 import { ProcessConfig } from "./types";
 import { bulkAdd } from "./bulk";
 import { Properties } from "./types";
-import { Message, VIEWsubmitParams } from "./types";
+import { VIEWsubmitParams } from "./types";
 
 // --- Type Definitions ---
 
 // Type for the object created from FormData
-type FormDataObject = Record<string, FormDataEntryValue>; // FormDataEntryValue is string | File
+type FormDataObject = Record<string, FormDataEntryValue | number>; // FormDataEntryValue is string | File
 
 // Interface for individual submission steps
 interface SubmitInstruction {
@@ -127,7 +127,7 @@ async function VIEWsubmit({
 
   const previousFormData: FormDataObject[] = []; // History of formData objects
 
-  const scraperSteps: ProcessConfig = processRuleSet[scraperStepsOption](properties)
+  const scraperSteps: ProcessConfig = processRuleSet[scraperStepsOption](properties as any)
 
   // Group submission instructions
   const groups = groupByObject(scraperSteps.steps, "group"); // Use the moved GroupedData type
@@ -160,7 +160,10 @@ async function VIEWsubmit({
         if (step.clearVIEWFormData) { lastFormData = {} };
         if (urlParams) { lastFormData = { ...lastFormData, ...urlParams, ...wizardFormData } }
         const form_data = new FormData();
-        for (const key in lastFormData) { form_data.append(key, lastFormData[key]); }
+        for (const key in lastFormData) {
+          const val = lastFormData[key];
+          form_data.append(key, val instanceof Blob ? val : String(val));
+        }
 
         const fetchOptions = {
           method: step.method || "POST",
@@ -171,8 +174,10 @@ async function VIEWsubmit({
         if (!step.url) {
           throw "No URL provided for submission";
         }
-        console.log("-------------------------");
-        console.log("Fetching:", step.url);
+        if (process.env.IS_DEV) {
+          console.log("-------------------------");
+          console.log("Fetching:", step.url);
+        }
         if (step.sameorigin) {
           vDocument = await fetch(step.url, fetchOptions);
         } else {

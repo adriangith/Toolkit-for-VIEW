@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-CONFIG_PATH="$HOME/.rclone.conf"
+CONFIG_PATH="$PWD/rclone.conf"
 
 # Look in repo root first, then .devcontainer
-if [ -f "$PWD/.rclone.conf.sandbox" ]; then
-  SANDBOX_PATH="$PWD/.rclone.conf.sandbox"
-elif [ -f "$PWD/.devcontainer/.rclone.conf.sandbox" ]; then
-  SANDBOX_PATH="$PWD/.devcontainer/.rclone.conf.sandbox"
+if [ -f "$PWD/rclone.conf.sandbox" ]; then
+  SANDBOX_PATH="$PWD/rclone.conf.sandbox"
+elif [ -f "$PWD/.devcontainer/rclone.conf.sandbox" ]; then
+  SANDBOX_PATH="$PWD/.devcontainer/rclone.conf.sandbox"
 fi
 
 if [ ! -f "$CONFIG_PATH" ]; then

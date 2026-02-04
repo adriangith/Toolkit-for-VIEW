@@ -39,7 +39,7 @@ export function debtorBulkNotes(properties) {
                 group: "Group 1",
                 url: `https://${properties.source}.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorDetails.aspx`,
                 urlParams: (parsedDocument, dynamicParam) => {
-                    console.log(dynamicParam);
+                    if (process.env.IS_DEV) console.log(dynamicParam);
                     let params = {
                         "DebtorDetailsCtrl$debtorIdTextBoxButton": "Go"
                     }

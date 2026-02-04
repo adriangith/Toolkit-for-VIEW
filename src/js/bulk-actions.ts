@@ -26,9 +26,9 @@ const onMessageHandler: ChromeMessageListenerCallback = function (message) {
 chrome.runtime.onMessage.addListener(onMessageHandler);
 
 chrome.runtime.onConnect.addListener(function (port) {
-    console.log('Connected');
+    if (process.env.IS_DEV) console.log('Connected');
     port.onMessage.addListener(function (msg) {
         loadingBar.set(Math.ceil((msg.addedCount / msg.obligationCount * 90 + 10)));
-        console.log(Math.ceil((msg.addedCount / msg.obligationCount * 90 + 10)));
+        if (process.env.IS_DEV) console.log(Math.ceil((msg.addedCount / msg.obligationCount * 90 + 10)));
     })
 })

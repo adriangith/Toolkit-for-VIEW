@@ -5,8 +5,9 @@ import { ChromeStorageData, letterDataProps, Message, paramArrayObject, ParsedTa
 import { DebtorData } from './sharedUtils'; // Adjust import path as needed
 import { initialiseWorkbookProcesser } from './xlsxConverter'; // Adjust import path as needed
 import { saveAs } from 'file-saver';
+import { CONFIG_WORKBOOK_URL } from "./config";
 
-const workbook = initialiseWorkbookProcesser("https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1")
+const workbook = initialiseWorkbookProcesser(CONFIG_WORKBOOK_URL)
 
 // --- Letter Generation Configuration ---
 export function letterGen(properties: Properties): ProcessConfig {
@@ -528,7 +529,7 @@ export function letterGen(properties: Properties): ProcessConfig {
             })
 
             const letterGenerationResults = await Promise.all(letterGenerationResultPromise);
-            console.log("Letter generation results:", letterGenerationResults);
+            if (process.env.IS_DEV) console.log("Letter generation results:", letterGenerationResults);
         }
     }
 }

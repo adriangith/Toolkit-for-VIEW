@@ -1,0 +1,11 @@
+@src/background.ts
+@src/js/config.ts
+@src/js/correspondence.ts
+@src/js/email.tsx
+@src/js/offscreen.ts
+@src/js/scraper.ts
+@src/js/utils.ts
+@src/js/tablemaker.ts
+@src/js/WDPAutomator.ts
+@src/js/party.ts
+@src/js/types.d.ts
