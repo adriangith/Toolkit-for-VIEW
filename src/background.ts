@@ -72,6 +72,7 @@ const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Mess
                     sendResponse({ success: true, value: result[data.key!] });
                 });
         }
+        return true;
     }
     if (type === 'setStorage') {
         if (data.key) {
@@ -79,8 +80,8 @@ const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Mess
                 sendResponse({ success: true });
             });
         }
+        return true;
     }
-    return true;
 }
 
 //** Initialise Background Fetch */
