@@ -125,6 +125,11 @@ function defineFields<const T extends ReadonlyArray<ConfigField>>(fields: T) {
 /**
  * --- DERIVATION LOGIC ---
  * Extracted functions to keep the configuration arrays clean.
+ * 
+ * Derivation Function Return Behavior:
+ * - undefined: No change. The field is not updated.
+ * - null:      Delete field. The field is removed from the collected data.
+ * - false:     Set to false. The field is updated to boolean false.
  */
 
 const deriveAddress1: DerivationFunction = (s) => {
@@ -180,7 +185,7 @@ const DEBTOR_FIELDS = defineFields([
         // If company_name is present, we consider last_name found (as empty).
         derivationFn: (s) => s.company_name ? "" : s.last_name_raw
     },
-    { name: "company_name", level: "Debtor", isDerived: true, sourceFields: ["debtor_id"], derivationFn: () => false },
+    { name: "company_name", level: "Debtor", isDerived: true, sourceFields: ["first_name"], derivationFn: (s) => typeof s?.first_name === 'string' && s.first_name.trim() !== '' ? false : undefined },
     { name: "total_amount_outstanding", level: "Debtor", isDefaultTarget: true },
     { name: "date_of_birth", level: "Debtor", isDefaultTarget: true },
     { name: "open_obligations", level: "Debtor" },
@@ -189,7 +194,7 @@ const DEBTOR_FIELDS = defineFields([
     { name: "best_postal_postcode", level: "Debtor" },
     { name: "best_residential_postcode", level: "Debtor" },
     { name: "street", level: "Debtor" },
-    { name: "locality", level: "Debtor" },
+    { name: "locality", level: "Debtor", isDerived: true, sourceFields: ['street'], derivationFn: (s) => typeof s?.street === 'string' && s.street.trim() !== '' && s.locality === undefined ? false : undefined },
     { name: "address_2", level: "Debtor" },
     { name: "suburb", level: "Debtor" },
     { name: "postcode", level: "Debtor" },

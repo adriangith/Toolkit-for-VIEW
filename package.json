@@ -1,6 +1,6 @@
 {
   "name": "Toolkit-for-VIEW-2",
-  "version": "1.0.1.72",
+  "version": "1.0.1.74",
   "description": "My Chrome Extension",
   "private": true,
   "webExt": {

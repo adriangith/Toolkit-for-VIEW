@@ -151,7 +151,12 @@ export class Transformer implements ITransformer {
             /** Execute the derivation function and capture the derived value. */
             const derivedValue = await derivationFn(currentData);
 
-            /** If a value was derived, update the current data and log the result. */
+            /** 
+             * If a value was derived, update the current data and log the result.
+             * - undefined: No action (keep existing value).
+             * - null:      Delete the field from data (suppress).
+             * - false:     Set field to false (valid value).
+             */
             if (derivedValue !== undefined) {
                 if (derivedValue === null) {
                     if (Object.prototype.hasOwnProperty.call(currentData, fieldName)) {

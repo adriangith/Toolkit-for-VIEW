@@ -65,6 +65,10 @@ module.exports = (env, argv) => {
     resolve: {
       extensions: ['.ts', '.js', '.tsx', '.jsx']
     },
+    performance: {
+      maxEntrypointSize: 2500000,
+      maxAssetSize: 2500000
+    },
     module: {
       rules: [
         {
