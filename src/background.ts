@@ -222,7 +222,7 @@ function handleWDPProcess(): WDPPreviewProcess {
     };
 }
 
-export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: Message, _, sendResponse) => {
+export const bulkAction: ChromeMessageListenerCallback = ({ type, data }: Message, _, sendResponse) => {
     if (type !== "bulkAction") return;
 
     /**
@@ -260,37 +260,37 @@ export const bulkAction: ChromeMessageListenerCallback = async ({ type, data }: 
         'Bulk Hold Update': `https://${data.VIEWEnvironment}.view.civicacloud.com.au/Traffic/Notices/Forms/Noticesmanagement/NoticeGenericBulkUpdate.aspx?Mode=H&Menu=3`,
     } as const;
 
-    let properties: BulkActionProperties = {
-        popupWindow: null,
-        port: null,
-        portDisconnected: false,
-        txtNoticeCheck: [],
-        obligations: data.obligations,
-        VIEWEnvironment: data.VIEWEnvironment,
-        page: urlMap[data.subType || 'Bulk Notes Update'],
-    };
+    (async () => {
+        let properties: BulkActionProperties = {
+            popupWindow: null,
+            port: null,
+            portDisconnected: false,
+            txtNoticeCheck: [],
+            obligations: data.obligations,
+            VIEWEnvironment: data.VIEWEnvironment,
+            page: urlMap[data.subType || 'Bulk Notes Update'],
+        };
 
-    properties = await createWindow(properties);
-    await setupOffscreenDocument('html/offscreen.html');
-    const message: BulkAction = {
-        type: 'processBulkAction',
-        subType: data.subType || 'Bulk Notes Update',
-        data: {
-            properties,
-            VIEWEnvironment: data.VIEWEnvironment || 'djr',
+        properties = await createWindow(properties);
+        await setupOffscreenDocument('html/offscreen.html');
+        const message: BulkAction = {
+            type: 'processBulkAction',
+            subType: data.subType || 'Bulk Notes Update',
+            data: {
+                properties,
+                VIEWEnvironment: data.VIEWEnvironment || 'djr',
+            }
+        };
+        handleMessageForObligationCount(properties);
+        const response = await chrome.runtime.sendMessage<BulkAction>(message);
+        if (!response || response.type === "error") {
+            sendResponse({ type: "error", error: "No data received from the bulk action process." });
+            return;
         }
-    };
-    handleMessageForObligationCount(properties);
-    const response = await chrome.runtime.sendMessage<BulkAction>(message);
-    if (!response || response.type === "error") {
-        sendResponse({ type: "error", error: "No data received from the bulk action process." });
-        return;
-    }
-    postData(properties.page, response.data, properties);
-    sendResponse({ type: "success", data: response.data });
-    return true;
-
-
+        postData(properties.page, response.data, properties);
+        sendResponse({ type: "success", data: response.data });
+    })();
+    return true; // keep the messaging channel open for sendResponse
 };
 
 function postData(url: string, parsedDocument: string, properties: BulkActionProperties) {
