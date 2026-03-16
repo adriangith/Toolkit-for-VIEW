@@ -363,8 +363,11 @@ const getTemplateOptions = async (): Promise<string[]> => {
         return dropDownOptions.map(option => option.description);
     } catch (error: unknown) {
         console.error("Dropdown Fetch Error:", error);
+        workbook = initialiseWorkbookProcesser(CONFIG_WORKBOOK_URL);
         if (error instanceof Error && (error.message.includes("CORS") || error.message.includes("401"))) {
             alert("SharePoint session expired. Please log in and refresh.");
+        } else {
+            alert("Unable to load correspondence options. Please try refreshing the page or contact support if the issue persists.");
         }
         return [];
     }
@@ -476,10 +479,10 @@ const DropDownComponent = ({ dropdown, onChange, initialSelectedOption }: { drop
 
 const ButtonGroup: React.FC<{ buttons: Input[]; table: Table<VIEWDebtorSummaryObligation>; }> = ({ buttons, table }) => {
     const [selectedOption, setSelectedOption] = useState<string>(lastSelectedOption || "");
-    const handleDropdownChange = (option: string) => {
+    const handleDropdownChange = useCallback((option: string) => {
         if (typeof localStorage !== 'undefined') localStorage.setItem("selectedOption", option);
         setSelectedOption(option);
-    };
+    }, []);
     return (
         <div className="flex flex-row justify-start items-center space-x-2 p-2 bg-gray-100 rounded">
             {buttons.map((button, index) => {
