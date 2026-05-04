@@ -77,6 +77,7 @@ function addUpdateDebtorNoteCheckbox() {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.id = "updateDebtorNoteCheckbox";
+        checkbox.checked = true;
         checkbox.style.margin = "0";
 
         label.htmlFor = checkbox.id;
