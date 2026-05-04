@@ -81,7 +81,7 @@ uploadControl.onchange = function () {
 															: type === "Glen Eira City Council" ? "GlenEira - "
 																: type === "Manningham City Council" ? "Manningham - "
 																	: type === "Whitehorse City Council" ? "Whitehorse - "
-																		: type === "Hobsons Bay City Council" ? "HobsonsBay - " : "ER Special - ";
+																		: type === "Hobsons Bay City Council" ? "HobsonsBay - " : "";
 
 	let outcome = [
 		"Confirmed",
