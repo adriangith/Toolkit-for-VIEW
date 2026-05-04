@@ -5,6 +5,10 @@ import { Message } from "./js/types";
 import { addMessageListeners, createWindow, customFetch, setupOffscreenDocument } from "./js/utils";
 import { fieldsForXLSXexport } from "./js/config";
 
+chrome.tabs.onRemoved.addListener((tabId) => {
+    chrome.storage.local.remove(`bulkActionPopupTab:${tabId}`);
+});
+
 /**
  * Message listener to initiate the correspondence generation process.
  */
@@ -82,6 +86,24 @@ const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Mess
         }
         return true;
     }
+}
+
+const handleBulkActionPopupState: ChromeMessageListenerCallback = ({ type }: Message, sender, sendResponse) => {
+    if (type !== 'isBulkActionPopup') return;
+
+    (async () => {
+        const tabId = sender.tab?.id;
+        if (tabId === undefined) {
+            sendResponse({ isBulkActionPopup: false });
+            return;
+        }
+
+        const storageKey = `bulkActionPopupTab:${tabId}`;
+        const storedState = await chrome.storage.local.get(storageKey);
+        sendResponse({ isBulkActionPopup: Boolean(storedState[storageKey]) });
+    })();
+
+    return true;
 }
 
 //** Initialise Background Fetch */
@@ -272,6 +294,10 @@ export const bulkAction: ChromeMessageListenerCallback = ({ type, data }: Messag
         };
 
         properties = await createWindow(properties);
+        const popupTabId = properties.popupWindow?.tabs?.[0]?.id;
+        if (popupTabId !== undefined) {
+            await chrome.storage.local.set({ [`bulkActionPopupTab:${popupTabId}`]: true });
+        }
         await setupOffscreenDocument('html/offscreen.html');
         const message: BulkAction = {
             type: 'processBulkAction',
@@ -317,4 +343,4 @@ function postData(url: string, parsedDocument: string, properties: BulkActionPro
 
 
 
-addMessageListeners([handleWDPPreview(), handleGenerateXLSX, bulkAction, handleGenerateCorrespondence, handleChromeStorage, handleBackgroundFetch, handleWDPProcess()]);
+addMessageListeners([handleWDPPreview(), handleGenerateXLSX, bulkAction, handleGenerateCorrespondence, handleChromeStorage, handleBulkActionPopupState, handleBackgroundFetch, handleWDPProcess()]);

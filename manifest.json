@@ -123,6 +123,14 @@
         },
         {
             "matches": [
+                "https://*.view.civicacloud.com.au/Traffic/Debtors/Forms/DebtorNotes.aspx*"
+            ],
+            "js": [
+                "js/bulkWriteoffEnhance.js"
+            ]
+        },
+        {
+            "matches": [
                 "https://uat.wdp.vic.gov.au/*",
                 "https://uat2.wdp.vic.gov.au/*",
                 "https://wdp.vic.gov.au/*"

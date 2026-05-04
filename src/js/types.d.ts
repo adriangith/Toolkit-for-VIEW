@@ -49,6 +49,9 @@ interface ChromeStorage {
         value?: string | number | boolean;
     };
 }
+interface BulkActionPopupStateRequest {
+    type: "isBulkActionPopup";
+}
 interface ObligationNumberList {
     type: "bulkAction" | "obligationScrapeInitialise" | "generateXLSX" | "WDPPreviewInitialise" | "WDPPreviewProcess" | "WDPBatchProcess";
     data: {
@@ -87,7 +90,7 @@ export interface fetchParams {
     data: Parameters<typeof fetch>;
 }
 
-export type Message = BulkAction | VIEWsubmitMessage | ObligationNumberList | backgroundData | ChromeStorage | ObligationNumberList | fetchParams;
+export type Message = BulkAction | VIEWsubmitMessage | ObligationNumberList | backgroundData | ChromeStorage | BulkActionPopupStateRequest | ObligationNumberList | fetchParams;
 
 export type DropDownType = {
     description: string;
