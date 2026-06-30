@@ -17,8 +17,21 @@ import { initialiseWorkbookProcesser } from "./xlsxConverter";
  */
 
 let workbookInstance: Awaited<ReturnType<typeof initialiseWorkbookProcesser>> | null = null;
+let agencyRowsPromise: Promise<AgencyRow[]> | null = null;
 
 export const CONFIG_WORKBOOK_URL = process.env.CONFIG_WORKBOOK_URL as string;
+
+type AgencyRow = Record<string, string>;
+
+const QUICK_LOOKUP_ALTNAME_RAW = 'DERIVED_FROM_TYPE';
+const QUICK_NOTICE_TYPE_ALTNAMES: Record<string, string> = {
+    "1A": "TRAFFIC CAMERA OFFICE",
+    "1C": "VICTORIA POLICE TOLL ENFORCEMENT OFFICE"
+};
+const QUICK_NOTICE_TYPE_ENFORCENAME_FALLBACKS: Record<string, string> = {
+    "1A": "Traffic Camera Office",
+    "1C": "Victoria Police Toll Enforcement"
+};
 
 async function getWorkbook() {
     if (!workbookInstance) {
@@ -27,11 +40,58 @@ async function getWorkbook() {
     return workbookInstance;
 }
 
-async function lookupAgencyData(column: string, altname: unknown) {
-    if (typeof altname !== 'string') return undefined;
-    const wb = await getWorkbook();
-    const data = await wb.fetchAndConvertXlsxToJson({ Sheet: 'Agencies', Column: column });
-    return data[altname];
+async function getAgencyRows() {
+    if (!agencyRowsPromise) {
+        agencyRowsPromise = getWorkbook().then(wb => wb.fetchAndConvertXlsxToJson<AgencyRow>({ Sheet: 'Agencies' }));
+    }
+    return agencyRowsPromise;
+}
+
+const normalizeLookupValue = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase() : '';
+
+function findAgencyRow(rows: AgencyRow[], column: string, value: unknown) {
+    const target = normalizeLookupValue(value);
+    if (!target) return undefined;
+    return rows.find(row => normalizeLookupValue(row[column]) === target);
+}
+
+async function lookupAgencyData(column: string, altname: unknown, noticeType?: unknown, altnameRaw?: unknown) {
+    const rows = await getAgencyRows();
+    const type = typeof noticeType === 'string' ? noticeType.trim() : '';
+    const quickLookupAltname = type ? QUICK_NOTICE_TYPE_ALTNAMES[type] : undefined;
+    const isDerivedQuickLookup = altnameRaw === QUICK_LOOKUP_ALTNAME_RAW || normalizeLookupValue(altname) === normalizeLookupValue(quickLookupAltname);
+    const usefulAltname = typeof altname === 'string' && altname.trim() !== '' && !isDerivedQuickLookup;
+
+    let row = usefulAltname ? findAgencyRow(rows, 'altname', altname) : undefined;
+
+    if (!row) {
+        row = findAgencyRow(rows, 'NoticeType', type);
+    }
+
+    // Preserve old quick-lookup spreadsheets that have no NoticeType column yet.
+    if (!row && !usefulAltname) {
+        row = findAgencyRow(rows, 'altname', altname || quickLookupAltname);
+    }
+
+    if (row) return row[column];
+
+    if (column === 'enforcename' && type) {
+        return QUICK_NOTICE_TYPE_ENFORCENAME_FALLBACKS[type];
+    }
+
+    return undefined;
+}
+
+async function deriveAgencyAltname({ NoticeType, altname_raw }: CollectedData) {
+    if (typeof NoticeType === 'string' && QUICK_NOTICE_TYPE_ALTNAMES[NoticeType]) {
+        return lookupAgencyData('altname', undefined, NoticeType, QUICK_LOOKUP_ALTNAME_RAW) || QUICK_NOTICE_TYPE_ALTNAMES[NoticeType];
+    }
+
+    return altname_raw;
+}
+
+function deriveAgencyColumn(column: string): DerivationFunction {
+    return ({ NoticeType, altname, altname_raw }) => lookupAgencyData(column, altname, NoticeType, altname_raw);
 }
 
 const safeTitleCase = (val: unknown) => typeof val === 'string' ? toTitleCase(val) : '';
@@ -320,11 +380,7 @@ const OBLIGATION_FIELDS = defineFields([
         isDerived: true,
         sourceFields: ["NoticeType", "altname_raw"],
         isDefaultTarget: true,
-        derivationFn: (s) => {
-            if (s.NoticeType === '1A') return 'TRAFFIC CAMERA OFFICE';
-            if (s.NoticeType === '1C') return 'VICTORIA POLICE TOLL ENFORCEMENT OFFICE';
-            return s.altname_raw;
-        }
+        derivationFn: deriveAgencyAltname
     },
     { name: "infringement_number", level: "Obligation", isDefaultTarget: true },
     {
@@ -382,13 +438,9 @@ const OBLIGATION_FIELDS = defineFields([
         name: "enforcename",
         level: "Obligation",
         isDerived: true,
-        sourceFields: ["NoticeType", "altname"],
+        sourceFields: ["NoticeType", "altname", "altname_raw"],
         isDefaultTarget: true,
-        derivationFn: async ({ NoticeType, altname }) => {
-            const staticMap: Record<string, string> = { "1A": "Traffic Camera Office", "1C": "Victoria Police Toll Enforcement" };
-            if (typeof NoticeType === 'string' && staticMap[NoticeType]) return staticMap[NoticeType];
-            return lookupAgencyData('enforcename', altname);
-        }
+        derivationFn: deriveAgencyColumn('enforcename')
     },
     { name: "Offence_Description", level: "Obligation", isDerived: true, isDefaultTarget: true, sourceFields: ["offence_description"], derivationFn: (s) => s.offence_description as string },
     { name: "Balance_Outstanding", level: "Obligation", isDerived: true, sourceFields: ["BalanceOutstanding"], isDefaultTarget: true, xlsxExport: { header: "Balance Outstanding", width: 10, isCurrency: true }, derivationFn: (s) => s.BalanceOutstanding },
@@ -423,13 +475,13 @@ const OBLIGATION_FIELDS = defineFields([
         }
     },
     { name: "ReviewType", level: "Obligation", isDerived: true, sourceFields: ["challenge_code"], isDefaultTarget: true, derivationFn: ({ challenge_code }) => (typeof challenge_code === 'string' && challenge_code.includes('SPCIRCUM')) ? `ER Special: Special Circumstances` : `Review` },
-    { name: "Address2", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('Address2', altname) },
-    { name: "Address3", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('Address3', altname) },
-    { name: "MOU", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('MOU', altname) },
-    { name: "Email", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('Email', altname) },
-    { name: "EmailAddress", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('EmailAddress', altname) },
-    { name: "enforcementAgencyID", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('enforcementAgencyID', altname) },
-    { name: "enforcementAgencyCode", level: "Obligation", isDerived: true, sourceFields: ["altname"], isDefaultTarget: true, derivationFn: async ({ altname }) => lookupAgencyData('enforcementAgencyCode', altname) },
+    { name: "Address2", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('Address2') },
+    { name: "Address3", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('Address3') },
+    { name: "MOU", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('MOU') },
+    { name: "Email", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('Email') },
+    { name: "EmailAddress", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('EmailAddress') },
+    { name: "enforcementAgencyID", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('enforcementAgencyID') },
+    { name: "enforcementAgencyCode", level: "Obligation", isDerived: true, sourceFields: ["NoticeType", "altname", "altname_raw"], isDefaultTarget: true, derivationFn: deriveAgencyColumn('enforcementAgencyCode') },
     { name: "agency_code", level: "Obligation", isDerived: true, sourceFields: ["enforcementAgencyCode"], isDefaultTarget: true, derivationFn: (s) => s.enforcementAgencyCode as string },
     {
         name: "major_charge_description",

@@ -1,6 +1,6 @@
 {
     "name": "Toolkit for View 2",
-    "version": "1.0.1.76",
+    "version": "1.0.1.77",
     "description": "Provides a range of enhancements for the VIEW system",
     "short_name": "View Toolkit",
     "permissions": [
@@ -32,10 +32,10 @@
         "type": "module"
     },
     "action": {
-        "default_popup": "popup/index.html",
         "128": {
             "default": "Images/V.png"
         },
+        "default_popup": "popup/index.html",
         "default_title": "Toolkit for View"
     },
     "manifest_version": 3,

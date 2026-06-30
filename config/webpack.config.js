@@ -6,6 +6,7 @@ const webpack = require('webpack');
 
 module.exports = (env, argv) => {
   const isDev = argv.mode !== 'production';
+  const isCheckBuild = Boolean(env && env.check);
   const configWorkbookUrl = isDev
     ? 'https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1' // Development URL
     : 'https://vicgov.sharepoint.com/:x:/s/VG002447/ERw7UOkUPWZLpAiwgjuPgmcBjEx8dklCu-9D9_bknPVOUQ?download=1'; // Production URL
@@ -15,6 +16,7 @@ module.exports = (env, argv) => {
       // Background and popup scripts
       background: './src/background.ts',
       popup: './src/popup/index.js',
+      popupUtilities: './src/popup/utilities.js',
       VIEWsubmit: './src/js/VIEWSubmit.ts',
       offscreen: './src/js/offscreen.ts',
       correspondence: './src/js/correspondence.ts',
@@ -42,14 +44,18 @@ module.exports = (env, argv) => {
       party: './src/js/party.tsx',
       progress: './src/js/progress.tsx',
     },
-    // 'cheap-module-source-map' is faster for dev and CSP compliant (no eval)
-    devtool: 'cheap-module-source-map',
+    // Source maps are useful locally, but expensive during production builds.
+    devtool: isDev ? 'cheap-module-source-map' : false,
+    optimization: {
+      minimize: !isCheckBuild,
+    },
     output: {
       filename: (pathData) => {
         // Special case for background.js - put it in the root
-        return pathData.chunk.name === 'background'
-          ? '[name].js'
-          : 'js/[name].js';
+        if (pathData.chunk.name === 'background') return '[name].js';
+        if (pathData.chunk.name === 'popup') return 'popup/popup.js';
+        if (pathData.chunk.name === 'popupUtilities') return 'popup/utilities.js';
+        return 'js/[name].js';
       },
       path: path.resolve(__dirname, '../dist'),
       clean: true
@@ -113,6 +119,9 @@ module.exports = (env, argv) => {
         patterns: [
           { from: 'manifest.json', to: 'manifest.json' },
           { from: 'src/popup/index.html', to: 'popup/index.html' },
+          { from: 'src/popup/styles.css', to: 'popup/styles.css' },
+          { from: 'src/popup/utilities.html', to: 'popup/utilities.html' },
+          { from: 'src/popup/utilities.css', to: 'popup/utilities.css' },
           { from: 'src/background.html', to: 'background.html' },
           { from: 'src/html/offscreen.html', to: 'html/offscreen.html' },
           { from: 'src/html/wizard.html', to: 'html/wizard.html' },

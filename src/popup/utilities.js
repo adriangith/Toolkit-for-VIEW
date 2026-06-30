@@ -1,4 +1,4 @@
-import { makeLetter } from '../js/genLetter-module.js';
+import { makeLetter } from '../js/genLetter-module';
 const opts = {};
 
 
