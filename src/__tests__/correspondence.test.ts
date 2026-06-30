@@ -59,4 +59,36 @@ describe('transformCorrespondenceDataSet', () => {
       'Debtor Alex  OBL 1001',
     ]);
   });
+
+  test('rejects selected templates without an Agency or Debtor recipient', async () => {
+    const dataSet = {
+      debtor_id: 'D123',
+      First_Name: 'Alex',
+      Last_Name: 'Smith',
+      a: [
+        {
+          Obligation: '1001',
+          altname: 'ROAD POLICING ENFORCEMENT DIVISION',
+          enforcename: 'Road Policing Enforcement Division',
+          BalanceOutstanding: '$10.00',
+          NFDlapsed: true,
+        },
+      ],
+    } as unknown as CollectedData;
+
+    const templates = [
+      {
+        Correspondence: 'Broken Letter',
+        Filename: 'Broken ${OBL}',
+        Props: '',
+        Link: 'https://example.test/broken.docx',
+        Recipient: '',
+        FieldSet: 'Default',
+      },
+    ] as unknown as TemplateSheetRecord[];
+
+    await expect(transformCorrespondenceDataSet(dataSet, templates)).rejects.toThrow(
+      'Template "Broken Letter" must have Recipient set to Agency or Debtor.'
+    );
+  });
 });

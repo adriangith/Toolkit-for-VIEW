@@ -79,6 +79,12 @@ export const transformCorrespondenceDataSet = async (dataSet: CollectedData, doc
         }
     }
 
+    documentTemplateProperties.forEach(templateRecord => {
+        if (templateRecord.Recipient !== 'Agency' && templateRecord.Recipient !== 'Debtor') {
+            throw new Error(`Template "${templateRecord.Correspondence}" must have Recipient set to Agency or Debtor.`);
+        }
+    });
+
     return documentTemplateProperties.reduce<CollectedData[]>((templateRecords, templateRecord) => {
         if (!dataSet.a) throw new Error("DataSet is missing the 'a' property");
 
