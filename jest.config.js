@@ -2,8 +2,10 @@
 
 module.exports = {
   testEnvironment: 'node',
-  preset: 'ts-jest',
-  collectCoverage: true,
+  transform: {
+    '^.+\\.tsx?$': 'ts-jest',
+  },
+  collectCoverage: false,
   moduleFileExtensions: ['js', 'ts', 'json', 'node'],
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
 };

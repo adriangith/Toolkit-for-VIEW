@@ -23,7 +23,7 @@ const mergeProperties = <T extends Record<string, unknown>>(target: T, source: R
     return target;
 };
 
-const transformCorrespondenceDataSet = async (dataSet: CollectedData, documentTemplateProperties: TemplateSheetRecord[]): Promise<CollectedData[]> => {
+export const transformCorrespondenceDataSet = async (dataSet: CollectedData, documentTemplateProperties: TemplateSheetRecord[]): Promise<CollectedData[]> => {
     const mutableDataSet = dataSet as unknown as Record<string, unknown>;
     mutableDataSet.recipient = 'Debtor';
     mutableDataSet.tParty = false;

@@ -13,6 +13,7 @@
     "upload": "node scripts/upload-chrome-webstore.js upload",
     "upload:publish": "node scripts/upload-chrome-webstore.js",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "bump": "node scripts/bump-version.js",
     "deploy": "npm run bump && npm run build && npm run upload:publish"
   },
