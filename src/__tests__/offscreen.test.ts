@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import type { backgroundData } from '../js/types';
 
 const addListener = jest.fn();

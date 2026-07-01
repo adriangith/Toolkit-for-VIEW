@@ -10,8 +10,17 @@
     "types": ["chrome", "node"]
   },
   "files": [
+    "src/__tests__/config.test.ts",
+    "src/__tests__/correspondence.test.ts",
+    "src/__tests__/offscreen.test.ts",
+    "src/__tests__/utils.test.ts",
     "src/background.ts",
+    "src/js/config.ts",
     "src/js/correspondence.ts",
-    "src/js/correspondenceTemplateSelection.ts"
+    "src/js/correspondenceTemplateSelection.ts",
+    "src/js/StatusCodes.ts",
+    "src/js/tableProcessorConfig.ts",
+    "src/js/tablemaker.ts",
+    "src/js/utils.ts"
   ]
 }
