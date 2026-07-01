@@ -21,6 +21,7 @@
     "src/js/StatusCodes.ts",
     "src/js/tableProcessorConfig.ts",
     "src/js/tablemaker.ts",
-    "src/js/utils.ts"
+    "src/js/utils.ts",
+    "src/js/scraper.ts"
   ]
 }

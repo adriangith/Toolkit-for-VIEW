@@ -1007,7 +1007,7 @@ export class Scraper {
                     }
 
                     // Check condition against the specific obligation data merged with debtor data
-                    if (masterFieldDef.condition && masterFieldDef.condition({ ...finalResult, ...oblObj })) {
+                    if (masterFieldDef.condition && masterFieldDef.condition({ ...finalResult, ...(oblObj as CollectedData) })) {
                         continue;
                     }
 
@@ -1029,7 +1029,7 @@ export class Scraper {
                         }
 
                         // Check condition for this specific obligation
-                        if (masterFieldDef.condition && masterFieldDef.condition({ ...finalResult, ...targetObligation })) {
+                        if (masterFieldDef.condition && masterFieldDef.condition({ ...finalResult, ...(targetObligation as CollectedData) })) {
                             return; // Skip this obligation in the forEach loop
                         }
 
