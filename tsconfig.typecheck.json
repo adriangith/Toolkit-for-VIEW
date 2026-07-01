@@ -22,6 +22,7 @@
     "src/js/tableProcessorConfig.ts",
     "src/js/tablemaker.ts",
     "src/js/utils.ts",
-    "src/js/WDPAutomator.ts"
+"src/js/WDPAutomator.ts",
+    "src/js/scraper.ts"
   ]
 }
