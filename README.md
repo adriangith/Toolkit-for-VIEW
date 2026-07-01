@@ -88,6 +88,8 @@ See `docs/message-contracts.md` for the Chrome runtime message map.
 3. The background worker scrapes required data, then sends `prepareCorrespondenceData` to offscreen processing.
 4. `src/js/correspondence.ts` builds debtor or agency records, fetches templates, and uses `src/html/doc-generator.html` to generate `.docx` or `.eml` files.
 
+See `docs/correspondence-flow.md` for the maintainer guide to workbook configuration, Chrome messages, third-party recipient handling, and common failure points.
+
 ### Bulk VIEW Updates
 
 1. The table UI sends a `bulkAction` message with selected obligations and a subtype.
