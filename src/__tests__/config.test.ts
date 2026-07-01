@@ -1,3 +1,4 @@
+import { describe, expect, test } from '@jest/globals';
 import { allDataFields, defaultTargetFields, fieldsForXLSXexport } from '../js/config';
 
 describe('configuration field registries', () => {

@@ -7,7 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["chrome", "jest", "node"]
+    "types": ["chrome", "node"]
   },
   "files": [
     "src/__tests__/config.test.ts",
