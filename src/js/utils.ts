@@ -219,7 +219,7 @@ export function setStorage(key: string, value: string | number | undefined) {
 export function getStorage<T>(key: string | undefined): Promise<T | undefined> {
     return new Promise((resolve) => {
         chrome.runtime.sendMessage<Message>({ type: 'getStorage', data: { key } }, (response) => {
-            if (response && response.value) {
+            if (response && Object.prototype.hasOwnProperty.call(response, 'value')) {
                 resolve(response.value);
             } else {
                 resolve(undefined);
