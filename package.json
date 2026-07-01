@@ -9,10 +9,11 @@
   "scripts": {
     "watch": "webpack --mode=development --watch --config config/webpack.config.js",
     "build": "webpack --mode=production --config config/webpack.config.js",
-    "build:check": "webpack --mode=production --env check=true --config config/webpack.config.js",
+    "build:check": "npm run typecheck && webpack --mode=production --env check=true --config config/webpack.config.js && echo BUILD_CHECK_DONE",
     "upload": "node scripts/upload-chrome-webstore.js upload",
     "upload:publish": "node scripts/upload-chrome-webstore.js",
     "test": "jest",
+    "typecheck": "tsc --project tsconfig.typecheck.json",
     "test:coverage": "jest --coverage",
     "bump": "node scripts/bump-version.js",
     "deploy": "npm run bump && npm run build && npm run upload:publish"

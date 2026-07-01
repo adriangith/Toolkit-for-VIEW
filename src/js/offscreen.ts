@@ -39,9 +39,8 @@ const handleScraper: ChromeMessageListenerCallback = ({ type, data }: Message, _
 };
 
 //need to type sendResponse as the chrome send response message type
-const prepareCorrespondenceData: ChromeMessageListenerCallback = ({ type, data }: Message, _, sendResponse) => {
+export const prepareCorrespondenceData: ChromeMessageListenerCallback = ({ type, data }: Message, _, sendResponse) => {
     if (type !== "prepareCorrespondenceData") return;
-    if (!data.dataSet) throw new Error("Invalid data provided");
     (async () => {
         if (!data.dataSet) { // Initial check
             sendResponse("DataSet is missing the 'dataSet' property");

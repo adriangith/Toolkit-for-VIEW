@@ -1,4 +1,5 @@
 import { transformCorrespondenceDataSet } from '../js/correspondence';
+import { selectTemplatesForOption } from '../js/correspondenceTemplateSelection';
 import type { CollectedData, TemplateSheetRecord } from '../js/types';
 
 beforeEach(() => {
@@ -89,6 +90,25 @@ describe('transformCorrespondenceDataSet', () => {
 
     await expect(transformCorrespondenceDataSet(dataSet, templates)).rejects.toThrow(
       'Template "Broken Letter" must have Recipient set to Agency or Debtor.'
+    );
+  });
+});
+
+describe('selectTemplatesForOption', () => {
+  test('rejects options that reference missing template rows', () => {
+    const templates: TemplateSheetRecord[] = [
+      {
+        Correspondence: 'Debtor Letter',
+        Filename: 'Debtor ${First_Name}',
+        Props: '',
+        Link: 'https://example.test/debtor.docx',
+        Recipient: 'Debtor',
+        FieldSet: 'Default',
+      },
+    ];
+
+    expect(() => selectTemplatesForOption(['Debtor Letter', 'Agency Letter'], templates)).toThrow(
+      'No template row configured for: Agency Letter'
     );
   });
 });

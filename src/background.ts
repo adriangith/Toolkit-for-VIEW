@@ -12,11 +12,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 /**
  * Message listener to initiate the correspondence generation process.
  */
-const handleGenerateCorrespondence: ChromeMessageListenerCallback = ({ type, data }: Message,
+const handleGenerateCorrespondence: ChromeMessageListenerCallback = (message: Message,
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: unknown) => void
 ) => {
-    if (type !== 'generateCorrespondence') return;
+    if (message.type !== 'generateCorrespondence') return;
+    const { data } = message;
     (async () => {
         try {
             const correspondenceData = data as backgroundData['data'];
@@ -68,8 +69,9 @@ const handleGenerateCorrespondence: ChromeMessageListenerCallback = ({ type, dat
 
 
 /** Initialise Chrome Storage  */
-const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Message, sender, sendResponse) => {
-    if (type === 'getStorage') {
+const handleChromeStorage: ChromeMessageListenerCallback = (message: Message, sender, sendResponse) => {
+    if (message.type === 'getStorage') {
+        const { data } = message;
         if (data.key) {
             chrome.storage.local.get([data.key])
                 .then((result) => {
@@ -78,7 +80,8 @@ const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Mess
         }
         return true;
     }
-    if (type === 'setStorage') {
+    if (message.type === 'setStorage') {
+        const { data } = message;
         if (data.key) {
             chrome.storage.local.set({ [data.key]: data.value }).then(() => {
                 sendResponse({ success: true });
@@ -88,8 +91,8 @@ const handleChromeStorage: ChromeMessageListenerCallback = ({ type, data }: Mess
     }
 }
 
-const handleBulkActionPopupState: ChromeMessageListenerCallback = ({ type }: Message, sender, sendResponse) => {
-    if (type !== 'isBulkActionPopup') return;
+const handleBulkActionPopupState: ChromeMessageListenerCallback = (message: Message, sender, sendResponse) => {
+    if (message.type !== 'isBulkActionPopup') return;
 
     (async () => {
         const tabId = sender.tab?.id;
@@ -107,8 +110,9 @@ const handleBulkActionPopupState: ChromeMessageListenerCallback = ({ type }: Mes
 }
 
 //** Initialise Background Fetch */
-const handleBackgroundFetch: ChromeMessageListenerCallback = ({ type, data }: Message, sender, sendResponse) => {
-    if (type === 'fetchJSON') {
+const handleBackgroundFetch: ChromeMessageListenerCallback = (message: Message, sender, sendResponse) => {
+    if (message.type === 'fetchJSON') {
+        const { data } = message;
         const handleAsJson = (response: Response) => response.json();
         customFetch(data[0], handleAsJson, data[1]).then(JSONdata => {
             sendResponse(JSONdata);
@@ -116,7 +120,8 @@ const handleBackgroundFetch: ChromeMessageListenerCallback = ({ type, data }: Me
         return true; // keep the messaging channel open for sendResponse
 
     }
-    if (type === 'fetchBase64') {
+    if (message.type === 'fetchBase64') {
+        const { data } = message;
         const handleAsBase64 = (response: Response) => response.blob().then(blob => {
             const reader = new FileReader();
             return new Promise((resolve, reject) => {
@@ -136,8 +141,9 @@ const handleBackgroundFetch: ChromeMessageListenerCallback = ({ type, data }: Me
     }
 }
 
-const handleGenerateXLSX: ChromeMessageListenerCallback = ({ type, data }: Message, sender, sendResponse) => {
-    if (type !== "generateXLSX") return;
+const handleGenerateXLSX: ChromeMessageListenerCallback = (message: Message, sender, sendResponse) => {
+    if (message.type !== "generateXLSX") return;
+    const { data } = message;
 
     // Use provided exportColumns or fall back to default
     const exportColumns = (data as { exportColumns?: XlSXExportColumnDefinition }).exportColumns || fieldsForXLSXexport;
@@ -177,8 +183,9 @@ const handleGenerateXLSX: ChromeMessageListenerCallback = ({ type, data }: Messa
  * Message listener to initiate the obligation preview process for display in WDP.
  */
 function handleWDPPreview(): WDPPreviewProcess {
-    return ({ type, data }, _sender, sendResponse) => {
-        if (type !== "WDPPreviewInitialise") return;
+    return (message, _sender, sendResponse) => {
+        if (message.type !== "WDPPreviewInitialise") return;
+        const { data } = message;
         (async () => {
             await setupOffscreenDocument('html/offscreen.html');
             const message: Message = {
@@ -212,8 +219,9 @@ function handleWDPPreview(): WDPPreviewProcess {
 }
 
 function handleWDPProcess(): WDPPreviewProcess {
-    return ({ type, data }, _sender, sendResponse) => {
-        if (type !== "WDPBatchProcess") return;
+    return (message, _sender, sendResponse) => {
+        if (message.type !== "WDPBatchProcess") return;
+        const { data } = message;
         (async () => {
             await setupOffscreenDocument('html/offscreen.html');
             const message: Message = {
@@ -244,8 +252,9 @@ function handleWDPProcess(): WDPPreviewProcess {
     };
 }
 
-export const bulkAction: ChromeMessageListenerCallback = ({ type, data }: Message, _, sendResponse) => {
-    if (type !== "bulkAction") return;
+export const bulkAction: ChromeMessageListenerCallback = (message: Message, _, sendResponse) => {
+    if (message.type !== "bulkAction") return;
+    const { data } = message;
 
     /**
  * Creates a dedicated message listener for a specific bulk action instance and ensures it's cleaned up

@@ -29,6 +29,7 @@ const VIEWEnvironment = window.location.hostname.split('.')[0].toLowerCase();
 
 import { Input, VIEWDebtorSummaryObligation, TemplateSheetRecord, Button, RadioButton, DropDown, SplitButton } from './types';
 import { movePagerControl } from './utils';
+import { selectTemplatesForOption } from './correspondenceTemplateSelection';
 
 /**
  * Utility to send chrome messages with error handling.
@@ -248,9 +249,7 @@ async function handleGenerateLetter(selectedOption: string | null, table: Table<
         const templateSheetData = await wb.fetchAndConvertXlsxToJson<TemplateSheetRecord>({ Sheet: "Templates" });
         const fieldSetSheetData = await wb.fetchAndConvertXlsxToJson<FieldSetSheetRecord>({ Sheet: "FieldSets" });
 
-        const selectedTemplates = templateSheetData.filter(template =>
-            selectedOptionData.letters.includes(template.Correspondence)
-        );
+        const selectedTemplates = selectTemplatesForOption(selectedOptionData.letters, templateSheetData);
 
         if (selectedTemplates.length === 0) {
             alert('No templates configured for the selected option.');
